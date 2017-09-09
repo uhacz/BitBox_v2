@@ -4,19 +4,72 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bootstrap", "code\bootstrap\bootstrap.vcxproj", "{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}"
+	ProjectSection(ProjectDependencies) = postProject
+		{95B68F9D-6106-44AC-A567-C84925ABF249} = {95B68F9D-6106-44AC-A567-C84925ABF249}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "foundation", "code\foundation\foundation.vcxproj", "{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "system", "system", "{F1CC5A53-273A-4388-AA77-ECC508226680}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "input", "code\input\input.vcxproj", "{15DAE8E3-4C6A-4BD3-895F-546150F7F91E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "window", "code\window\window.vcxproj", "{95B68F9D-6106-44AC-A567-C84925ABF249}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "applications", "applications", "{93ADB045-E958-465D-8FFC-0102475021CC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_app", "code\test_app\test_app.vcxproj", "{BD909449-2803-4004-96D6-32F811382BF0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "application", "application", "{95B07EA6-F88B-4DDA-983D-F5F76089C387}"
+	ProjectSection(SolutionItems) = preProject
+		code\application\application_plugin.h = code\application\application_plugin.h
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}.Debug|x64.ActiveCfg = Debug|x64
 		{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}.Debug|x64.Build.0 = Debug|x64
+		{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}.Debug|x86.ActiveCfg = Debug|x64
 		{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}.Release|x64.ActiveCfg = Release|x64
 		{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}.Release|x64.Build.0 = Release|x64
+		{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}.Release|x86.ActiveCfg = Release|x64
+		{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}.Debug|x64.ActiveCfg = Debug|x64
+		{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}.Debug|x64.Build.0 = Debug|x64
+		{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}.Debug|x86.ActiveCfg = Debug|x64
+		{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}.Release|x64.ActiveCfg = Release|x64
+		{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}.Release|x64.Build.0 = Release|x64
+		{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}.Release|x86.ActiveCfg = Release|x64
+		{15DAE8E3-4C6A-4BD3-895F-546150F7F91E}.Debug|x64.ActiveCfg = Debug|x64
+		{15DAE8E3-4C6A-4BD3-895F-546150F7F91E}.Debug|x64.Build.0 = Debug|x64
+		{15DAE8E3-4C6A-4BD3-895F-546150F7F91E}.Debug|x86.ActiveCfg = Debug|x64
+		{15DAE8E3-4C6A-4BD3-895F-546150F7F91E}.Release|x64.ActiveCfg = Release|x64
+		{15DAE8E3-4C6A-4BD3-895F-546150F7F91E}.Release|x64.Build.0 = Release|x64
+		{15DAE8E3-4C6A-4BD3-895F-546150F7F91E}.Release|x86.ActiveCfg = Release|x64
+		{95B68F9D-6106-44AC-A567-C84925ABF249}.Debug|x64.ActiveCfg = Debug|x64
+		{95B68F9D-6106-44AC-A567-C84925ABF249}.Debug|x64.Build.0 = Debug|x64
+		{95B68F9D-6106-44AC-A567-C84925ABF249}.Debug|x86.ActiveCfg = Debug|x64
+		{95B68F9D-6106-44AC-A567-C84925ABF249}.Release|x64.ActiveCfg = Release|x64
+		{95B68F9D-6106-44AC-A567-C84925ABF249}.Release|x64.Build.0 = Release|x64
+		{95B68F9D-6106-44AC-A567-C84925ABF249}.Release|x86.ActiveCfg = Release|x64
+		{BD909449-2803-4004-96D6-32F811382BF0}.Debug|x64.ActiveCfg = Debug|x64
+		{BD909449-2803-4004-96D6-32F811382BF0}.Debug|x64.Build.0 = Debug|x64
+		{BD909449-2803-4004-96D6-32F811382BF0}.Debug|x86.ActiveCfg = Debug|x64
+		{BD909449-2803-4004-96D6-32F811382BF0}.Release|x64.ActiveCfg = Release|x64
+		{BD909449-2803-4004-96D6-32F811382BF0}.Release|x64.Build.0 = Release|x64
+		{BD909449-2803-4004-96D6-32F811382BF0}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{15DAE8E3-4C6A-4BD3-895F-546150F7F91E} = {F1CC5A53-273A-4388-AA77-ECC508226680}
+		{95B68F9D-6106-44AC-A567-C84925ABF249} = {F1CC5A53-273A-4388-AA77-ECC508226680}
+		{BD909449-2803-4004-96D6-32F811382BF0} = {93ADB045-E958-465D-8FFC-0102475021CC}
 	EndGlobalSection
 EndGlobal

@@ -23,9 +23,6 @@ typedef uint32_t u32;
 typedef int64_t i64;
 typedef uint64_t u64;
 
-typedef uintptr_t uptr;
-typedef intptr_t  iptr;
-
 typedef volatile long		atomic32;
 typedef volatile __int64	atomic64;
 
@@ -99,14 +96,6 @@ union i32x3
     i32x3( i32 a, i32 b, i32 c ) : x( a ), y( b ), z( c ) {}
 };
 
-#ifdef x86
-typedef atomic32 atomic;
-#elif x64
-typedef atomic64 atomic;
-#else
-#error not implemented
-#endif
-
 #define BIT_OFFSET(n) (1<<n)
 #define PTR_TO_U32( p )   ((u32)(uptr) (u32*) (p))
 #define U32_TO_PTR( ui )  ((void *)(u32*)((u32)ui))
@@ -139,10 +128,6 @@ typedef atomic64 atomic;
 	)
 
 
-
-#ifndef alignof
-#define ALIGNOF(x) __alignof(x)
-#endif
 
 #define MAKE_STR(x) MAKE_STR_(x)
 #define MAKE_STR_(x) #x
