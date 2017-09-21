@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdio.h>
+#include "type.h"
 
 #define LOGGER_ENABLED 1
 #define ASSERTION_ENABLED 1

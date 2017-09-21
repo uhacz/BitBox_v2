@@ -1,10 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.15
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bootstrap", "code\bootstrap\bootstrap.vcxproj", "{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}"
 	ProjectSection(ProjectDependencies) = postProject
+		{BD909449-2803-4004-96D6-32F811382BF0} = {BD909449-2803-4004-96D6-32F811382BF0}
 		{95B68F9D-6106-44AC-A567-C84925ABF249} = {95B68F9D-6106-44AC-A567-C84925ABF249}
 	EndProjectSection
 EndProject
@@ -24,6 +25,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "application", "application"
 	ProjectSection(SolutionItems) = preProject
 		code\application\application_plugin.h = code\application\application_plugin.h
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "filesystem", "code\filesystem\filesystem.vcxproj", "{6ECA4FDA-9944-488C-AB29-A0045344878E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -63,6 +66,12 @@ Global
 		{BD909449-2803-4004-96D6-32F811382BF0}.Release|x64.ActiveCfg = Release|x64
 		{BD909449-2803-4004-96D6-32F811382BF0}.Release|x64.Build.0 = Release|x64
 		{BD909449-2803-4004-96D6-32F811382BF0}.Release|x86.ActiveCfg = Release|x64
+		{6ECA4FDA-9944-488C-AB29-A0045344878E}.Debug|x64.ActiveCfg = Debug|x64
+		{6ECA4FDA-9944-488C-AB29-A0045344878E}.Debug|x64.Build.0 = Debug|x64
+		{6ECA4FDA-9944-488C-AB29-A0045344878E}.Debug|x86.ActiveCfg = Debug|x64
+		{6ECA4FDA-9944-488C-AB29-A0045344878E}.Release|x64.ActiveCfg = Release|x64
+		{6ECA4FDA-9944-488C-AB29-A0045344878E}.Release|x64.Build.0 = Release|x64
+		{6ECA4FDA-9944-488C-AB29-A0045344878E}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -71,5 +80,9 @@ Global
 		{15DAE8E3-4C6A-4BD3-895F-546150F7F91E} = {F1CC5A53-273A-4388-AA77-ECC508226680}
 		{95B68F9D-6106-44AC-A567-C84925ABF249} = {F1CC5A53-273A-4388-AA77-ECC508226680}
 		{BD909449-2803-4004-96D6-32F811382BF0} = {93ADB045-E958-465D-8FFC-0102475021CC}
+		{6ECA4FDA-9944-488C-AB29-A0045344878E} = {F1CC5A53-273A-4388-AA77-ECC508226680}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {61F283C3-90AE-4C79-90E3-053613F89E25}
 	EndGlobalSection
 EndGlobal

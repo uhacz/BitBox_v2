@@ -91,6 +91,7 @@
     <ClInclude Include="plugin\plugin_load.h" />
     <ClInclude Include="plugin\plugin_registry.h" />
     <ClInclude Include="queue.h" />
+    <ClInclude Include="thread\semaphore.h" />
     <ClInclude Include="string_util.h" />
     <ClInclude Include="time.h" />
     <ClInclude Include="type.h" />
@@ -102,6 +103,7 @@
     <ClCompile Include="memory\memory.cpp" />
     <ClCompile Include="plugin\plugin_load.cpp" />
     <ClCompile Include="plugin\plugin_registry.cpp" />
+    <ClCompile Include="thread\semaphore.cpp" />
     <ClCompile Include="string_util.cpp" />
     <ClCompile Include="time.cpp" />
   </ItemGroup>

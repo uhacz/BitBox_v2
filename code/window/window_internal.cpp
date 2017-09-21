@@ -146,7 +146,7 @@ namespace bx
         }
 
         Window* win = BX_NEW( allocator, Window );
-        win->win.GetSystemHandle = _GetSystemHandle;
+        win->win.GetSystemHandle = _GetSystemHandle;  
         strcpy_s( win->win.name, BXWindow::NAME_LEN, name );
 
         win->hwnd = hwnd;
@@ -186,6 +186,44 @@ namespace bx
         BX_DELETE0( allocator, win_internal );
     }
 
+	bool WindowAddCallback(BXWindow* win, BXWin32WindowCallback function_ptr, void * user_data)
+	{
+		SYS_ASSERT(function_ptr != nullptr);
+		
+		Window* win_internal = (Window*)win;
+		if (win_internal->num_callbacks >= bx::Window::MAX_MSG_CALLBACKS)
+			return false;
+
+		const uint32_t index = win_internal->num_callbacks++;
+		win_internal->callbacks[index] = function_ptr;
+		win_internal->callbacks_user_data[index] = user_data;
+		
+		return true;
+	}
+
+	void WindowRemoveCallback(BXWindow* win, BXWin32WindowCallback function_ptr)
+	{
+		if (!function_ptr)
+			return;
+
+		Window* win_internal = (Window*)win;
+
+		for (uintptr_t i = 0; i < win_internal->num_callbacks; )
+		{
+			if (function_ptr == win_internal->callbacks[i])
+			{
+				const uint32_t last_index = win_internal->num_callbacks - 1;
+				win_internal->callbacks[i] = win_internal->callbacks[last_index];
+				win_internal->callbacks_user_data[i] = win_internal->callbacks_user_data[last_index];
+				win_internal->num_callbacks -= 1;
+			}
+			else
+			{
+				++i;
+			}
+		}
+	}
+
     LRESULT CALLBACK DefaultWindowMessageProc( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam )
     {
         Window* win = (Window*)GetWindowLongPtr( hwnd, GWLP_USERDATA );
@@ -194,18 +232,12 @@ namespace bx
             return DefWindowProc( hwnd, msg, wParam, lParam );
         }
 
-    #if 0
-        int processed = 0;
-        for( int i = 0; i < win->numWinMsgCallbacks && !processed; ++i )
-        {
-            processed = ( *__window->winMsgCallbacks[i] )( hwnd, msg, wParam, lParam );
-        }
-        if( processed )
-        {
-            return DefWindowProc( hwnd, msg, wParam, lParam );
-        }
-    #endif
-
+		int processed = 0;
+		for (uint32_t i = 0; i < win->num_callbacks; ++i)
+			processed |= win->callbacks[i]( (uintptr_t)hwnd, msg, wParam, lParam, win->callbacks_user_data[i] );
+		
+		if (processed)
+			return DefWindowProc(hwnd, msg, wParam, lParam);
 
 
         static bool lButtonPressed = false;

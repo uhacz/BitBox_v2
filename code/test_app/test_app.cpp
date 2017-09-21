@@ -16,7 +16,7 @@ bool BXTestApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloca
 {
     if( win->input.IsKeyPressedOnce( BXInput::eKEY_ESC ) )
         return false;
-
+	 
     return true;
 }
 
