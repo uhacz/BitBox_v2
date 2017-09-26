@@ -17,6 +17,13 @@
 #include <test_app/test_app.h>
 #include "foundation/time.h"
 
+/*
+<boot>
+<rootDir path=""/>
+</boot>
+
+*/
+
 int main( int argc, const char** argv )
 {
     // --- startup
@@ -30,7 +37,7 @@ int main( int argc, const char** argv )
     BXWindow* window = window_plug->Create( "BitBox", 1600, 900, false, default_allocator );
 
     BXIApplication* app_plug = (BXIApplication*)BXPluginLoad( plug_reg, BX_APPLICATION_PLUGIN_NAME_test_app(), default_allocator );
-    if( app_plug->Startup( argc, argv, default_allocator ) )
+    if( app_plug->Startup( argc, argv, plug_reg, default_allocator ) )
     {
         HWND hwnd = (HWND)window->GetSystemHandle( window );
 
@@ -76,7 +83,7 @@ int main( int argc, const char** argv )
     }// --- if
 
     // --- shutdown
-    app_plug->Shutdown( default_allocator );
+    app_plug->Shutdown( plug_reg, default_allocator );
     window_plug->Release( window, default_allocator );
 
     BXPluginUnload( plug_reg, BX_APPLICATION_PLUGIN_NAME_test_app(), default_allocator );

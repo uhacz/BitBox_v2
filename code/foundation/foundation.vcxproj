@@ -84,6 +84,7 @@
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="id_array.h" />
     <ClInclude Include="id_table.h" />
+    <ClInclude Include="io.h" />
     <ClInclude Include="memory\allocator.h" />
     <ClInclude Include="memory\dlmalloc.h" />
     <ClInclude Include="memory\memory.h" />
@@ -99,6 +100,7 @@
   <ItemGroup>
     <ClCompile Include="debug.c" />
     <ClCompile Include="hash.cpp" />
+    <ClCompile Include="io.cpp" />
     <ClCompile Include="memory\dlmalloc.c" />
     <ClCompile Include="memory\memory.cpp" />
     <ClCompile Include="plugin\plugin_load.cpp" />

@@ -7,6 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bootstrap", "code\bootstrap
 	ProjectSection(ProjectDependencies) = postProject
 		{BD909449-2803-4004-96D6-32F811382BF0} = {BD909449-2803-4004-96D6-32F811382BF0}
 		{95B68F9D-6106-44AC-A567-C84925ABF249} = {95B68F9D-6106-44AC-A567-C84925ABF249}
+		{6ECA4FDA-9944-488C-AB29-A0045344878E} = {6ECA4FDA-9944-488C-AB29-A0045344878E}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "foundation", "code\foundation\foundation.vcxproj", "{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}"
@@ -20,6 +21,9 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "applications", "applications", "{93ADB045-E958-465D-8FFC-0102475021CC}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_app", "code\test_app\test_app.vcxproj", "{BD909449-2803-4004-96D6-32F811382BF0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6ECA4FDA-9944-488C-AB29-A0045344878E} = {6ECA4FDA-9944-488C-AB29-A0045344878E}
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "application", "application", "{95B07EA6-F88B-4DDA-983D-F5F76089C387}"
 	ProjectSection(SolutionItems) = preProject

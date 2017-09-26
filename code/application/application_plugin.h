@@ -22,10 +22,11 @@ PLUGIN_EXPORT void BXUnload_##name( void* ptr, BXIAllocator* allocator )\
 }
 
 struct BXWindow;
+struct BXPluginRegistry;
 struct BXIApplication
 {
-    virtual bool Startup( int argc, const char** argv, BXIAllocator* allocator ) = 0;
-    virtual void Shutdown( BXIAllocator* allocator ) = 0;
+    virtual bool Startup( int argc, const char** argv, BXPluginRegistry* plugins,BXIAllocator* allocator ) = 0;
+    virtual void Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator ) = 0;
     virtual bool Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocator* allocator ) = 0;
 };
 

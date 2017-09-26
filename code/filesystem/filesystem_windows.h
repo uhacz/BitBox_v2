@@ -2,6 +2,7 @@
 
 #include "filesystem_plugin.h"
 
+#include <foundation/debug.h>
 #include <foundation/id_table.h>
 #include <foundation/thread/semaphore.h>
 #include <thread>
@@ -37,16 +38,17 @@ namespace bx
 	struct FileInputInfo
 	{
 		FsName _name;
-		BXFilesystem::EMode _mode;
+		BXIFilesystem::EMode _mode;
 	};
 
-struct FilesystemWindows : BXFilesystem
+struct FilesystemWindows : BXIFilesystem
 {
 	FilesystemWindows( BXIAllocator* allocator );
 
 	bool		 Startup();
 	void		 Shutdown();
 	// --- interface
+	bool		 IsValid( BXFileHandle fhandle );
 	void		 SetRoot( const char* absoluteDirPath ) override final;
 	BXFileHandle LoadFile( const char* relativePath, EMode mode ) override final;
 	void		 CloseFile( BXFileHandle fhandle, bool freeData ) override final;
@@ -55,6 +57,8 @@ struct FilesystemWindows : BXFilesystem
 	// ---
 	static void ThreadProcStatic( FilesystemWindows* fs );
 	void ThreadProc();
+
+	// ---
 
 	// --- data
 	enum
@@ -75,7 +79,7 @@ struct FilesystemWindows : BXFilesystem
 	BXFile        _files[MAX_HANDLES] = {};
 
 	queue_t<BXFileHandle>  _to_load;
-	queue_t<BXFileHandle>  _to_unload;
+	queue_t<BXFile>		   _to_unload;
 
 	std::mutex _to_load_lock;
 	std::mutex _to_unload_lock;
