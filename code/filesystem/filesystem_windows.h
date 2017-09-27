@@ -7,9 +7,12 @@
 #include <foundation/thread/semaphore.h>
 #include <thread>
 #include <mutex>
+#include <atomic>
 
 namespace bx
 {
+
+
 	struct FsName
 	{
 		enum
@@ -48,11 +51,11 @@ struct FilesystemWindows : BXIFilesystem
 	bool		 Startup();
 	void		 Shutdown();
 	// --- interface
-	bool		 IsValid( BXFileHandle fhandle );
-	void		 SetRoot( const char* absoluteDirPath ) override final;
-	BXFileHandle LoadFile( const char* relativePath, EMode mode ) override final;
-	void		 CloseFile( BXFileHandle fhandle, bool freeData ) override final;
-	BXFile		 File( BXFileHandle fhandle ) override final;
+	bool			 IsValid( BXFileHandle fhandle );
+	void			 SetRoot( const char* absoluteDirPath ) override final;
+	BXFileHandle	 LoadFile( const char* relativePath, EMode mode ) override final;
+	void			 CloseFile( BXFileHandle fhandle, bool freeData ) override final;
+	BXEFileStatus::E File( BXFile* file, BXFileHandle fhandle ) override final;
 
 	// ---
 	static void ThreadProcStatic( FilesystemWindows* fs );
@@ -75,8 +78,9 @@ struct FilesystemWindows : BXIFilesystem
 	IdManager     _ids;
 	std::mutex    _id_lock;
 	
-	FileInputInfo _input_info[MAX_HANDLES] = {};
-	BXFile        _files[MAX_HANDLES] = {};
+	FileInputInfo		_input_info  [MAX_HANDLES] = {};
+	BXFile				_files       [MAX_HANDLES] = {};
+	std::atomic_int32_t _files_status[MAX_HANDLES] = {};
 
 	queue_t<BXFileHandle>  _to_load;
 	queue_t<BXFile>		   _to_unload;

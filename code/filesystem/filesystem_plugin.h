@@ -8,25 +8,33 @@
 struct BXFileHandle { uint32_t i = 0; };
 inline bool IsValid( BXFileHandle h ) { return h.i != 0; }
 
+namespace BXEFileStatus
+{
+	enum E : int32_t
+	{
+		EMPTY = 0,
+		NOT_FOUND,
+		LOADING,
+		READY,
+	};
+}//
+
 struct BXFile
 {
-	enum EStatus : int32_t
-	{
-		STATUS_NOT_FOUND = -1,
-		STATUS_READY = 0,
-		STATUS_LOADING,
-		STATUS_EMPTY,
-	};
-
 	union
 	{
 		void* pointer = nullptr;
 		uint8_t* bin;
 		const char* txt;
 	};
-
 	uint32_t size = 0;
-	volatile long status = STATUS_EMPTY;
+};
+
+struct BXFileWaitResult
+{
+	BXEFileStatus::E status;
+	BXFileHandle handle;
+	BXFile file;
 };
 
 // --- 
@@ -40,12 +48,15 @@ struct BXIFilesystem
 
 	virtual ~BXIFilesystem() {}
 
-	virtual void		 SetRoot  ( const char* absoluteDirPath )          = 0;
-	virtual BXFileHandle LoadFile ( const char* relativePath, EMode mode ) = 0;
-	virtual void		 CloseFile( BXFileHandle fhandle, bool freeData)   = 0;
-	virtual BXFile		 File     ( BXFileHandle fhandle)                  = 0;
+	virtual void			 SetRoot  ( const char* absoluteDirPath )                  = 0;
+	virtual BXFileHandle	 LoadFile ( const char* relativePath, EMode mode )         = 0;
+	virtual void			 CloseFile( BXFileHandle fhandle, bool freeData = true )   = 0;
+	virtual BXEFileStatus::E File     ( BXFile* file, BXFileHandle fhandle)            = 0;
 
+	BXFileWaitResult (*LoadFileSync)( BXIFilesystem* fs, const char* relativePath, EMode mode );
 };
+
+
 
 extern "C" {          // we need to export the C interface
 

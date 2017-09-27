@@ -4,16 +4,6 @@
 #include <foundation/queue.h>
 #include <foundation/io.h>
 
-#include <atomic>
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-
 namespace bx
 {
 
@@ -97,12 +87,15 @@ BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, EMode mode )
 	id = id_table::create( _ids );
 	_id_lock.unlock();
 
+	_files_status[id.index].store( BXEFileStatus::LOADING );
+
 	FileInputInfo& info = _input_info[id.index];
 	info._mode = mode;
 	info._name.Clear();
 	info._name.AppendRelativePath( relativePath );
 
-	BXFileHandle fhandle = { id.hash };
+	BXFileHandle fhandle;
+	fhandle.i = id.hash;
 
 	_to_load_lock.lock();
 	queue::push_back( _to_load, fhandle );
@@ -118,6 +111,8 @@ void FilesystemWindows::CloseFile( BXFileHandle fhandle, bool freeData )
 		return;
 
 	const id_t id = { fhandle.i };
+	_files_status[id.index].store( BXEFileStatus::EMPTY );
+
 	BXFile file = _files[id.index];
 
 	_id_lock.lock();
@@ -130,13 +125,18 @@ void FilesystemWindows::CloseFile( BXFileHandle fhandle, bool freeData )
 	_semaphore.signal();
 }
 
-BXFile FilesystemWindows::File( BXFileHandle fhandle )
+BXEFileStatus::E FilesystemWindows::File( BXFile* file, BXFileHandle fhandle )
 {
 	if( !IsValid( fhandle ) )
-		return BXFile();
+		return BXEFileStatus::EMPTY;
 
 	const id_t id = { fhandle.i };
-	return _files[id.index];
+
+	BXEFileStatus::E status = (BXEFileStatus::E)_files_status[id.index].load();
+	if( status == BXEFileStatus::READY )
+		file[0] = _files[id.index];
+
+	return status;
 }
 
 void FilesystemWindows::ThreadProcStatic( FilesystemWindows* fs )
@@ -187,10 +187,8 @@ void FilesystemWindows::ThreadProc()
 				else if( info._mode == BXIFilesystem::FILE_MODE_TXT )
 					result = ReadTextFile( &file.bin, &file.size, path.AbsolutePath(), _allocator );
 
-				if( result == IO_OK )
-					InterlockedExchange( &file.status, (LONG)BXFile::STATUS_READY );
-				else
-					InterlockedExchange( &file.status, (LONG)BXFile::STATUS_NOT_FOUND );
+				const BXEFileStatus::E file_status = (result == IO_OK) ? BXEFileStatus::READY : BXEFileStatus::NOT_FOUND;
+				_files_status[id.index].store( file_status );
 			}
 			else
 			{

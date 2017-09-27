@@ -14,6 +14,8 @@
 #include <window/window_interface.h>
 #include <window/window.h>
 
+#include <filesystem/filesystem_plugin.h>
+
 #include <test_app/test_app.h>
 #include "foundation/time.h"
 
@@ -32,6 +34,8 @@ int main( int argc, const char** argv )
     
     BXPluginRegistry* plug_reg = nullptr;
     BXPluginRegistryStartup( &plug_reg, default_allocator );
+
+	BXPluginLoad( plug_reg, BX_FILESYSTEM_PLUGIN_NAME, default_allocator );
 
     BXIWindow* window_plug = (BXIWindow*)BXPluginLoad( plug_reg, BX_WINDOW_PLUGIN_NAME, default_allocator );
     BXWindow* window = window_plug->Create( "BitBox", 1600, 900, false, default_allocator );
@@ -88,6 +92,7 @@ int main( int argc, const char** argv )
 
     BXPluginUnload( plug_reg, BX_APPLICATION_PLUGIN_NAME_test_app(), default_allocator );
     BXPluginUnload( plug_reg, BX_WINDOW_PLUGIN_NAME, default_allocator );
+	BXPluginUnload( plug_reg, BX_FILESYSTEM_PLUGIN_NAME, default_allocator );
 
     BXPluginRegistryShutdown( &plug_reg, default_allocator );
     BXMemoryShutDown( &default_allocator );
