@@ -5,21 +5,21 @@
 #include "../debug.h"
 #include <string.h>
 
-static u64 CreatePluginNameHash( const char* name )
+static uint64_t CreatePluginNameHash( const char* name )
 {
-    const u32 len = (u32)strlen( name );
-    const u32 lo = murmur3_hash32( name, len, 0x666 );
-    const u32 hi = murmur3_hash32( name, len, lo );
+    const uint32_t len = (uint32_t)strlen( name );
+    const uint32_t lo = murmur3_hash32( name, len, 0x666 );
+    const uint32_t hi = murmur3_hash32( name, len, lo );
 
-    return u64( hi ) << 32 | u64( lo );
+    return uint64_t( hi ) << 32 | uint64_t( lo );
 
     //
     //SYS_ASSERT( len <= 8 );
     //
     //union
     //{
-    //    u64 tag64;
-    //    u8 tag8[8];
+    //    uint64_t tag64;
+    //    uint8_t tag8[8];
     //};
     //memcpy( tag8, name, len );
     //for( size_t i = len; i < 8; ++i )
@@ -32,7 +32,7 @@ struct BXPluginRegistry
 {
     using Plugins = hash_t<void*>;
     Plugins _plugs;
-    u32 _count = 0;
+    uint32_t _count = 0;
 
     BXPluginRegistry( BXIAllocator* allocator )
         : _plugs( allocator )
@@ -41,7 +41,7 @@ struct BXPluginRegistry
 
 void BXAddPlugin( BXPluginRegistry* reg, const char* name, void* plugin )
 {
-    const u64 name_hash = CreatePluginNameHash( name );
+    const uint64_t name_hash = CreatePluginNameHash( name );
 
     SYS_ASSERT( hash::has( reg->_plugs, name_hash ) == false );
     hash::set( reg->_plugs, name_hash, plugin );        
@@ -50,7 +50,7 @@ void BXAddPlugin( BXPluginRegistry* reg, const char* name, void* plugin )
 
 void BXRemovePlugin( BXPluginRegistry* reg, const char* name )
 {
-    const u64 name_hash = CreatePluginNameHash( name );
+    const uint64_t name_hash = CreatePluginNameHash( name );
     if( !hash::has( reg->_plugs, name_hash ) )
         return;
     
@@ -61,7 +61,7 @@ void BXRemovePlugin( BXPluginRegistry* reg, const char* name )
 
 void* BXGetPlugin( BXPluginRegistry* reg, const char* name )
 {
-    const u64 name_hash = CreatePluginNameHash( name );
+    const uint64_t name_hash = CreatePluginNameHash( name );
 
     void* null_plugin = nullptr;
     void* plugin = hash::get( reg->_plugs, name_hash, null_plugin );

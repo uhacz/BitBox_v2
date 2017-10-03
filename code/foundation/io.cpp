@@ -35,10 +35,10 @@ int32_t ReadFile( uint8_t** outBuffer, uint32_t* outSizeInBytes, const char* pat
 	}
 
 	fseek( f, 0, SEEK_END );
-	u32 sizeInBytes = (u32)ftell( f );
+	uint32_t sizeInBytes = (uint32_t)ftell( f );
 	fseek( f, 0, SEEK_SET );
 
-	u8* buf = (u8*)BX_MALLOC( allocator, sizeInBytes, 1 );
+	uint8_t* buf = (uint8_t*)BX_MALLOC( allocator, sizeInBytes, 1 );
 	SYS_ASSERT( buf && "out of memory?" );
 	size_t readBytes = fread( buf, 1, sizeInBytes, f );
 	SYS_ASSERT( readBytes == sizeInBytes );
@@ -59,10 +59,10 @@ int32_t ReadTextFile( uint8_t** outBuffer, uint32_t* outSizeInBytes, const char*
 	}
 
 	fseek( f, 0, SEEK_END );
-	u32 sizeInBytes = (u32)ftell( f );
+	uint32_t sizeInBytes = (uint32_t)ftell( f );
 	fseek( f, 0, SEEK_SET );
 
-	u8* buf = (u8*)BX_MALLOC( allocator, sizeInBytes + 1, 1 );
+	uint8_t* buf = (uint8_t*)BX_MALLOC( allocator, sizeInBytes + 1, 1 );
 	SYS_ASSERT( buf && "out of memory?" );
 	size_t readBytes = fread( buf, 1, sizeInBytes, f );
 	SYS_ASSERT( readBytes == sizeInBytes );
@@ -96,9 +96,9 @@ int32_t WriteFile( const char* absPath, uint8_t* buf, uint32_t sizeInBytes )
 }
 int32_t CopyFile( const char* absDstPath, const char* absSrcPath, BXIAllocator* allocator )
 {
-	u8* buf = 0;
+	uint8_t* buf = 0;
 	uint32_t len = 0;
-	i32 res = ReadFile( &buf, &len, absSrcPath, allocator );
+	int32_t res = ReadFile( &buf, &len, absSrcPath, allocator );
 	if( res == IO_OK )
 	{
 		WriteFile( absDstPath, buf, len );

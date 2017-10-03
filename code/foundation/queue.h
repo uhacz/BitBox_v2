@@ -5,20 +5,20 @@
 namespace queue_internal
 {
     // Can only be used to increase the capacity.
-    template< typename T > void _IncreaseCapacity( queue_t<T>& q, u32 newCapacity)
+    template< typename T > void _IncreaseCapacity( queue_t<T>& q, uint32_t newCapacity)
     {
-        u32 end = q.size;
+        uint32_t end = q.size;
         array_internal::_Grow( q.data, newCapacity );
         q.data.size = newCapacity;
         if ( q.offset +  q.size > end) 
         {
-            u32 end_items = end - q.offset;
+            uint32_t end_items = end - q.offset;
             memmove( array::begin( q.data ) + newCapacity - end_items, array::begin( q.data ) + q.offset, end_items * sizeof(T) );
             q.offset += newCapacity - end;
         }
     }
 
-    template< typename T > void grow( queue_t<T>& q, u32 minCapacity = 0)
+    template< typename T > void grow( queue_t<T>& q, uint32_t minCapacity = 0)
     {
         uint32_t newCapacity = q.size * 2 + 8;
         if (newCapacity < minCapacity)
@@ -37,13 +37,13 @@ namespace queue
 
     template< typename T > void      clear( queue_t<T>& q ) { q.size = 0; }
     template< typename T > bool      empty( const queue_t<T>& q ) { return q.size == 0; }
-    template< typename T > u32       size ( const queue_t<T>& q ) { return q.size; }
+    template< typename T > uint32_t       size ( const queue_t<T>& q ) { return q.size; }
 
     /// Returns the ammount of free space in the queue/ring buffer.
     /// This is the number of items we can push before the queue needs to grow.
-    template< typename T > u32      space ( const queue_t<T>& q ) { return q.data.size - q.size; }
+    template< typename T > uint32_t      space ( const queue_t<T>& q ) { return q.data.size - q.size; }
     
-    template< typename T > void reserve( queue_t<T>& q, u32 size )
+    template< typename T > void reserve( queue_t<T>& q, uint32_t size )
     {
         if ( size > q.size )
         {
@@ -80,21 +80,21 @@ namespace queue
     }
 
     /// Consumes n items from the front of the queue.
-    template< typename T > void consume( queue_t<T>& q, u32 n )
+    template< typename T > void consume( queue_t<T>& q, uint32_t n )
     {
         q.offset = (q.offset + n) % q.data.size;
         q.size -= n;
     }
     
     /// Pushes n items to the back of the queue.
-    template< typename T > void push( queue_t<T>& q, const T *items, u32 n )
+    template< typename T > void push( queue_t<T>& q, const T *items, uint32_t n )
     {
         if ( space(q) < n )
             grow( q, size(q) + n );
 
-        const u32 size = q.data.size;
-        const u32 insert = (q.offset + q.size) % size;
-        u32 to_insert = n;
+        const uint32_t size = q.data.size;
+        const uint32_t insert = (q.offset + q.size) % size;
+        uint32_t to_insert = n;
 
         if ( insert + to_insert > size )
             to_insert = size - insert;

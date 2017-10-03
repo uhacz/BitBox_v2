@@ -6,8 +6,8 @@
 template< typename T >
 struct array_t
 {
-    u32 size;
-    u32 capacity;
+    uint32_t size;
+    uint32_t capacity;
     BXIAllocator* allocator;
     T* data;
     
@@ -34,8 +34,8 @@ template< typename T >
 struct queue_t
 {
     array_t<T> data;
-    u32 size;
-    u32 offset;
+    uint32_t size;
+    uint32_t offset;
 
     explicit queue_t( BXIAllocator* alloc )
         : data( alloc ) , size( 0 ) , offset( 0 )
@@ -57,8 +57,8 @@ public:
     {}
 
     struct Entry {
-        u64 key;
-        u32 next;
+        uint64_t key;
+        uint32_t next;
         T value;
     };
 
@@ -70,58 +70,58 @@ public:
 #define BX_INVALID_ID UINT16_MAX
 union id_t
 {
-    u32 hash;
+    uint32_t hash;
     struct{
-        u16 id;
-        u16 index;
+        uint16_t id;
+        uint16_t index;
     };
 };
 inline bool operator == ( id_t a, id_t b ) { return a.hash == b.hash; }
 
-inline id_t make_id( u32 hash ){
+inline id_t make_id( uint32_t hash ){
     id_t id = { hash };
     return id;
 }
 
-template <u32 MAX, typename Tid = id_t >
+template <uint32_t MAX, typename Tid = id_t >
 struct id_array_t
 {
     id_array_t() : _freelist( BX_INVALID_ID ) , _next_id( 0 ) , _size( 0 )
     {
-        for( u32 i = 0; i < MAX; i++ )
+        for( uint32_t i = 0; i < MAX; i++ )
         {
             _sparse[i].id = BX_INVALID_ID;
         }
     }
 
-    //T& operator[]( u32 index );
-    //const T& operator[]( u32 index ) const;
+    //T& operator[]( uint32_t index );
+    //const T& operator[]( uint32_t index ) const;
 
-    u16 _freelist;
-    u16 _next_id;
-    u16 _size;
+    uint16_t _freelist;
+    uint16_t _next_id;
+    uint16_t _size;
 
     Tid _sparse[MAX];
-    u16 _sparse_to_dense[MAX];
-    u16 _dense_to_sparse[MAX];
+    uint16_t _sparse_to_dense[MAX];
+    uint16_t _dense_to_sparse[MAX];
     //T _objects[MAX];
 };
 
-template <u32 MAX, typename Tid = id_t>
+template <uint32_t MAX, typename Tid = id_t>
 struct id_table_t
 {
     id_table_t() : _freelist( BX_INVALID_ID ) , _next_id( 0 ) , _size( 0 )
     {
-        for( u32 i = 0; i < MAX; i++ )
+        for( uint32_t i = 0; i < MAX; i++ )
         {
             _ids[i].id = BX_INVALID_ID;
         }
     }
 
-    u16 _freelist;
+    uint16_t _freelist;
 
-    u16 _next_id;
-    u16 _size;
+    uint16_t _next_id;
+    uint16_t _size;
 
     Tid _ids[MAX];
 };

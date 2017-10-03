@@ -52,7 +52,7 @@ int main( int argc, const char** argv )
         do
         {
             BXTimeQuery::End( &time_query );
-            const u64 delta_time_us = time_query.duration_US;
+            const uint64_t delta_time_us = time_query.duration_US;
             time_query = BXTimeQuery::Begin();
 
             MSG msg = { 0 };

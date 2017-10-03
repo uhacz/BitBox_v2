@@ -2,7 +2,7 @@
 
 #include "containers.h"
 
-#define BX_ID_TABLE_T_DEF u32 MAX, typename Tid
+#define BX_ID_TABLE_T_DEF uint32_t MAX, typename Tid
 #define BX_ID_TABLE_T_ARG MAX, Tid
 
 namespace id_table
@@ -50,7 +50,7 @@ namespace id_table
     }
 
     template <BX_ID_TABLE_T_DEF>
-    inline id_t id( const id_table_t<BX_ID_TABLE_T_ARG>& a, u32 index )
+    inline id_t id( const id_table_t<BX_ID_TABLE_T_ARG>& a, uint32_t index )
     {
         SYS_ASSERT( index < MAX );
         SYS_ASSERT( a._ids[index].index == index );
@@ -58,7 +58,7 @@ namespace id_table
     }
 
     template <BX_ID_TABLE_T_DEF>
-    inline u16 size( const id_table_t<BX_ID_TABLE_T_ARG>& a )
+    inline uint16_t size( const id_table_t<BX_ID_TABLE_T_ARG>& a )
     {
         return a._size;
     }

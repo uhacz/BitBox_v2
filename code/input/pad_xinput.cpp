@@ -47,8 +47,8 @@ namespace bx
             _GetAnalogStickValue( &pad->analog.L2, xstate.Gamepad.bLeftTrigger, analog_trigger_magnitude_inv, XINPUT_GAMEPAD_TRIGGER_THRESHOLD );
             _GetAnalogStickValue( &pad->analog.R2, xstate.Gamepad.bRightTrigger, analog_trigger_magnitude_inv, XINPUT_GAMEPAD_TRIGGER_THRESHOLD );
 
-            u16 src_buttons = xstate.Gamepad.wButtons;
-            u32 buttons = 0;
+            uint16_t src_buttons = xstate.Gamepad.wButtons;
+            uint32_t buttons = 0;
 
             if( src_buttons & XINPUT_GAMEPAD_DPAD_UP )
                 buttons |= BXInput::PadState::eUP;
@@ -90,7 +90,7 @@ namespace bx
     }///
 }//
 
-void InputUpdatePad_XInput( BXInput::Pad* pads, u32 n )
+void InputUpdatePad_XInput( BXInput::Pad* pads, uint32_t n )
 {
     DWORD dwResult;
     for( DWORD i = 0; i < n; i++ )

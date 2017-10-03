@@ -5,7 +5,7 @@
 
 namespace bx
 {
-    static void _AdjustWindowSize( HWND hwnd, HWND parent_hwnd, u32 width, u32 height, bool full_screen )
+    static void _AdjustWindowSize( HWND hwnd, HWND parent_hwnd, uint32_t width, uint32_t height, bool full_screen )
     {
         int screen_width = GetSystemMetrics( SM_CXSCREEN );
         int screen_height = GetSystemMetrics( SM_CYSCREEN );

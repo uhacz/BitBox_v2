@@ -45,48 +45,48 @@ struct BXInput
 
         struct
         {
-            f32 left_X = 0;
-            f32 left_Y = 0;
-            f32 right_X = 0;
-            f32 right_Y = 0;
+            float32_t left_X = 0;
+            float32_t left_Y = 0;
+            float32_t right_X = 0;
+            float32_t right_Y = 0;
 
-            f32 L2 = 0;
-            f32 R2 = 0;
+            float32_t L2 = 0;
+            float32_t R2 = 0;
         } analog;
 
         struct
         {
-            u32 buttons = 0;
+            uint32_t buttons = 0;
         } digital;
 
-        u32 connected = 0;
+        uint32_t connected = 0;
     };
 
     // --- 
     struct KeyboardState
     {
-        u8 keys[256] = {};
+        uint8_t keys[256] = {};
     };
 
     // --- 
     struct MouseState
     {
-        u16 x = 0;
-        u16 y = 0;
-        i16 dx = 0;
-        i16 dy = 0;
+        uint16_t x = 0;
+        uint16_t y = 0;
+        int16_t dx = 0;
+        int16_t dy = 0;
 
-        u8 lbutton = 0;
-        u8 mbutton = 0;
-        u8 rbutton = 0;
-        i8 wheel = 0;
+        uint8_t lbutton = 0;
+        uint8_t mbutton = 0;
+        uint8_t rbutton = 0;
+        int8_t  wheel = 0;
     };
 
     /////////////////////////////////////////////////////////////////
     struct Pad
     {
         PadState state[2];
-        u32 current_state_index = 0;
+        uint32_t current_state_index = 0;
 
               PadState* CurrentState ()       { return &state[current_state_index]; }
         const PadState& CurrentState () const { return state[current_state_index]; }
@@ -96,7 +96,7 @@ struct BXInput
     struct Keyboard
     {
         KeyboardState state[2];
-        u32 current_state_index = 0;
+        uint32_t current_state_index = 0;
 
               KeyboardState* CurrentState ()       { return &state[current_state_index]; }
         const KeyboardState& CurrentState () const { return state[current_state_index]; }
@@ -150,21 +150,21 @@ struct BXInput
     {
         return pad;
     }
-    inline bool IsPadButtonPressedOnce( u16 button_mask ) const
+    inline bool IsPadButtonPressedOnce( uint16_t button_mask ) const
     {
         const PadState& prev_state = pad.PreviousState();
         const PadState& curr_state = pad.CurrentState();
 
-        const u16 prev = prev_state.digital.buttons & button_mask;
-        const u16 curr = curr_state.digital.buttons & button_mask;
+        const uint16_t prev = prev_state.digital.buttons & button_mask;
+        const uint16_t curr = curr_state.digital.buttons & button_mask;
 
         return !prev && curr;
     }
 
-    inline bool IsPadButtonPressed( u16 button_mask ) const
+    inline bool IsPadButtonPressed( uint16_t button_mask ) const
     {
         const PadState& curr_state = pad.CurrentState();
-        const u16 curr = curr_state.digital.buttons & button_mask;
+        const uint16_t curr = curr_state.digital.buttons & button_mask;
         return curr != 0;
     }
 };
@@ -173,4 +173,4 @@ struct BXInput
 void InputClear( BXInput* input, bool keys, bool mouse, bool pad );
 void InputSwap( BXInput* input );
 
-void InputUpdatePad_XInput( BXInput::Pad* pads, u32 n );
+void InputUpdatePad_XInput( BXInput::Pad* pads, uint32_t n );

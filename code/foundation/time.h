@@ -4,12 +4,12 @@
 
 struct BXTime
 {
-    static u64 GlobalTimeMS();
-    static u64 GlobalTimeUS();
+    static uint64_t GlobalTimeMS();
+    static uint64_t GlobalTimeUS();
 
-    static void Sleep( u64 ms );
+    static void Sleep( uint64_t ms );
 
-    static inline double ToSeconds( u64 ms )
+    static inline double ToSeconds( uint64_t ms )
     {
         return double( ms ) * 0.000001;
     }
@@ -17,16 +17,16 @@ struct BXTime
 
 struct BXTimeQuery
 {
-    u64 tick_start = 0;
-    u64 tick_stop = 0;
-    u64 duration_US = 0;
+    uint64_t tick_start = 0;
+    uint64_t tick_stop = 0;
+    uint64_t duration_US = 0;
 
     static BXTimeQuery Begin();
     static void End( BXTimeQuery* tq );
 
     bool IsRunning() const { return tick_start != 0; }
 
-    inline u64 DurationMS() const
+    inline uint64_t DurationMS() const
     {
         return duration_US / 1000;
     }

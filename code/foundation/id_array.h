@@ -1,6 +1,6 @@
 #include "containers.h"
 
-#define BX_ID_ARRAY_T_DEF u32 MAX, typename Tid
+#define BX_ID_ARRAY_T_DEF uint32_t MAX, typename Tid
 #define BX_ID_ARRAY_T_ARG MAX, Tid
 
 namespace id_array
@@ -44,13 +44,13 @@ namespace id_array
         a._freelist = id.index;
 
         // Swap with last element
-        const u32 last = a._size - 1;
+        const uint32_t last = a._size - 1;
         SYS_ASSERT_TXT( last >= a._sparse_to_dense[id.index], "Swapping with previous item" );
         //a._objects[a._sparse_to_dense[id.index]] = a._objects[last];
 
         // Update tables
-        u16 std = a._sparse_to_dense[id.index];
-        u16 dts = a._dense_to_sparse[last];
+        uint16_t std = a._sparse_to_dense[id.index];
+        uint16_t dts = a._dense_to_sparse[last];
         a._sparse_to_dense[dts] = std;
         a._dense_to_sparse[std] = dts;
         a._size--;
@@ -61,7 +61,7 @@ namespace id_array
     {
         while( a._size )
         {
-            const u32 last = a._size - 1;
+            const uint32_t last = a._size - 1;
             Tid lastId = a._sparse[a._dense_to_sparse[last]];
             destroy( a, lastId );
         }
@@ -82,32 +82,32 @@ namespace id_array
     }
 
     template <BX_ID_ARRAY_T_DEF>
-    inline u32 size( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
+    inline uint32_t size( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
     {
         return a._size;
     }
 
 
-    //template <u32 MAX>
+    //template <uint32_t MAX>
     //inline T* begin( id_array_t<BX_ID_ARRAY_T_ARG>& a )
     //{
     //    return a._objects;
     //}
 
-    //template <u32 MAX>
+    //template <uint32_t MAX>
     //inline const T* begin( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
     //{
     //    return a._objects;
     //}
 
-    //template <u32 MAX>
-    //inline u16* end( id_array_t<BX_ID_ARRAY_T_ARG>& a )
+    //template <uint32_t MAX>
+    //inline uint16_t* end( id_array_t<BX_ID_ARRAY_T_ARG>& a )
     //{
     //    return a._objects + a._size;
     //}
 
-    //template <u32 MAX>
-    //inline const u16* end( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
+    //template <uint32_t MAX>
+    //inline const uint16_t* end( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
     //{
     //    return a._objects + a._size;
     //}

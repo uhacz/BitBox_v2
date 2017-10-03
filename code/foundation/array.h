@@ -11,7 +11,7 @@ namespace array_internal
         if( newCapacity > 0 )
         {
             newData = (T*)BX_MALLOC( arr.allocator, sizeof(T)*newCapacity, ALIGNOF( T ) );
-            const int toCopy = ( (u32)newCapacity < arr.size ) ? (u32)newCapacity : arr.size;
+            const int toCopy = ( (uint32_t)newCapacity < arr.size ) ? (uint32_t)newCapacity : arr.size;
             memcpy( newData, arr.data, sizeof(T)*toCopy );
         }
 
@@ -28,8 +28,8 @@ namespace array
     template< typename T > const T* begin   ( const array_t<T>& arr ) { return arr.data; }
     template< typename T > const T* end     ( const array_t<T>& arr ) { return arr.data + arr.size; }
     template< typename T > int      capacity( const array_t<T>& arr ) { return arr.capacity; }
-    template< typename T > u32      size    ( const array_t<T>& arr ) { return arr.size; }
-    template< typename T > i32      sizei   ( const array_t<T>& arr ) { return arr.size; }
+    template< typename T > uint32_t size    ( const array_t<T>& arr ) { return arr.size; }
+    template< typename T > int32_t  sizei   ( const array_t<T>& arr ) { return arr.size; }
     template< typename T > bool     empty   ( const array_t<T>& arr ) { return arr.size == 0; }
     template< typename T > bool     any     ( const array_t<T>& arr ) { return arr.size != 0; }
     template< typename T > T&       front   ( array_t<T>& arr )       { return arr.data[0]; }
@@ -59,7 +59,7 @@ namespace array
 
     template< typename T > void erase_swap( array_t<T>& arr, int pos )
     {
-        const u32 upos = (u32)pos;
+        const uint32_t upos = (uint32_t)pos;
         if( upos > arr.size )
             return;
 
@@ -72,11 +72,11 @@ namespace array
 
     template< typename T > void erase( array_t<T>& arr, int pos )
     {
-        const u32 upos = (u32)pos;
+        const uint32_t upos = (uint32_t)pos;
         if( upos > arr.size )
             return;
 
-        for( u32 i = upos + 1; i < arr.size; ++i )
+        for( uint32_t i = upos + 1; i < arr.size; ++i )
         {
             arr.data[i-1] = arr.data[i];
         }

@@ -4,33 +4,33 @@
 #define NOMINMAX
 #include <windows.h>
 
-static inline i64 herz()
+static inline int64_t herz()
 {
     LARGE_INTEGER tf;
     QueryPerformanceFrequency( &tf );
     return tf.QuadPart;
 }
 
-u64 BXTime::GlobalTimeMS()
+uint64_t BXTime::GlobalTimeMS()
 {
-    static u64 clockPerSec = herz();
+    static uint64_t clockPerSec = herz();
     LARGE_INTEGER ct;
     QueryPerformanceCounter( &ct );
 
     return unsigned( ct.QuadPart / ( clockPerSec / 1000 ) );
 }
 
-u64 BXTime::GlobalTimeUS()
+uint64_t BXTime::GlobalTimeUS()
 {
-    static u64 clockPerSec = herz();
+    static uint64_t clockPerSec = herz();
     static double clockPerUSrcp = 1000000.0 / clockPerSec;
     LARGE_INTEGER ct;
     QueryPerformanceCounter( &ct );
 
-    return (u64)( ct.QuadPart * clockPerUSrcp );
+    return (uint64_t)( ct.QuadPart * clockPerUSrcp );
 }
 
-void BXTime::Sleep( u64 ms )
+void BXTime::Sleep( uint64_t ms )
 {
     ::Sleep( (DWORD)ms );
 }
@@ -53,7 +53,7 @@ void BXTimeQuery::End( BXTimeQuery* tq )
     LARGE_INTEGER tf;
     bres = QueryPerformanceFrequency( &tf );
 
-    const u64 numTicks = ( (u64)( tq->tick_stop - tq->tick_start ) );
+    const uint64_t numTicks = ( (uint64_t)( tq->tick_stop - tq->tick_start ) );
     const double durationUS = double( numTicks * 1000000 ) / (double)tf.QuadPart;
-    tq->duration_US = (u64)durationUS;
+    tq->duration_US = (uint64_t)durationUS;
 }

@@ -34,17 +34,17 @@ inline uint64_t rotl64 ( uint64_t x, int8_t r )
 
 #endif // !defined(_MSC_VER)
 
-FORCE_INLINE u32 getblock32 ( const u32 * p, int i )
+FORCE_INLINE uint32_t getblock32 ( const uint32_t * p, int i )
 {
   return p[i];
 }
 
-FORCE_INLINE u64 getblock64 ( const u64 * p, int i )
+FORCE_INLINE uint64_t getblock64 ( const uint64_t * p, int i )
 {
   return p[i];
 }
 
-FORCE_INLINE u32 fmix32 ( u32 h )
+FORCE_INLINE uint32_t fmix32 ( uint32_t h )
 {
   h ^= h >> 16;
   h *= 0x85ebca6b;
@@ -57,7 +57,7 @@ FORCE_INLINE u32 fmix32 ( u32 h )
 
 //----------
 
-FORCE_INLINE u64 fmix64 ( u64 k )
+FORCE_INLINE uint64_t fmix64 ( uint64_t k )
 {
   k ^= k >> 33;
   k *= BIG_CONSTANT(0xff51afd7ed558ccd);
@@ -68,7 +68,7 @@ FORCE_INLINE u64 fmix64 ( u64 k )
   return k;
 }
 
-u32 murmur3_32x86_hash( const void* key, unsigned int len, unsigned int seed )
+uint32_t murmur3_32x86_hash( const void* key, unsigned int len, unsigned int seed )
 {
 	const uint8_t * data = (const uint8_t*)key;
 	const int nblocks = len / 4;
@@ -216,7 +216,7 @@ void murmur3_128x86_hash( void* out, const void* key, unsigned int len, unsigned
 	h1 += h2; h1 += h3; h1 += h4;
 	h2 += h1; h3 += h1; h4 += h1;
 
-	u32* out32 = (u32*)out;
+	uint32_t* out32 = (uint32_t*)out;
 	out32[0] = h1;
 	out32[1] = h2;
 	out32[2] = h3;
@@ -296,7 +296,7 @@ void murmur3_128x64_hash( void* out, const void* key, unsigned int len, unsigned
 	h1 += h2;
 	h2 += h1;
 
-	u64* out64 = (u64*)out;
+	uint64_t* out64 = (uint64_t*)out;
 	out64[0] = h1;
 	out64[1] = h2;
 }

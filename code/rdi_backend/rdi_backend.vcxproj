@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -11,10 +11,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{81E2EC47-FEDA-4C4D-A6F7-493C4B92D2FF}</ProjectGuid>
-    <Keyword>Win32Proj</Keyword>
-    <RootNamespace>foundation</RootNamespace>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{F442CD81-4B2A-4AC2-8592-609CE3965B5C}</ProjectGuid>
+    <RootNamespace>rdi_backend</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -47,69 +47,62 @@
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
     </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
+    <ClCompile Include="DirectXTex\BC.cpp" />
+    <ClCompile Include="DirectXTex\BC4BC5.cpp" />
+    <ClCompile Include="DirectXTex\BC6HBC7.cpp" />
+    <ClCompile Include="DirectXTex\BCDirectCompute.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexCompress.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexCompressGPU.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexConvert.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexD3D11.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexDDS.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexFlipRotate.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexHDR.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexImage.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexMipmaps.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexMisc.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexNormalMaps.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexPMAlpha.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexResize.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexTGA.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexUtil.cpp" />
+    <ClCompile Include="DirectXTex\DirectXTexWIC.cpp" />
+    <ClCompile Include="rdi_backend.cpp" />
+    <ClCompile Include="rdi_backend_dx11.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="array.h" />
-    <ClInclude Include="common.h" />
-    <ClInclude Include="containers.h" />
-    <ClInclude Include="debug.h" />
-    <ClInclude Include="hash.h" />
-    <ClInclude Include="hashmap.h" />
-    <ClInclude Include="id_array.h" />
-    <ClInclude Include="id_table.h" />
-    <ClInclude Include="io.h" />
-    <ClInclude Include="memory\allocator.h" />
-    <ClInclude Include="memory\dlmalloc.h" />
-    <ClInclude Include="memory\memory.h" />
-    <ClInclude Include="plugin\plugin_interface.h" />
-    <ClInclude Include="plugin\plugin_load.h" />
-    <ClInclude Include="plugin\plugin_registry.h" />
-    <ClInclude Include="queue.h" />
-    <ClInclude Include="thread\semaphore.h" />
-    <ClInclude Include="string_util.h" />
-    <ClInclude Include="time.h" />
-    <ClInclude Include="type.h" />
-    <ClInclude Include="type_compound.h" />
+    <ClInclude Include="DirectXTex\BC.h" />
+    <ClInclude Include="DirectXTex\BCDirectCompute.h" />
+    <ClInclude Include="DirectXTex\DDS.h" />
+    <ClInclude Include="DirectXTex\DirectXTex.h" />
+    <ClInclude Include="DirectXTex\DirectXTexP.h" />
+    <ClInclude Include="DirectXTex\Filters.h" />
+    <ClInclude Include="DirectXTex\scoped.h" />
+    <ClInclude Include="rdi_backend.h" />
+    <ClInclude Include="rdi_backend_dx11.h" />
+    <ClInclude Include="rdi_shader_reflection.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="debug.c" />
-    <ClCompile Include="hash.cpp" />
-    <ClCompile Include="io.cpp" />
-    <ClCompile Include="memory\dlmalloc.c" />
-    <ClCompile Include="memory\memory.cpp" />
-    <ClCompile Include="plugin\plugin_load.cpp" />
-    <ClCompile Include="plugin\plugin_registry.cpp" />
-    <ClCompile Include="thread\semaphore.cpp" />
-    <ClCompile Include="string_util.cpp" />
-    <ClCompile Include="time.cpp" />
+    <None Include="DirectXTex\DirectXTex.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
