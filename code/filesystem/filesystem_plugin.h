@@ -28,6 +28,7 @@ struct BXFile
 		const char* txt;
 	};
 	uint32_t size = 0;
+	BXIAllocator* allocator = nullptr;
 };
 
 struct BXFileWaitResult
@@ -48,12 +49,14 @@ struct BXIFilesystem
 
 	virtual ~BXIFilesystem() {}
 
-	virtual void			 SetRoot  ( const char* absoluteDirPath )                  = 0;
-	virtual BXFileHandle	 LoadFile ( const char* relativePath, EMode mode )         = 0;
-	virtual void			 CloseFile( BXFileHandle fhandle, bool freeData = true )   = 0;
-	virtual BXEFileStatus::E File     ( BXFile* file, BXFileHandle fhandle)            = 0;
+	virtual void			 SetRoot  ( const char* absoluteDirPath ) = 0;
+	
+	virtual BXFileHandle	 LoadFile ( const char* relativePath, EMode mode, BXIAllocator* allocator = nullptr ) = 0;
+	virtual void			 CloseFile( BXFileHandle fhandle, bool freeData = true )							  = 0;
+	
+	virtual BXEFileStatus::E File     ( BXFile* file, BXFileHandle fhandle )            = 0;
 
-	BXFileWaitResult (*LoadFileSync)( BXIFilesystem* fs, const char* relativePath, EMode mode );
+	BXFileWaitResult (*LoadFileSync)( BXIFilesystem* fs, const char* relativePath, EMode mode, BXIAllocator* allocator );
 };
 
 

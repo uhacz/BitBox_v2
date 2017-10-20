@@ -47,17 +47,17 @@ struct ShaderSamplerDesc
     int8_t pass_index = -1;
 };
 
-struct ShaderReflection
-{
-    ShaderReflection() {}
-
-    std::vector<ShaderCBufferDesc> cbuffers;
-    std::vector<ShaderTextureDesc> textures;
-    std::vector<ShaderSamplerDesc> samplers;
-    VertexLayout vertex_layout;
-    uint16_t input_mask;
-    uint16_t __pad0[1];
-};
-
-
 }}///
+
+
+struct RDIShaderReflection
+{
+	RDIShaderReflection() {}
+
+	std::vector<bx::rdi::ShaderCBufferDesc> cbuffers;
+	std::vector<bx::rdi::ShaderTextureDesc> textures;
+	std::vector<bx::rdi::ShaderSamplerDesc> samplers;
+	RDIVertexLayout vertex_layout;
+	uint16_t input_mask;
+	uint16_t __pad0[1];
+};

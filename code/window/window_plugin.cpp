@@ -6,9 +6,7 @@
 
 PLUGIN_EXPORT void* BXLoad_window( BXIAllocator* allocator )
 {
-    BXIWindow* plugin = BX_ALLOCATE( allocator, BXIWindow );
-    plugin->Create = bx::WindowCreate;
-    plugin->Release = bx::WindowRelease;
+    BXIWindow* plugin = BX_NEW( allocator, bx::Window );
     return plugin;
 }
 

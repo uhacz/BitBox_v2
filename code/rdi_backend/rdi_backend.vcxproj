@@ -99,6 +99,7 @@
     <ClInclude Include="DirectXTex\scoped.h" />
     <ClInclude Include="rdi_backend.h" />
     <ClInclude Include="rdi_backend_dx11.h" />
+    <ClInclude Include="rdi_backend_type.h" />
     <ClInclude Include="rdi_shader_reflection.h" />
   </ItemGroup>
   <ItemGroup>

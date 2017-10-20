@@ -79,8 +79,11 @@ bool FilesystemWindows::IsValid( BXFileHandle fhandle )
 	return id_table::has( _ids, id );
 }
 
-BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, EMode mode )
+BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, EMode mode, BXIAllocator* allocator )
 {
+	if( !allocator )
+		allocator = _allocator;
+
 	id_t id = { 0 };
 	
 	_id_lock.lock();
@@ -93,6 +96,7 @@ BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, EMode mode )
 	info._mode = mode;
 	info._name.Clear();
 	info._name.AppendRelativePath( relativePath );
+	info._allocator = allocator;
 
 	BXFileHandle fhandle;
 	fhandle.i = id.hash;
@@ -182,10 +186,12 @@ void FilesystemWindows::ThreadProc()
 				BXFile& file = _files[id.index];
 				int32_t result = IO_ERROR;
 				
+				file.allocator = info._allocator;
+
 				if( info._mode == BXIFilesystem::FILE_MODE_BIN )
-					result = ReadFile( &file.bin, &file.size, path.AbsolutePath(), _allocator );
+					result = ReadFile( &file.bin, &file.size, path.AbsolutePath(), info._allocator );
 				else if( info._mode == BXIFilesystem::FILE_MODE_TXT )
-					result = ReadTextFile( &file.bin, &file.size, path.AbsolutePath(), _allocator );
+					result = ReadTextFile( &file.bin, &file.size, path.AbsolutePath(), info._allocator );
 
 				const BXEFileStatus::E file_status = (result == IO_OK) ? BXEFileStatus::READY : BXEFileStatus::NOT_FOUND;
 				_files_status[id.index].store( file_status );
@@ -204,7 +210,7 @@ void FilesystemWindows::ThreadProc()
 			if( !PopFromQueueSafe( &file, _to_unload, _to_unload_lock ) )
 				break;
 
-			BX_FREE( _allocator, file.pointer );
+			BX_FREE( file.allocator, file.pointer );
 
 		}
 	}

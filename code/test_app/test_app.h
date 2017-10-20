@@ -1,6 +1,7 @@
 #pragma once
 
 #include <application/application_plugin.h>
+#include <rdi_backend/rdi_backend.h>
 
 struct BXIFilesystem;
 struct BXTestApp : BXIApplication
@@ -12,6 +13,9 @@ struct BXTestApp : BXIApplication
 
 private:
 	BXIFilesystem* _filesystem = nullptr;
+
+	RDIDevice* _rdidev = nullptr;
+	RDICommandQueue* _rdicmdq = nullptr;;
 };
 
 BX_APPLICATION_PLUGIN_DECLARE( test_app );

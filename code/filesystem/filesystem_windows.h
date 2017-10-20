@@ -42,6 +42,7 @@ namespace bx
 	{
 		FsName _name;
 		BXIFilesystem::EMode _mode;
+		BXIAllocator* _allocator;
 	};
 
 struct FilesystemWindows : BXIFilesystem
@@ -53,7 +54,7 @@ struct FilesystemWindows : BXIFilesystem
 	// --- interface
 	bool			 IsValid( BXFileHandle fhandle );
 	void			 SetRoot( const char* absoluteDirPath ) override final;
-	BXFileHandle	 LoadFile( const char* relativePath, EMode mode ) override final;
+	BXFileHandle	 LoadFile( const char* relativePath, EMode mode, BXIAllocator* allocator = nullptr ) override final;
 	void			 CloseFile( BXFileHandle fhandle, bool freeData ) override final;
 	BXEFileStatus::E File( BXFile* file, BXFileHandle fhandle ) override final;
 

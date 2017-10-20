@@ -10,6 +10,6 @@ enum EIOResult : int
 struct BXIAllocator;
 int ReadFile    ( unsigned char** outBuffer, unsigned* outSizeInBytes, const char* path, BXIAllocator* allocator );
 int ReadTextFile( unsigned char** outBuffer, unsigned* outSizeInBytes, const char* path, BXIAllocator* allocator );
-int WriteFile   ( const char* absPath, unsigned char* buf, unsigned sizeInBytes );
+int WriteFile   ( const char* absPath, const void* buf, size_t sizeInBytes );
 int CopyFile    ( const char* absDstPath, const char* absSrcPath, BXIAllocator* allocator );
 int CreateDir   ( const char* absPath );

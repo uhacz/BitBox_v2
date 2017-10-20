@@ -9,37 +9,37 @@
 
 #include <windows.h>
 #include "window.h"
+#include "window_interface.h"
 #include "window_callback.h"
 
+#include <mutex>
 
 struct BXIAllocator;
 namespace bx
 {
-	struct Window
+	struct Window final : BXIWindow
     {
         enum
         {
             MAX_MSG_CALLBACKS = 4,
         };
-        BXWindow win;
-        HWND hwnd;
-        HWND parent_hwnd;
-        HINSTANCE hinstance;
-        HDC hdc;
+		BXWindow  _win;
+        HWND      _hwnd;
+        HWND      _parent_hwnd;
+        HINSTANCE _hinstance;
+        HDC       _hdc;
 
-		BXWin32WindowCallback callbacks[MAX_MSG_CALLBACKS] = {};
-		void* callbacks_user_data[MAX_MSG_CALLBACKS] = {};
-		uint32_t num_callbacks = 0;
-    };
+		std::mutex				_callback_lock;
+		BXWin32WindowCallback	_callbacks[MAX_MSG_CALLBACKS] = {};
+		void*					_callbacks_user_data[MAX_MSG_CALLBACKS] = {};
+		uint32_t				_num_callbacks = 0;
 
-
-    BXWindow* WindowCreate( const char* name, unsigned width, unsigned height, bool full_screen, BXIAllocator* allocator );
-    void      WindowRelease( BXWindow* win, BXIAllocator* allocator );
-
-	bool	  WindowAddCallback( BXWindow* win, BXWin32WindowCallback function_ptr, void* user_data);
-	void	  WindowRemoveCallback( BXWindow* win, BXWin32WindowCallback function_ptr);
-
-    void WindowSetSize( Window* win, unsigned width, unsigned height );
-
+		virtual BXWindow* Create( const char* name, unsigned width, unsigned height, bool full_screen, BXIAllocator* allocator ) override;
+		virtual void	  Destroy() override;
+		virtual bool	  AddCallback( BXWin32WindowCallback callback, void* userData ) override;
+		virtual void	  RemoveCallback( BXWin32WindowCallback callback ) override;
+		
+		virtual const BXWindow* GetWindow() const override;
+	};
 }//
 

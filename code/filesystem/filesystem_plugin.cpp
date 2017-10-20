@@ -3,10 +3,10 @@
 
 
 
-BXFileWaitResult LoadFileSync( BXIFilesystem* fs, const char * relativePath, BXIFilesystem::EMode mode )
+BXFileWaitResult LoadFileSync( BXIFilesystem* fs, const char * relativePath, BXIFilesystem::EMode mode, BXIAllocator* allocator )
 {
 	BXFileWaitResult result;
-	result.handle = fs->LoadFile( relativePath, mode );
+	result.handle = fs->LoadFile( relativePath, mode, allocator );
 
 	result.status = fs->File( &result.file, result.handle );
 	while( result.status == BXEFileStatus::LOADING )

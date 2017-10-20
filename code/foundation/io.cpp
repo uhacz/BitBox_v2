@@ -76,7 +76,7 @@ int32_t ReadTextFile( uint8_t** outBuffer, uint32_t* outSizeInBytes, const char*
 
 	return IO_OK;
 }
-int32_t WriteFile( const char* absPath, uint8_t* buf, uint32_t sizeInBytes )
+int32_t WriteFile( const char* absPath, const void* buf, size_t sizeInBytes )
 {
 	FILE* fp = OpenFile( absPath, "wb" );
 	if( !fp )

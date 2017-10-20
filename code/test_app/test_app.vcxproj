@@ -38,10 +38,12 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\..\props\plugin.props" />
+    <Import Project="..\..\props\dx11.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\..\props\plugin.props" />
+    <Import Project="..\..\props\dx11.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -89,6 +91,15 @@
   <ItemGroup>
     <ProjectReference Include="..\foundation\foundation.vcxproj">
       <Project>{81e2ec47-feda-4c4d-a6f7-493c4b92d2ff}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\input\input.vcxproj">
+      <Project>{15dae8e3-4c6a-4bd3-895f-546150f7f91e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\rdix\rdix.vcxproj">
+      <Project>{8ec396c6-9853-45a0-94fe-bcfebfe647d4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\rdi_backend\rdi_backend.vcxproj">
+      <Project>{f442cd81-4b2a-4ac2-8592-609ce3965b5c}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

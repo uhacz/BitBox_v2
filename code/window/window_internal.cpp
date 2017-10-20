@@ -44,9 +44,6 @@ namespace bx
                 client.right = win_info.rcWindow.right;
                 client.bottom = win_info.rcWindow.bottom;
 
-                //BOOL ret = AdjustWindowRectEx( &client, window_style, FALSE, 0 );
-                //assert( ret );
-
                 MoveWindow( hwnd, 0, 0, client.right, client.bottom, FALSE );
             }
         }
@@ -71,159 +68,18 @@ namespace bx
         UpdateWindow( hwnd );
     }
 
-    static uintptr_t _GetSystemHandle( BXWindow* instance )
+    static uintptr_t _GetSystemHandle( const BXWindow* instance )
     {
         SYS_STATIC_ASSERT( sizeof(uintptr_t) == sizeof( HWND ) );
-        bx::Window* win = ( bx::Window* )instance;
-        return (uintptr_t)win->hwnd;
+
+		const size_t offset = offsetof( bx::Window, _win );
+
+        bx::Window* win = ( bx::Window* )( (uint8_t*)instance - offset );
+        return (uintptr_t)win->_hwnd;
     }
 
     static LRESULT CALLBACK DefaultWindowMessageProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam );
     
-    BXWindow* WindowCreate( const char* name, unsigned width, unsigned height, bool full_screen, BXIAllocator* allocator )
-    {
-        HWND parent_hwnd = nullptr;
-
-        HINSTANCE hinstance = GetModuleHandle( NULL );
-        HDC hdc = 0;
-        HWND hwnd = 0;
-
-        { // create window
-            WNDCLASS wndClass;
-            wndClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;	// Redraw On Size, And Own DC For Window.
-            wndClass.lpfnWndProc = DefaultWindowMessageProc;
-            wndClass.cbClsExtra = 0;
-            wndClass.cbWndExtra = 0;
-            wndClass.hInstance = hinstance;
-            wndClass.hIcon = 0;
-            wndClass.hCursor = LoadCursor( NULL, IDC_ARROW );
-            wndClass.hbrBackground = NULL;
-            wndClass.lpszMenuName = NULL;
-            wndClass.lpszClassName = name;
-
-            if( !RegisterClass( &wndClass ) )
-            {
-                DWORD err = GetLastError();
-                printf( "create_window: Error with RegisterClass!\n" );
-                return false;
-            }
-
-            if( full_screen && !parent_hwnd )
-            {
-                hwnd = CreateWindowEx(
-                    WS_EX_APPWINDOW, name, name, WS_POPUP,
-                    0, 0,
-                    10, 10,
-                    NULL, NULL, hinstance, 0 );
-            }
-            else
-            {
-                DWORD style = 0;
-                DWORD ex_style = 0;
-                if( parent_hwnd )
-                {
-                    style = WS_CHILD | WS_BORDER;
-                    ex_style = WS_EX_TOPMOST | WS_EX_NOPARENTNOTIFY;
-                }
-                else
-                {
-                    style = WS_BORDER | WS_THICKFRAME;
-                }
-                hwnd = CreateWindowEx(
-                    ex_style, name, name, style,
-                    10, 10,
-                    100, 100,
-                    parent_hwnd, NULL, hinstance, 0 );
-            }
-
-            if( hwnd == NULL )
-            {
-                printf( "create_window: Error while creating window (Err: 0x%x)\n", GetLastError() );
-                return 0;
-            }
-
-            hdc = GetDC( hwnd );
-        }
-
-        Window* win = BX_NEW( allocator, Window );
-        win->win.GetSystemHandle = _GetSystemHandle;  
-        strcpy_s( win->win.name, BXWindow::NAME_LEN, name );
-
-        win->hwnd = hwnd;
-        win->parent_hwnd = parent_hwnd;
-        win->hinstance = hinstance;
-        win->hdc = hdc;
-
-        win->win.full_screen = full_screen;
-
-        { // setup window
-            _AdjustWindowSize( hwnd, parent_hwnd, width, height, full_screen );
-            ShowWindow( hwnd, SW_SHOW );
-
-            RECT win_rect;
-            GetClientRect( hwnd, &win_rect );
-            width = win_rect.right - win_rect.left;
-            height = win_rect.bottom - win_rect.top;
-        }
-
-        win->win.width = width;
-        win->win.height = height;
-
-        SetWindowLongPtr( hwnd, GWLP_USERDATA, (LONG_PTR)win );
-
-        return &win->win;
-    }
-
-    void WindowRelease( BXWindow* win, BXIAllocator* allocator )
-    {
-        Window* win_internal = (Window*)win;
-        {
-            ReleaseDC( win_internal->hwnd, win_internal->hdc );
-            DestroyWindow( win_internal->hwnd );
-            win_internal->hwnd = NULL;
-        }
-        UnregisterClass( win->name, win_internal->hinstance );
-        BX_DELETE0( allocator, win_internal );
-    }
-
-	bool WindowAddCallback(BXWindow* win, BXWin32WindowCallback function_ptr, void * user_data)
-	{
-		SYS_ASSERT(function_ptr != nullptr);
-		
-		Window* win_internal = (Window*)win;
-		if (win_internal->num_callbacks >= bx::Window::MAX_MSG_CALLBACKS)
-			return false;
-
-		const uint32_t index = win_internal->num_callbacks++;
-		win_internal->callbacks[index] = function_ptr;
-		win_internal->callbacks_user_data[index] = user_data;
-		
-		return true;
-	}
-
-	void WindowRemoveCallback(BXWindow* win, BXWin32WindowCallback function_ptr)
-	{
-		if (!function_ptr)
-			return;
-
-		Window* win_internal = (Window*)win;
-
-		for (uintptr_t i = 0; i < win_internal->num_callbacks; )
-		{
-			if (function_ptr == win_internal->callbacks[i])
-			{
-				const uint32_t last_index = win_internal->num_callbacks - 1;
-				win_internal->callbacks[i] = win_internal->callbacks[last_index];
-				win_internal->callbacks_user_data[i] = win_internal->callbacks_user_data[last_index];
-				win_internal->num_callbacks -= 1;
-			}
-			else
-			{
-				++i;
-			}
-		}
-	}
-
     LRESULT CALLBACK DefaultWindowMessageProc( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam )
     {
         Window* win = (Window*)GetWindowLongPtr( hwnd, GWLP_USERDATA );
@@ -233,39 +89,20 @@ namespace bx
         }
 
 		int processed = 0;
-		for (uint32_t i = 0; i < win->num_callbacks; ++i)
-			processed |= win->callbacks[i]( (uintptr_t)hwnd, msg, wParam, lParam, win->callbacks_user_data[i] );
+		for (uint32_t i = 0; i < win->_num_callbacks; ++i)
+			processed |= win->_callbacks[i]( (uintptr_t)hwnd, msg, wParam, lParam, win->_callbacks_user_data[i] );
 		
 		if (processed)
 			return DefWindowProc(hwnd, msg, wParam, lParam);
 
 
         static bool lButtonPressed = false;
-        BXInput* input = &win->win.input;
+        BXInput* input = &win->_win.input;
         BXInput::KeyboardState* kbdState = input->kbd.CurrentState();
         BXInput::MouseState* mouseState = input->mouse.CurrentState();
 
-        //GetKeyboardState( kbdState->keys );
-
         switch( msg )
         {
-            //case WM_KEYUP:
-            //	{
-            //		if ( wParam < 256 )
-            //		{
-            //			kbdState->keys[wParam] = false;
-            //		}
-            //		break;
-            //	}
-            //case WM_KEYDOWN:
-            //	{
-            //		if ( wParam < 256 )
-            //		{
-            //               kbdState->keys[wParam] = true;
-            //		}
-            //		break;
-            //	}
-
         case WM_LBUTTONDOWN:
             {
                 mouseState->lbutton = 1;
@@ -304,8 +141,6 @@ namespace bx
         case WM_MOUSEMOVE:
             {
                 POINTS pt = MAKEPOINTS( lParam );
-                //const unsigned short x = GET_X_LPARAM(lParam);
-                //const unsigned short y = GET_Y_LPARAM(lParam);
                 const unsigned short x = pt.x;
                 const unsigned short y = pt.y;
 
@@ -318,20 +153,17 @@ namespace bx
         case WM_SIZE:
             {
                 RECT clientRect;
-                GetClientRect( win->hwnd, &clientRect );
+                GetClientRect( win->_hwnd, &clientRect );
 
                 unsigned int clientWindowWidth = clientRect.right - clientRect.left;
                 unsigned int clientWindowHeight = clientRect.bottom - clientRect.top;
 
-                win->win.width = clientWindowWidth;
-                win->win.height = clientWindowHeight;
-
-                //_push_event( &g_window, msg, lParam, wParam );
+                win->_win.width = clientWindowWidth;
+                win->_win.height = clientWindowHeight;
 
                 break;
             }
         case WM_CLOSE:
-            //_push_event( &g_window, msg, lParam, wParam );
             PostQuitMessage( 0 );
             break;
 
@@ -357,5 +189,143 @@ namespace bx
 
         return DefWindowProc( hwnd, msg, wParam, lParam );
     }
+
+
+	BXWindow* Window::Create( const char * name, unsigned width, unsigned height, bool full_screen, BXIAllocator * allocator )
+	{
+		HWND parent_hwnd = nullptr;
+
+		HINSTANCE hinstance = GetModuleHandle( NULL );
+		HDC hdc = 0;
+		HWND hwnd = 0;
+
+		{ // create window
+			WNDCLASS wndClass;
+			wndClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;	// Redraw On Size, And Own DC For Window.
+			wndClass.lpfnWndProc = DefaultWindowMessageProc;
+			wndClass.cbClsExtra = 0;
+			wndClass.cbWndExtra = 0;
+			wndClass.hInstance = hinstance;
+			wndClass.hIcon = 0;
+			wndClass.hCursor = LoadCursor( NULL, IDC_ARROW );
+			wndClass.hbrBackground = NULL;
+			wndClass.lpszMenuName = NULL;
+			wndClass.lpszClassName = name;
+
+			if( !RegisterClass( &wndClass ) )
+			{
+				DWORD err = GetLastError();
+				printf( "create_window: Error with RegisterClass!\n" );
+				return false;
+			}
+
+			if( full_screen && !parent_hwnd )
+			{
+				hwnd = CreateWindowEx(
+					WS_EX_APPWINDOW, name, name, WS_POPUP,
+					0, 0,
+					10, 10,
+					NULL, NULL, hinstance, 0 );
+			}
+			else
+			{
+				DWORD style = 0;
+				DWORD ex_style = 0;
+				if( parent_hwnd )
+				{
+					style = WS_CHILD | WS_BORDER;
+					ex_style = WS_EX_TOPMOST | WS_EX_NOPARENTNOTIFY;
+				}
+				else
+				{
+					style = WS_BORDER | WS_THICKFRAME;
+				}
+				hwnd = CreateWindowEx(
+					ex_style, name, name, style,
+					10, 10,
+					100, 100,
+					parent_hwnd, NULL, hinstance, 0 );
+			}
+
+			if( hwnd == NULL )
+			{
+				printf( "create_window: Error while creating window (Err: 0x%x)\n", GetLastError() );
+				return 0;
+			}
+
+			hdc = GetDC( hwnd );
+		}
+
+		_win.GetSystemHandle = _GetSystemHandle;
+		strcpy_s( _win.name, BXWindow::NAME_LEN, name );
+
+		_hwnd = hwnd;
+		_parent_hwnd = parent_hwnd;
+		_hinstance = hinstance;
+		_hdc = hdc;
+
+		_win.full_screen = full_screen;
+
+		{ // setup window
+			_AdjustWindowSize( hwnd, parent_hwnd, width, height, full_screen );
+			ShowWindow( hwnd, SW_SHOW );
+
+			RECT win_rect;
+			GetClientRect( hwnd, &win_rect );
+			width = win_rect.right - win_rect.left;
+			height = win_rect.bottom - win_rect.top;
+		}
+
+		_win.width = width;
+		_win.height = height;
+
+		SetWindowLongPtr( hwnd, GWLP_USERDATA, (LONG_PTR)this );
+		return &_win;
+	}
+	void Window::Destroy()
+	{
+		ReleaseDC( _hwnd, _hdc );
+		DestroyWindow( _hwnd );
+		_hwnd = NULL;
+		
+		UnregisterClass( _win.name, _hinstance );
+	}
+	const BXWindow* Window::GetWindow() const
+	{
+		return &_win;
+	}
+	bool Window::AddCallback( BXWin32WindowCallback callback, void * userData )
+	{
+		SYS_ASSERT( callback != nullptr );
+
+		std::lock_guard<std::mutex> lock( _callback_lock );
+
+		if( _num_callbacks >= bx::Window::MAX_MSG_CALLBACKS )
+			return false;
+
+		const uint32_t index = _num_callbacks++;
+		_callbacks[index] = callback;
+		_callbacks_user_data[index] = userData;
+
+		return true;
+	}
+	void Window::RemoveCallback( BXWin32WindowCallback callback )
+	{
+		std::lock_guard<std::mutex> lock( _callback_lock );
+		for( uintptr_t i = 0; i < _num_callbacks; )
+		{
+			if( callback == _callbacks[i] )
+			{
+				const uint32_t last_index = _num_callbacks - 1;
+				_callbacks[i]           = _callbacks[last_index];
+				_callbacks_user_data[i] = _callbacks_user_data[last_index];
+				_num_callbacks          = 1;
+			}
+			else
+			{
+				++i;
+			}
+		}
+	}
 }//
 

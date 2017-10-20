@@ -6,6 +6,9 @@
 #include <foundation/plugin/plugin_registry.h>
 #include <filesystem/filesystem_plugin.h>
 
+#include <window/window.h>
+#include <window/window_interface.h>
+
 #include <stdio.h>
 
 //BXFileHandle fhandle = {};
@@ -18,11 +21,17 @@ bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins,
 	{
 		_filesystem->SetRoot( "x:/dev/assets/" );
 	}
+
+	BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
+	const BXWindow* window = win_plugin->GetWindow();
+	::Startup( &_rdidev, &_rdicmdq, window->GetSystemHandle( window ), 800, 600, 0, allocator );
+
 	return true;
 }
 
 void BXTestApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
+	::Shutdown( &_rdidev, &_rdicmdq, allocator );
 	_filesystem = nullptr;
 }
 

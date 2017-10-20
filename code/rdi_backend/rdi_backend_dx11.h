@@ -100,7 +100,7 @@ static const D3D_PRIMITIVE_TOPOLOGY topologyMap[] =
     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP,
 };
 
-inline DXGI_FORMAT to_DXGI_FORMAT( Format fmt )
+inline DXGI_FORMAT to_DXGI_FORMAT( RDIFormat fmt )
 {
     const int dtype = fmt.type;
     const int num_elements = fmt.numElements;
@@ -108,13 +108,13 @@ inline DXGI_FORMAT to_DXGI_FORMAT( Format fmt )
     const int srgb = fmt.srgb;
 
     DXGI_FORMAT result = DXGI_FORMAT_UNKNOWN;
-    if( dtype == EDataType::BYTE )
+    if( dtype == RDIEType::BYTE )
     {
         if( num_elements == 1 ) result = DXGI_FORMAT_R8_SINT;
         else if( num_elements == 2 ) result = DXGI_FORMAT_R8G8_SINT;
         else if( num_elements == 4 ) result = DXGI_FORMAT_R8G8B8A8_SINT;
     }
-    else if( dtype == EDataType::UBYTE )
+    else if( dtype == RDIEType::UBYTE )
     {
         if( norm )
         {
@@ -132,50 +132,50 @@ inline DXGI_FORMAT to_DXGI_FORMAT( Format fmt )
         else if( num_elements == 2 ) result = DXGI_FORMAT_R8G8_UINT;
         else if( num_elements == 4 ) result = DXGI_FORMAT_R8G8B8A8_UINT;
     }
-    else if( dtype == EDataType::SHORT )
+    else if( dtype == RDIEType::SHORT )
     {
         if( num_elements == 1 ) result = DXGI_FORMAT_R16_SINT;
         else if( num_elements == 4 ) result = DXGI_FORMAT_R16G16B16A16_SINT;
     }
-    else if( dtype == EDataType::USHORT )
+    else if( dtype == RDIEType::USHORT )
     {
         if( num_elements == 1 ) result = DXGI_FORMAT_R16_UINT;
         else if( num_elements == 4 ) result = DXGI_FORMAT_R16G16B16A16_UINT;
     }
-    else if( dtype == EDataType::INT )
+    else if( dtype == RDIEType::INT )
     {
         if( num_elements == 1 ) result = DXGI_FORMAT_R32_SINT;
         else if( num_elements == 2 ) result = DXGI_FORMAT_R32G32_SINT;
         else if( num_elements == 3 ) result = DXGI_FORMAT_R32G32B32_SINT;
         else if( num_elements == 4 ) result = DXGI_FORMAT_R32G32B32A32_SINT;
     }
-    else if( dtype == EDataType::UINT )
+    else if( dtype == RDIEType::UINT )
     {
         if( num_elements == 1 ) result = DXGI_FORMAT_R32_UINT;
         else if( num_elements == 2 ) result = DXGI_FORMAT_R32G32_UINT;
         else if( num_elements == 3 ) result = DXGI_FORMAT_R32G32B32_UINT;
         else if( num_elements == 4 ) result = DXGI_FORMAT_R32G32B32A32_UINT;
     }
-    else if( dtype == EDataType::FLOAT )
+    else if( dtype == RDIEType::FLOAT )
     {
         if( num_elements == 1 ) result = DXGI_FORMAT_R32_FLOAT;
         else if( num_elements == 2 ) result = DXGI_FORMAT_R32G32_FLOAT;
         else if( num_elements == 3 ) result = DXGI_FORMAT_R32G32B32_FLOAT;
         else if( num_elements == 4 ) result = DXGI_FORMAT_R32G32B32A32_FLOAT;
     }
-    else if( dtype == EDataType::DOUBLE )
+    else if( dtype == RDIEType::DOUBLE )
     {
 
     }
-    else if( dtype == EDataType::DEPTH16 )
+    else if( dtype == RDIEType::DEPTH16 )
     {
         result = DXGI_FORMAT_D16_UNORM;
     }
-    else if( dtype == EDataType::DEPTH24_STENCIL8 )
+    else if( dtype == RDIEType::DEPTH24_STENCIL8 )
     {
         result = DXGI_FORMAT_D24_UNORM_S8_UINT;
     }
-    else if( dtype == EDataType::DEPTH32F )
+    else if( dtype == RDIEType::DEPTH32F )
     {
         result = DXGI_FORMAT_D32_FLOAT;
     }
@@ -191,22 +191,22 @@ inline bool isDepthFormat( DXGI_FORMAT format )
 inline uint32_t to_D3D11_BIND_FLAG( uint32_t bind_flags )
 {
     uint32_t result = 0;
-    if( bind_flags & EBindMask::VERTEX_BUFFER    ) result |= D3D11_BIND_VERTEX_BUFFER;
-    if( bind_flags & EBindMask::INDEX_BUFFER     ) result |= D3D11_BIND_INDEX_BUFFER;
-    if( bind_flags & EBindMask::CONSTANT_BUFFER  ) result |= D3D11_BIND_CONSTANT_BUFFER;
-    if( bind_flags & EBindMask::SHADER_RESOURCE  ) result |= D3D11_BIND_SHADER_RESOURCE;
-    if( bind_flags & EBindMask::STREAM_OUTPUT    ) result |= D3D11_BIND_STREAM_OUTPUT;
-    if( bind_flags & EBindMask::RENDER_TARGET    ) result |= D3D11_BIND_RENDER_TARGET;
-    if( bind_flags & EBindMask::DEPTH_STENCIL    ) result |= D3D11_BIND_DEPTH_STENCIL;
-    if( bind_flags & EBindMask::UNORDERED_ACCESS ) result |= D3D11_BIND_UNORDERED_ACCESS;
+    if( bind_flags & RDIEBind::VERTEX_BUFFER    ) result |= D3D11_BIND_VERTEX_BUFFER;
+    if( bind_flags & RDIEBind::INDEX_BUFFER     ) result |= D3D11_BIND_INDEX_BUFFER;
+    if( bind_flags & RDIEBind::CONSTANT_BUFFER  ) result |= D3D11_BIND_CONSTANT_BUFFER;
+    if( bind_flags & RDIEBind::SHADER_RESOURCE  ) result |= D3D11_BIND_SHADER_RESOURCE;
+    if( bind_flags & RDIEBind::STREAM_OUTPUT    ) result |= D3D11_BIND_STREAM_OUTPUT;
+    if( bind_flags & RDIEBind::RENDER_TARGET    ) result |= D3D11_BIND_RENDER_TARGET;
+    if( bind_flags & RDIEBind::DEPTH_STENCIL    ) result |= D3D11_BIND_DEPTH_STENCIL;
+    if( bind_flags & RDIEBind::UNORDERED_ACCESS ) result |= D3D11_BIND_UNORDERED_ACCESS;
     return result;
 }
 
 inline uint32_t to_D3D11_CPU_ACCESS_FLAG( uint32_t cpua_flags )
 {
     uint32_t result = 0;
-    if( cpua_flags & ECpuAccess::READ ) result |= D3D11_CPU_ACCESS_READ;
-    if( cpua_flags & ECpuAccess::WRITE ) result |= D3D11_CPU_ACCESS_WRITE;
+    if( cpua_flags & RDIECpuAccess::READ ) result |= D3D11_CPU_ACCESS_READ;
+    if( cpua_flags & RDIECpuAccess::WRITE ) result |= D3D11_CPU_ACCESS_WRITE;
     return result;
 }
 
@@ -225,8 +225,10 @@ inline int to_D3D_SHADER_MACRO_array( D3D_SHADER_MACRO* output, int output_capac
     return counter;
 }
 
+}}//
+
 //////////////////////////////////////////////////////////////////////////
-struct CommandQueue
+struct RDICommandQueue
 {
     IDXGISwapChain*		 _swapChain = nullptr;
     ID3D11DeviceContext* _context = nullptr;
@@ -238,15 +240,17 @@ struct CommandQueue
     ID3D11DeviceContext* dx11() { return _context; }
 };
 
-struct Device
+struct RDIDevice
 {
 	ID3D11Device* _device;
 
 	ID3D11Device* dx11() { return _device; }
 };
 
+namespace bx{ namespace rdi{
+struct ShaderReflection;
 //////////////////////////////////////////////////////////////////////////
-void Dx11FetchShaderReflection( ShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage );
-void StartupDX11( Device** dev, CommandQueue** cmdq, uintptr_t hWnd, int winWidth, int winHeight, int fullScreen, BXIAllocator* allocator );
-void ShutdownDX11( Device** dev, CommandQueue** cmdq, BXIAllocator* allocator );
+void Dx11FetchShaderReflection( RDIShaderReflection* out, const void* code_blob, size_t code_blob_size, int stage );
+void StartupDX11( RDIDevice** dev, RDICommandQueue** cmdq, uintptr_t hWnd, int winWidth, int winHeight, int fullScreen, BXIAllocator* allocator );
+void ShutdownDX11( RDIDevice** dev, RDICommandQueue** cmdq, BXIAllocator* allocator );
 }}///

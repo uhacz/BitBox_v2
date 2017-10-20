@@ -12,5 +12,5 @@ struct BXWindow
     uint32_t full_screen  = 0;
     BXInput input         = {};
 
-    uintptr_t( *GetSystemHandle )( BXWindow* instance );
+    uintptr_t( *GetSystemHandle )( const BXWindow* instance );
 };
