@@ -40,7 +40,6 @@ static char testxml[] =
 "	depth_write = \"1\"\n"
 "	fill_mode = \"WIREFRAME\"\n"
 "	/>\n"
-
 "</pass>\n"
 };
 int main( int argc, const char** argv )
