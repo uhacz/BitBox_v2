@@ -30,7 +30,3 @@ struct BXIApplication
     virtual bool Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocator* allocator ) = 0;
 };
 
-//extern "C" {          // we need to export the C interface
-//PLUGIN_EXPORT void* BXLoad_application( BXIAllocator* allocator );
-//PLUGIN_EXPORT void  BXUnload_application( void* ptr, BXIAllocator* allocator );
-//} // C

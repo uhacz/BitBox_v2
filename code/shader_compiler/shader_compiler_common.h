@@ -78,7 +78,7 @@ namespace tool{
     ///
     void Release( DataBlob* blob );
     void Release( SourceShader* fx_source );
-    void Release( CompiledShader* fx_bin );
+    void Release( CompiledShader* fx_bin, BXIAllocator* allocator );
     
 
     //////////////////////////////////////////////////////////////////////////

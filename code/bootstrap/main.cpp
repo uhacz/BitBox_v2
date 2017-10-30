@@ -21,51 +21,9 @@
 
 #include <3rd_party\pugixml\pugixml.hpp>
 
-/*
-<boot>
-<rootDir path=""/>
-</boot>
 
-*/
-static char testxml[] =
-{
-"<pass\n"
-"	name = \"object\"\n"
-"	vertex = \"vs_object\"\n"
-"	pixel = \"ps_main\">\n"
-"	<define USE_TEXTURES = \"1\"\n"
-"	USE_LIGHTNING = \"0\" />\n"
-"	<hwstate\n"
-"	depth_test = \"1\"\n"
-"	depth_write = \"1\"\n"
-"	fill_mode = \"WIREFRAME\"\n"
-"	/>\n"
-"</pass>\n"
-};
 int main( int argc, const char** argv )
 {
-	pugi::xml_document doc;
-	doc.load_buffer_inplace( testxml, sizeof( testxml ) );
-
-	for( pugi::xml_node pass : doc.children( "pass" ) )
-	{
-		const char* name = pass.attribute( "name" ).as_string();
-		const char* vertex = pass.attribute( "vertex" ).as_string();
-		
-		pugi::xml_node hw_state = pass.child( "hwstate" );
-		pugi::xml_node define = pass.child( "define" );
-
-		for( pugi::xml_attribute macro : define.attributes() )
-		{
-			const char* name = macro.name();
-			const int value = macro.as_int();
-			int a = 0;
-		}
-
-	}
-
-
-
     // --- startup
     BXIAllocator* default_allocator = nullptr;
     BXMemoryStartUp( &default_allocator );

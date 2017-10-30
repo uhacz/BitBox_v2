@@ -11,44 +11,6 @@
 
 #include <stdio.h>
 #include <atomic>
-//////////////////////
-struct StateChunk
-{
-	uint32_t offset : 24;
-	uint32_t stateId : 8;
-};
-struct StateBlock
-{
-	uint32_t proxyId = 0;
-	uint32_t num_chunks = 0;
-	StateChunk chunks[30];
-};
-
-struct StateAllocator
-{
-	StateBlock* AllocateBlock();
-	uint8_t* AllocateData( uint32_t size );
-
-	void Clear();
-
-	uint8_t* _data = nullptr;
-	uint32_t _capacity = 0;
-	std::atomic_uint32_t _size = 0;
-};
-
-
-StateVectorWriter* state_vec = proxy.BeginWrite();
-state_vec->Set<State>( value );
-proxy.Commit( state_vec );
-
-StateVectorReader* state_vec = proxy.BeginRead();
-state_vec->Get<State>();
-
-
-
-//////////////////////
-
-
 
 bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {

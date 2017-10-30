@@ -28,7 +28,7 @@ int ShaderCompilerCompile( const char* inputFile, const char* outputDir, BXIAllo
 
         if( ires == 0 )
         {
-            DataBlob shader_blob = CreateShaderBlob( compiled_shader );
+            DataBlob shader_blob = CreateShaderBlob( compiled_shader, allocator );
             writer.WriteBinary( shader_blob.ptr, shader_blob.size );
             Release( &shader_blob );
 
@@ -42,7 +42,7 @@ int ShaderCompilerCompile( const char* inputFile, const char* outputDir, BXIAllo
             }
         }
 
-        Release( &compiled_shader );
+        Release( &compiled_shader, allocator );
         Release( &source_shader );
     }
 

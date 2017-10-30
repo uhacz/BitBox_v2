@@ -1,10 +1,15 @@
 #include "shader_compiler_common.h"
 
-#include <libconfig/libconfig.h>
+//#include <libconfig/libconfig.h>
 #include "hardware_state_util.h"
+
+#include <rdix/rdix.h>
+#include <3rd_party\pugixml\pugixml.hpp>
 
 namespace bx{ namespace tool{
 
+
+#if 0
 static bool _ReadConfigInt( int* value, config_setting_t* cfg, const char* name )
 {
     int ires = config_setting_lookup_int( cfg, name, value );
@@ -199,18 +204,174 @@ static int _ReadHeader( SourceShader* fx_source, char* source )
 
     return ires;
 }
+#endif
 
+static void ExtractPasses( std::vector<ConfigPass>* out_passes, const pugi::xml_document& doc )
+{
+	for( const pugi::xml_node& pass_node : doc.children( "pass" ) )
+	{
+		// defines
+		pugi::xml_node define_node = pass_node.child( "define" );
+		ConfigPass::MacroDefine defs[cRDI_MAX_SHADER_MACRO + 1];
+		memset( defs, 0, sizeof( defs ) );
+		
+		uint32_t num_defines = 0;
+		for( const pugi::xml_attribute& attr : define_node.attributes() )
+		{
+			SYS_ASSERT( num_defines < cRDI_MAX_SHADER_MACRO );
+			defs[num_defines].name = attr.name();
+			defs[num_defines].def = attr.as_string();
+			++num_defines;
+		}
+		
+		// hardware state
+		pugi::xml_node hwstate_node = pass_node.child( "hwstate" );
+		RDIHardwareStateDesc hwstate;
+		{// blend
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "blend_enable" ) )
+			{
+				hwstate.blend.enable = attr.as_uint();
+			}
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "color_mask" ) )
+			{
+				hwstate.blend.color_mask = ColorMask::FromString( attr.as_string() );
+			}
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "blend_src_factor" ) )
+			{
+				hwstate.blend.srcFactor = BlendFactor::FromString( attr.as_string() );
+				hwstate.blend.srcFactorAlpha = BlendFactor::FromString( attr.as_string() );
+			}
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "blend_dst_factor" ) )
+			{
+				hwstate.blend.dstFactor = BlendFactor::FromString( attr.as_string() );
+				hwstate.blend.dstFactorAlpha = BlendFactor::FromString( attr.as_string() );
+			}
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "blend_equation" ) )
+			{
+				hwstate.blend.equation = BlendEquation::FromString( attr.as_string() );
+			}
+		}
+		{// depth
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "depth_function" ) )
+			{
+				hwstate.depth.function = DepthFunc::FromString( attr.as_string() );
+			}
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "depth_test" ) )
+			{
+				hwstate.depth.test = (uint8_t)attr.as_uint();
+			}
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "depth_write" ) )
+			{
+				hwstate.depth.write = (uint8_t)attr.as_uint();
+			}
+		}
+		{// raster
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "cull_mode" ) )
+			{
+				hwstate.raster.cullMode = Culling::FromString( attr.as_string() );
+			}
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "fill_mode" ) )
+			{
+				hwstate.raster.fillMode = Fillmode::FromString( attr.as_string() );
+			}
+			if( const pugi::xml_attribute& attr = hwstate_node.attribute( "scissor" ) )
+			{
+				hwstate.raster.scissor = attr.as_uint();
+			}
+		}
 
+		const char* versions[RDIEPipeline::DRAW_STAGES_COUNT] =
+		{
+			"vs_5_0",
+			"ps_5_0",
+		};
+		if( const pugi::xml_attribute& attr = pass_node.attribute( "vertex_ver" ) )
+			versions[RDIEPipeline::VERTEX] = attr.as_string();
+		
+		if( const pugi::xml_attribute& attr = pass_node.attribute( "pixel_ver" ) )
+			versions[RDIEPipeline::PIXEL] = attr.as_string();
+		
 
-void Release( CompiledShader* fx_binary )
+		const char* entry_points[RDIEPipeline::DRAW_STAGES_COUNT] =
+		{
+			nullptr,
+			nullptr,
+		};
+		entry_points[RDIEPipeline::VERTEX] = pass_node.attribute( "vertex" ).as_string();
+		entry_points[RDIEPipeline::PIXEL]  = pass_node.attribute( "pixel" ).as_string();
+
+		out_passes->push_back( ConfigPass() );
+		ConfigPass& p = out_passes->back();
+		memset( &p, 0, sizeof( ConfigPass ) );
+		p.hwstate = hwstate;
+
+		if( const pugi::xml_attribute& attr = pass_node.attribute( "name" ) )
+		{
+			p.name = attr.as_string();
+		}
+		else
+		{
+			print_error( "pass has no name!" );
+			abort();
+		}
+		
+		SYS_STATIC_ASSERT( sizeof( p.defs ) == sizeof( defs ) );
+		memcpy( p.defs, defs, sizeof( p.defs ) );
+
+		for( int i = 0; i < RDIEPipeline::DRAW_STAGES_COUNT; ++i )
+		{
+			p.entry_points[i] = entry_points[i];
+			p.versions[i] = versions[i];
+		}
+	}
+}
+
+static int ReadHeader( SourceShader* fx_source, char* source )
+{
+	const char header_end[] = "#~header";
+	const size_t header_end_len = strlen( header_end );
+
+	char* source_code = (char*)strstr( source, header_end );
+	if( !source_code )
+	{
+		print_error( "no header found\n" );
+		return -1;
+	}
+
+	source_code += header_end_len;
+	SYS_ASSERT( source_code > source );
+
+	const size_t header_len = ((uintptr_t)source_code - (uintptr_t)source) - header_end_len;
+	pugi::xml_document* doc = new pugi::xml_document;
+	pugi::xml_parse_result result = doc->load_buffer( source, header_len );
+
+	if( !result )
+	{
+		print_error( "Error: %s\nError at: %s\n\n", result.description(), source + result.offset );
+		return -1;
+	}
+
+	source[0] = '/';
+	source[1] = '*';
+	source_code[-1] = '/';
+	source_code[-2] = '*';
+
+	fx_source->_internal_data = doc;
+
+	ExtractPasses( &fx_source->passes, *doc );
+	return 0;
+}
+
+void Release( CompiledShader* fx_binary, BXIAllocator* allocator )
 {
     for( int ipass = 0; ipass < (int)fx_binary->passes.size(); ++ipass )
     {
-        for( int j = 0; j < EStage::DRAW_STAGES_COUNT; ++j )
+        for( int j = 0; j < RDIEPipeline::DRAW_STAGES_COUNT; ++j )
         {
             Release( &fx_binary->passes[ipass].bytecode[j] );
             Release( &fx_binary->passes[ipass].disassembly[j] );
-            DestroyResourceDescriptor( &fx_binary->passes[ipass].rdesc );
+			
+			DestroyResourceBinding( &fx_binary->passes[ipass].rdesc, allocator );
         }
 
         fx_binary->passes[ipass] = BinaryPass();
@@ -218,34 +379,36 @@ void Release( CompiledShader* fx_binary )
 }
 void Release( SourceShader* fx_source )
 {
-    config_t* cfg = (config_t*)fx_source->_internal_data;
-    config_destroy( cfg );
-    BX_FREE0( bxDefaultAllocator(), cfg );
-    fx_source->_internal_data = 0;
+    //config_t* cfg = (config_t*)fx_source->_internal_data;
+    //config_destroy( cfg );
+    //BX_FREE0( bxDefaultAllocator(), cfg );
+	pugi::xml_document* doc = (pugi::xml_document*)fx_source->_internal_data;
+	delete doc;
+    fx_source->_internal_data = nullptr;
 }
 int ParseHeader( SourceShader* fx_src, const char* source, int source_size )
 {
     (void)source_size;
-    return _ReadHeader( fx_src, (char*)source );
+    return ReadHeader( fx_src, (char*)source );
 }
 
 DataBlob CreateShaderBlob( const CompiledShader& compiled, BXIAllocator* allocator )
 {
-    const u32 num_passes = (u32)compiled.passes.size();
+    const uint32_t num_passes = (uint32_t)compiled.passes.size();
 
-    u32 mem_size = 0;
-    mem_size += sizeof( rdi::ShaderFile );
-    mem_size += sizeof( rdi::ShaderFile::Pass ) * ( num_passes - 1 );
+    uint32_t mem_size = 0;
+    mem_size += sizeof( RDIXShaderFile );
+    mem_size += sizeof( RDIXShaderFile::Pass ) * ( num_passes - 1 );
 
-    u32 bytecode_size = 0;
-    u32 resource_desc_size = 0;
+    uint32_t bytecode_size = 0;
+    uint32_t resource_desc_size = 0;
 
-    for( u32 ipass = 0; ipass < num_passes; ++ipass )
+    for( uint32_t ipass = 0; ipass < num_passes; ++ipass )
     {
         const BinaryPass& binPass = compiled.passes[ipass];
-        for( u32 istage = 0; istage < EStage::DRAW_STAGES_COUNT; ++istage )
+        for( uint32_t istage = 0; istage < RDIEPipeline::DRAW_STAGES_COUNT; ++istage )
         {
-            bytecode_size += (u32)binPass.bytecode[istage].size;
+            bytecode_size += (uint32_t)binPass.bytecode[istage].size;
         }
         resource_desc_size += binPass.rdesc_mem_size;
     }
@@ -255,18 +418,18 @@ DataBlob CreateShaderBlob( const CompiledShader& compiled, BXIAllocator* allocat
     void* mem = BX_MALLOC( allocator, mem_size, 4 );
     memset( mem, 0x00, mem_size );
 
-    ShaderFile* shader_file = new(mem) ShaderFile();
+    RDIXShaderFile* shader_file = new(mem) RDIXShaderFile();
     shader_file->num_passes = num_passes;
 
-    u8* data_begin = (u8*)( shader_file + 1 ) + ( sizeof( ShaderFile::Pass ) * (num_passes - 1) );
-    u8* data_current = data_begin;
+    uint8_t* data_begin = (uint8_t*)( shader_file + 1 ) + ( sizeof( RDIXShaderFile::Pass ) * (num_passes - 1) );
+    uint8_t* data_current = data_begin;
 
-    for( u32 ipass = 0; ipass < num_passes; ++ipass )
+    for( uint32_t ipass = 0; ipass < num_passes; ++ipass )
     {
         const BinaryPass& bin_pass = compiled.passes[ipass];
-        ShaderFile::Pass& file_pass = shader_file->passes[ipass];
+        RDIXShaderFile::Pass& file_pass = shader_file->passes[ipass];
 
-        file_pass.hashed_name = ShaderFileNameHash( bin_pass.name.c_str(), shader_file->version );
+        file_pass.hashed_name = GenerateShaderFileHashedName( bin_pass.name.c_str(), shader_file->version );
         file_pass.hw_state_desc = bin_pass.hwstate_desc;
         file_pass.vertex_layout = bin_pass.reflection.vertex_layout;
         
@@ -276,22 +439,22 @@ DataBlob CreateShaderBlob( const CompiledShader& compiled, BXIAllocator* allocat
         data_current += bin_pass.rdesc_mem_size;
 
         {
-            const DataBlob blob = bin_pass.bytecode[EStage::VERTEX];
+            const DataBlob blob = bin_pass.bytecode[RDIEPipeline::VERTEX];
             memcpy( data_current, blob.ptr, blob.size );
             file_pass.offset_bytecode_vertex = TYPE_POINTER_GET_OFFSET( &file_pass.offset_bytecode_vertex, data_current );
-            file_pass.size_bytecode_vertex = (u32)blob.size;
+            file_pass.size_bytecode_vertex = (uint32_t)blob.size;
             data_current += blob.size;
         }
         {
-            const DataBlob blob = bin_pass.bytecode[EStage::PIXEL];
+            const DataBlob blob = bin_pass.bytecode[RDIEPipeline::PIXEL];
             memcpy( data_current, blob.ptr, blob.size );
             file_pass.offset_bytecode_pixel = TYPE_POINTER_GET_OFFSET( &file_pass.offset_bytecode_pixel, data_current );
-            file_pass.size_bytecode_pixel = (u32)blob.size;
+            file_pass.size_bytecode_pixel = (uint32_t)blob.size;
             data_current += blob.size;
         }
     }
 
-    SYS_ASSERT( (uptr)( (u8*)mem + mem_size ) == (uptr)( data_current ) );
+    SYS_ASSERT( (uintptr_t)( (uint8_t*)mem + mem_size ) == (uintptr_t)( data_current ) );
 
     DataBlob blob = {};
     blob.ptr = mem;

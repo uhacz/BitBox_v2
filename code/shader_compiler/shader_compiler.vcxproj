@@ -20,13 +20,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -38,10 +38,12 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\..\props\exec.props" />
+    <Import Project="..\..\props\dx11.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\..\props\exec.props" />
+    <Import Project="..\..\props\dx11.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
@@ -66,12 +68,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rd_party\pugixml\pugixml.vcxproj">
+      <Project>{cb5bdc22-7f9e-4aa9-a33e-d5c3a8bf7ff1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\foundation\foundation.vcxproj">
+      <Project>{81e2ec47-feda-4c4d-a6f7-493c4b92d2ff}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\rdix\rdix.vcxproj">
+      <Project>{8ec396c6-9853-45a0-94fe-bcfebfe647d4}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\rdi_backend\rdi_backend.vcxproj">
       <Project>{f442cd81-4b2a-4ac2-8592-609ce3965b5c}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hardware_state_util.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="shader_compiler.cpp" />
     <ClCompile Include="shader_compiler_common.cpp" />
     <ClCompile Include="shader_compiler_dx11.cpp" />

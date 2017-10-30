@@ -50,6 +50,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -67,9 +68,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="rdix.cpp" />
+    <ClCompile Include="rdix_command_buffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rdix.h" />
+    <ClInclude Include="rdix_command_buffer.h" />
     <ClInclude Include="rdix_type.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

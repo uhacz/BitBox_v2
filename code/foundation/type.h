@@ -27,10 +27,10 @@ union TypeReinterpert
 
 
 #define BIT_OFFSET(n) (1<<n)
-#define PTR_TO_UINT32( p )   ((uint32_t)(uptr) (uint32_t*) (p))
+#define PTR_TO_UINT32( p )   ((uint32_t)(uintptr_t) (uint32_t*) (p))
 #define UINT32_TO_PTR( ui )  ((void *)(uint32_t*)((uint32_t)ui))
 
-#define TYPE_OFFSET_GET_POINTER(type,offset) ( (offset)? (type*)((iptr)(&offset)+(iptr)(offset)) : (type*)0 )
+#define TYPE_OFFSET_GET_POINTER(type,offset) ( (offset)? (type*)((intptr_t)(&offset)+(intptr_t)(offset)) : (type*)0 )
 #define TYPE_POINTER_GET_OFFSET(base, address) ( (base) ? (PTR_TO_UINT32(address) - PTR_TO_UINT32(base)) : 0 )
 
 #ifdef _MSC_VER

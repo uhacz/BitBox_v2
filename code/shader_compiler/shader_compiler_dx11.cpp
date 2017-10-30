@@ -220,7 +220,7 @@ int dx11Compiler::Compile( CompiledShader* fx_bin, const SourceShader& fx_src, c
             RDIXResourceLayout resource_layout;
             resource_layout.slots = resource_slots.data();
             resource_layout.count = (uint32_t)resource_slots.size();
-            bin_pass.rdesc = CreateResourceBinding( resource_layout );
+            bin_pass.rdesc = CreateResourceBinding( resource_layout, _allocator );
 
             RDIXResourceBindingMemoryRequirments rdesc_mem_req = CalculateResourceBindingMemoryRequirments( resource_layout );
             bin_pass.rdesc_mem_size = rdesc_mem_req.Total();

@@ -5,6 +5,15 @@
 
 namespace bx{ namespace tool{
 
+	static inline void CheckSlashes( std::string* str )
+	{
+		for( std::string::iterator it = str->begin(); it != str->end(); ++it )
+		{
+			if( *it == '\\' )
+				*it = '/';
+		}
+	}
+
 int ShaderFileWriter::StartUp( const char* in_file_path, const char* output_dir, BXIAllocator* allocator )
 {
 	_allocator = allocator;
@@ -16,6 +25,11 @@ int ShaderFileWriter::StartUp( const char* in_file_path, const char* output_dir,
 
     _out_filename = _in_filename;
     _out_filename.erase( _out_filename.find_last_of( '.' ) );
+	_out_dir = output_dir;
+	CheckSlashes( &_out_dir );
+
+	if( _out_dir.back() != '/' )
+		_out_dir.append( "/" );
 
 	int32_t read_result = ReadTextFile( &_in_file.data, &_in_file.size, in_file_path, allocator );
 	if( read_result == IO_ERROR )
@@ -23,6 +37,8 @@ int ShaderFileWriter::StartUp( const char* in_file_path, const char* output_dir,
 		std::cerr << "cannot read file: " << _in_filename << std::endl;
 		return -1;
 	}
+
+	
 
     return 0;
 }
@@ -65,12 +81,7 @@ int ShaderFileWriter::WtiteAssembly( const char* passName, const char* stageName
 int ShaderFileWriter::_ParseFilePath( const char* file_path )
 {
     std::string file_str( file_path );
-
-    for( std::string::iterator it = file_str.begin(); it != file_str.end(); ++it )
-    {
-        if( *it == '\\' )
-            *it = '/';
-    }
+	CheckSlashes( &file_str );
 
     const size_t slash_pos = file_str.find_last_of( '/' );
     if( slash_pos == std::string::npos )
