@@ -21,9 +21,17 @@
 
 #include <3rd_party\pugixml\pugixml.hpp>
 
+#include <foundation/math/vmath.h>
 
 int main( int argc, const char** argv )
 {
+    vec2_t a( 1.f );
+    vec2_t b( 2.f );
+
+    vec2_t c = a + b;
+    c += b;
+    c = 10 * c;
+
     // --- startup
     BXIAllocator* default_allocator = nullptr;
     BXMemoryStartUp( &default_allocator );

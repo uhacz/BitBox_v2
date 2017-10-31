@@ -100,6 +100,11 @@ inline unsigned is_pow2( unsigned int x )
     return ( ( x != 0 ) && ( ( x & ( ~x + 1 ) ) == x ) );
 }
 
+inline float recip_sqrt( float x )
+{
+    return 1.f / ::sqrtf( x );
+}
+
 inline float Sign( float x )
 {
     return x < 0.0f ? -1.0f : 1.0f;
