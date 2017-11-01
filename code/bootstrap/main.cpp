@@ -32,6 +32,9 @@ int main( int argc, const char** argv )
     c += b;
     c = 10 * c;
 
+    mat33_t rot = mat33_t::identity();
+    vec3_t d = rot * vec3_t( c, 1.f );;
+
     // --- startup
     BXIAllocator* default_allocator = nullptr;
     BXMemoryStartUp( &default_allocator );

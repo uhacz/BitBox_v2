@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../common.h"
-#include "math_type.h"
+#include "vmath_type.h"
 #include "vec2.h"
 #include "vec3.h"
 #include "vec4.h"

@@ -90,7 +90,7 @@
     <ClInclude Include="io.h" />
     <ClInclude Include="math\mat33.h" />
     <ClInclude Include="math\mat44.h" />
-    <ClInclude Include="math\math_type.h" />
+    <ClInclude Include="math\vmath_type.h" />
     <ClInclude Include="math\quat.h" />
     <ClInclude Include="math\vec2.h" />
     <ClInclude Include="math\vec3.h" />
