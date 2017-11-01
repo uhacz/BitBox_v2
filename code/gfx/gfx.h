@@ -1,11 +1,29 @@
 #pragma once
 
 #include <foundation/type.h>
+#include <foundation/math/vmath.h>
 
 struct GFXCameraID   { uint32_t i; };
 struct GFXLightID    { uint32_t i; };
 struct GFXMeshID     { uint32_t i; };
 struct GFXMaterialID { uint32_t i; };
+
+
+
+struct GFXLightParams
+{
+    vec3_t pos;
+    vec3_t dir;
+    uint32_t color;
+};
+
+struct RDIXRenderSource;
+struct GFXMeshParams
+{
+    RDIXRenderSource* rsource;
+    GFXMaterialID material_id;
+    uint32_t render_mask;
+};
 
 class GFX
 {
@@ -20,7 +38,7 @@ public:
 	static void Destroy( GFXMeshID* id );
 	static void Destroy( GFXMaterialID* id );
 	
-	bool Add( GFXCameraID id );
+    bool Add( GFXCameraID id );
 	bool Add( GFXLightID id );
 	bool Add( GFXMeshID id );
 

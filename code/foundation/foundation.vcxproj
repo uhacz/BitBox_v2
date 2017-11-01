@@ -115,6 +115,7 @@
     <ClCompile Include="debug.c" />
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="io.cpp" />
+    <ClCompile Include="math\mat44.cpp" />
     <ClCompile Include="memory\dlmalloc.c" />
     <ClCompile Include="memory\memory.cpp" />
     <ClCompile Include="plugin\plugin_load.cpp" />
