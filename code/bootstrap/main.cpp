@@ -17,24 +17,14 @@
 #include <filesystem/filesystem_plugin.h>
 
 #include <test_app/test_app.h>
-#include "foundation/time.h"
+#include <asset_app/asset_app.h>
+
+#include <foundation/time.h>
 
 #include <3rd_party\pugixml\pugixml.hpp>
 
-#include <foundation/math/vmath.h>
-
 int main( int argc, const char** argv )
 {
-    vec2_t a( 1.f );
-    vec2_t b( 2.f );
-
-    vec2_t c = a + b;
-    c += b;
-    c = 10 * c;
-
-    mat33_t rot = mat33_t::identity();
-    vec3_t d = rot * vec3_t( c, 1.f );;
-
     // --- startup
     BXIAllocator* default_allocator = nullptr;
     BXMemoryStartUp( &default_allocator );
@@ -47,7 +37,8 @@ int main( int argc, const char** argv )
     BXIWindow* window_plug = (BXIWindow*)BXPluginLoad( plug_reg, BX_WINDOW_PLUGIN_NAME, default_allocator );
     BXWindow* window = window_plug->Create( "BitBox", 1600, 900, false, default_allocator );
 
-    BXIApplication* app_plug = (BXIApplication*)BXPluginLoad( plug_reg, BX_APPLICATION_PLUGIN_NAME_test_app(), default_allocator );
+    const char* app_plug_name = BX_APPLICATION_PLUGIN_NAME_asset_app();
+    BXIApplication* app_plug = (BXIApplication*)BXPluginLoad( plug_reg, app_plug_name, default_allocator );
     if( app_plug->Startup( argc, argv, plug_reg, default_allocator ) )
     {
         HWND hwnd = (HWND)window->GetSystemHandle( window );
@@ -97,7 +88,7 @@ int main( int argc, const char** argv )
     app_plug->Shutdown( plug_reg, default_allocator );
     window_plug->Destroy();
 
-    BXPluginUnload( plug_reg, BX_APPLICATION_PLUGIN_NAME_test_app(), default_allocator );
+    BXPluginUnload( plug_reg, app_plug_name, default_allocator );
     BXPluginUnload( plug_reg, BX_WINDOW_PLUGIN_NAME, default_allocator );
 	BXPluginUnload( plug_reg, BX_FILESYSTEM_PLUGIN_NAME, default_allocator );
 

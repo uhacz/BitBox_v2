@@ -9,7 +9,6 @@ struct GFXMeshID     { uint32_t i; };
 struct GFXMaterialID { uint32_t i; };
 
 
-
 struct GFXLightParams
 {
     vec3_t pos;
@@ -17,10 +16,16 @@ struct GFXLightParams
     uint32_t color;
 };
 
-struct RDIXRenderSource;
+
+struct GFXMaterial
+{
+    struct RDIXPipeline* piepeline;
+    struct RDIXResourceBinding* resources;
+};
+
 struct GFXMeshParams
 {
-    RDIXRenderSource* rsource;
+    struct RDIXRenderSource* rsource;
     GFXMaterialID material_id;
     uint32_t render_mask;
 };
