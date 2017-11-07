@@ -4,9 +4,12 @@
 #include <initializer_list>
 
 #include "rdix_type.h"
+#include <util/par_shapes/par_shapes.h>
 
 struct RDICommandQueue;
 struct RDIDevice;
+struct RDIXCommand;
+struct RDIXCommandBuffer;
 struct BXIAllocator;
 
 // ---
@@ -57,10 +60,12 @@ RDITextureDepth   TextureDepth( RDIXRenderTarget* rtarget );
 
 // --- RenderSource
 RDIXRenderSource* CreateRenderSource ( RDIDevice* dev, const RDIXRenderSourceDesc& desc, BXIAllocator* allocator );
+RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes_mesh* shape, BXIAllocator* allocator );
 void			  DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource, BXIAllocator* allocator );
 void			  BindRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource );
 void			  SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t rangeIndex = 0 );
 void			  SubmitRenderSourceInstanced( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t numInstances, uint32_t rangeIndex = 0 );
+
 
 uint32_t             NumVertexBuffers( RDIXRenderSource* rsource );
 uint32_t             NumVertices( RDIXRenderSource* rsource );
@@ -69,4 +74,16 @@ uint32_t             NumRanges( RDIXRenderSource* rsource );
 RDIVertexBuffer      VertexBuffer( RDIXRenderSource* rsource, uint32_t index );
 RDIIndexBuffer       IndexBuffer( RDIXRenderSource* rsource );
 RDIXRenderSourceRange Range( RDIXRenderSource* rsource, uint32_t index );
+
+// --- TransformBuffer
+RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformBufferDesc& desc, BXIAllocator* allocator );
+void				 DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAllocator* allocator );
+void				 ClearTransformBuffer( RDIXTransformBuffer* buffer );
+bool				 AppendMatrix( RDIXTransformBuffer* buffer, const struct mat44_t& matrix );
+
+void				 UploadTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer );
+RDIXCommand*		 UploadTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer );
+
+void				 BindTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask );
+RDIXCommand*		 BindTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask );
 

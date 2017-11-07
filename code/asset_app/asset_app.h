@@ -3,6 +3,7 @@
 #include <application/application_plugin.h>
 
 #include <rdi_backend/rdi_backend.h>
+#include <rdix/rdix.h>
 
 struct BXIFilesystem;
 struct BXAssetApp : BXIApplication
@@ -15,7 +16,7 @@ private:
     BXIFilesystem* _filesystem = nullptr;
 
     RDIDevice* _rdidev = nullptr;
-    RDICommandQueue* _rdicmdq = nullptr;;
+    RDICommandQueue* _rdicmdq = nullptr;
 };
 
 BX_APPLICATION_PLUGIN_DECLARE( asset_app )

@@ -116,7 +116,16 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling shader...</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)bin\$(PlatformName)\shader_compiler\shader_compiler.exe --input-file %(FullPath) --output-dir %(RootDir)dev\assets\shader\</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling shader...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(BX_ASSET_ROOT)shader\hlsl\%(Identity)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(BX_ASSET_ROOT)shader/%(Identity)</Outputs>
+      <TreatOutputAsContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatOutputAsContent>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="hlsl\material.hlsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)bin\$(PlatformName)\shader_compiler\shader_compiler.exe --input-file %(FullPath) --output-dir $(BX_ASSET_ROOT)shader\hlsl\</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(BX_ASSET_ROOT)shader/%(Identity)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling shader...</Message>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

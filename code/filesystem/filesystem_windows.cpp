@@ -123,10 +123,13 @@ void FilesystemWindows::CloseFile( BXFileHandle fhandle, bool freeData )
 	id_table::destroy( _ids, id );
 	_id_lock.unlock();
 
-	_to_unload_lock.lock();
-	queue::push_back( _to_unload, file );
-	_to_unload_lock.unlock();
-	_semaphore.signal();
+	if( freeData )
+	{
+		_to_unload_lock.lock();
+		queue::push_back( _to_unload, file );
+		_to_unload_lock.unlock();
+		_semaphore.signal();
+	}
 }
 
 BXEFileStatus::E FilesystemWindows::File( BXFile* file, BXFileHandle fhandle )

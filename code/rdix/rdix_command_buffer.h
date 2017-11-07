@@ -30,6 +30,15 @@ struct RDIXSetResourcesCmd : RDIXCommand
 	static const DispatchFunction DISPATCH_FUNCTION;
 	RDIXResourceBinding* rbind = nullptr;
 };
+
+struct RDIXSetResourceROCmd : RDIXCommand
+{
+	static const DispatchFunction DISPATCH_FUNCTION;
+	RDIResourceRO resource;
+	uint8_t slot = 0;
+	uint8_t stage_mask = 0;
+};
+
 struct RDIXSetRenderSourceCmd : RDIXCommand
 {
 	static const DispatchFunction DISPATCH_FUNCTION;
@@ -75,6 +84,7 @@ struct RDIXDrawCallbackCmd : RDIXCommand
 
 void SetPipelineCmdDispatch         ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
 void SetResourcesCmdDispatch        ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
+void SetResourceROCmdDispatch		( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
 void SetRenderSourceCmdDispatch     ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
 void DrawCmdDispatch                ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
 void RawDrawCallCmdDispatch         ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
@@ -96,7 +106,7 @@ void SubmitCommandBuffer ( RDICommandQueue* cmdq, RDIXCommandBuffer* cmdBuff );
 template< typename T >
 T* AllocateCommand( RDIXCommandBuffer* cmdbuff, uint32_t dataSize, RDIXCommand* parent_cmd )
 {
-	u32 mem_size = sizeof( T ) + dataSize;
+	uint32_t mem_size = sizeof( T ) + dataSize;
 	void* mem = _AllocateCommand( cmdbuff, mem_size );
 	if( !mem )
 		return nullptr;

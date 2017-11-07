@@ -12,6 +12,7 @@ const DispatchFunction RDIXDrawCmd::DISPATCH_FUNCTION                 = DrawCmdD
 const DispatchFunction RDIXUpdateConstantBufferCmd::DISPATCH_FUNCTION = UpdateConstantBufferCmdDispatch;
 const DispatchFunction RDIXSetPipelineCmd::DISPATCH_FUNCTION          = SetPipelineCmdDispatch;
 const DispatchFunction RDIXSetResourcesCmd::DISPATCH_FUNCTION         = SetResourcesCmdDispatch;
+const DispatchFunction RDIXSetResourceROCmd::DISPATCH_FUNCTION		  = SetRenderSourceCmdDispatch;
 const DispatchFunction RDIXSetRenderSourceCmd::DISPATCH_FUNCTION      = SetRenderSourceCmdDispatch;
 const DispatchFunction RDIXRawDrawCallCmd::DISPATCH_FUNCTION          = RawDrawCallCmdDispatch;
 const DispatchFunction RDIXUpdateBufferCmd::DISPATCH_FUNCTION         = UpdateBufferCmdDispatch;
@@ -26,6 +27,12 @@ void SetResourcesCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
 {
 	RDIXSetResourcesCmd* cmd = (RDIXSetResourcesCmd*)cmdAddr;
 	BindResources( cmdq, cmd->rbind );
+}
+
+void SetResourceROCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
+{
+	auto* cmd = (RDIXSetResourceROCmd*)cmdAddr;
+	SetResourcesRO( cmdq, &cmd->resource, cmd->slot, 1, cmd->stage_mask );
 }
 
 void SetRenderSourceCmdDispatch( RDICommandQueue * cmdq, RDIXCommand * cmdAddr )

@@ -1,10 +1,14 @@
 #include "rdix.h"
 
+#include "rdix_command_buffer.h"
+
 #include <filesystem/filesystem_plugin.h>
 #include <foundation/memory/memory.h>
+#include <foundation/math/vmath.h>
 #include <foundation/hash.h>
 #include <foundation/common.h>
 #include <foundation/buffer.h>
+
 
 #include <rdi_backend/rdi_backend.h>
 
@@ -112,6 +116,8 @@ void DestroyPipeline( RDIDevice* dev, RDIXPipeline** pipeline, BXIAllocator* all
 	Destroy( &pipe->hardware_state );
 	Destroy( &pipe->input_layout );
 	Destroy( &pipe->pass );
+
+	BX_DELETE0( allocator, pipeline[0] );
 }
 void BindPipeline( RDICommandQueue* cmdq, RDIXPipeline* pipeline, bool bindResources )
 {
@@ -538,6 +544,18 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
 	return impl;
 }
 
+RDIXRenderSource * CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes_mesh* shape, BXIAllocator* allocator )
+{
+	RDIXRenderSourceDesc desc = {};
+	desc.Count( shape->npoints, shape->ntriangles * 3 );
+	desc.VertexBuffer( RDIVertexBufferDesc::POS(), shape->points );
+	desc.VertexBuffer( RDIVertexBufferDesc::NRM(), shape->normals );
+	desc.VertexBuffer( RDIVertexBufferDesc::UV0(), shape->tcoords );
+	desc.IndexBuffer( RDIEType::USHORT, shape->triangles );
+
+	return CreateRenderSource( dev, desc, allocator );
+}
+
 void DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource, BXIAllocator* allocator )
 {
 	if( !rsource[0] )
@@ -609,4 +627,152 @@ RDIXRenderSourceRange Range( RDIXRenderSource* rsource, uint32_t index )
 {
 	SYS_ASSERT( index < rsource->num_draw_ranges );
 	return rsource->draw_ranges[index];
+}
+
+
+// ---
+namespace rdix
+{
+	struct Matrix
+	{
+		vec4_t row0;
+		vec4_t row1;
+		vec4_t row2;
+	};
+	struct MatrixIT
+	{
+		vec3_t row0;
+		vec3_t row1;
+		vec3_t row2;
+	};
+}//
+struct BIT_ALIGNMENT_16 RDIXTransformBuffer
+{
+	static constexpr uint32_t NUM_ROWS_PER_MATRIX = 3;
+	
+	RDIBufferRO gpu_buffer_matrix = {};
+	RDIBufferRO gpu_buffer_matrix_it = {};
+
+	uint32_t max_elements = 0;
+	uint32_t num_elements = 0;
+		
+	rdix::Matrix*   MatrixData()   { return (rdix::Matrix*)(this + 1); }
+	rdix::MatrixIT* MatrixITData() { return (rdix::MatrixIT*)(MatrixData() + max_elements); }
+
+	rdix::Matrix*   Matrix  ( uint32_t index ) { return MatrixData() + index; }
+	rdix::MatrixIT* MatrixIT( uint32_t index ) { return MatrixITData() + index; }
+};
+
+RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformBufferDesc& desc, BXIAllocator* allocator )
+{
+	// m -> matrix
+	// mit -> matrix inverse transpose
+
+	const RDIFormat gpu_format_m = RDIFormat::Float4();
+	const RDIFormat gpu_format_mit = RDIFormat::Float3();
+
+	const uint32_t num_elements = 3 * desc.capacity; // 3 x float4 (matrix) or 3 x float3 (matrix it)
+
+	uint32_t mem_size = sizeof( RDIXTransformBuffer );
+	mem_size += num_elements * gpu_format_m.ByteWidth();
+	mem_size += num_elements * gpu_format_mit.ByteWidth();
+
+	RDIXTransformBuffer* buffer = (RDIXTransformBuffer*)BX_MALLOC( allocator, mem_size, 16 );
+	memset( buffer, 0x00, mem_size );
+
+	buffer->gpu_buffer_matrix = CreateBufferRO( dev, desc.capacity, gpu_format_m, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
+	buffer->gpu_buffer_matrix_it = CreateBufferRO( dev, desc.capacity, gpu_format_mit, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
+	buffer->max_elements = desc.capacity;
+
+	return buffer;
+}
+
+void DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAllocator* allocator )
+{
+	if( !buffer[0] )
+		return;
+
+	Destroy( &buffer[0]->gpu_buffer_matrix_it );
+	Destroy( &buffer[0]->gpu_buffer_matrix );
+
+	BX_FREE0( allocator, buffer[0] );
+}
+
+void ClearTransformBuffer( RDIXTransformBuffer* buffer )
+{
+	buffer->num_elements = 0;
+}
+
+bool AppendMatrix( RDIXTransformBuffer* buffer, const mat44_t& matrix )
+{
+	if( buffer->num_elements >= buffer->max_elements )
+		return false;
+
+	const uint32_t index = buffer->num_elements++;
+	mat44_t tmp = transpose( matrix );
+
+	rdix::Matrix* dst = buffer->Matrix( index );
+	dst->row0 = tmp.c0;
+	dst->row1 = tmp.c1;
+	dst->row2 = tmp.c2;
+
+	tmp = inverse( tmp );
+	rdix::MatrixIT* dst_it = buffer->MatrixIT( index );
+	dst_it->row0 = tmp.c0.xyz();
+	dst_it->row1 = tmp.c1.xyz();
+	dst_it->row2 = tmp.c2.xyz();
+
+	return true;
+}
+
+void UploadTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer )
+{
+	SYS_STATIC_ASSERT( sizeof( rdix::Matrix ) == 3 * sizeof( vec4_t ) );
+
+	uint8_t* dst = nullptr;
+
+	dst = Map( cmdq, buffer->gpu_buffer_matrix, 0, RDIEMapType::WRITE );
+	memcpy( dst, buffer->MatrixData(), buffer->num_elements * sizeof( rdix::Matrix ) );
+	Unmap( cmdq, buffer->gpu_buffer_matrix );
+
+	dst = Map( cmdq, buffer->gpu_buffer_matrix_it, 0, RDIEMapType::WRITE );
+	memcpy( dst, buffer->MatrixITData(), buffer->num_elements * sizeof( rdix::MatrixIT ) );
+	Unmap( cmdq, buffer->gpu_buffer_matrix_it );
+}
+
+RDIXCommand* UploadTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer )
+{
+	const uint32_t data_size1 = buffer->num_elements * sizeof( rdix::Matrix );
+	const uint32_t data_size2 = buffer->num_elements * sizeof( rdix::MatrixIT );
+
+	RDIXUpdateBufferCmd* cmd1 = AllocateCommand<RDIXUpdateBufferCmd>( cmdbuff, data_size1, parentcmd );
+	cmd1->resource = buffer->gpu_buffer_matrix;
+	cmd1->size = data_size1;
+	memcpy( cmd1->DataPtr(), buffer->MatrixData(), data_size1 );
+
+	RDIXUpdateBufferCmd* cmd2 = AllocateCommand<RDIXUpdateBufferCmd>( cmdbuff, data_size1, cmd1 );
+	cmd2->resource = buffer->gpu_buffer_matrix_it;
+	cmd2->size = data_size2;
+	memcpy( cmd2->DataPtr(), buffer->MatrixITData(), data_size2 );
+
+	return cmd2;
+}
+void BindTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask )
+{
+	SetResourcesRO( cmdq, &buffer->gpu_buffer_matrix, slot, 2, stagemask );
+}
+
+RDIXCommand* BindTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask )
+{
+	auto* cmd1 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, parentcmd );
+	cmd1->resource = buffer->gpu_buffer_matrix;
+	cmd1->slot = slot;
+	cmd1->stage_mask = stagemask;
+
+	auto* cmd2 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, cmd1 );
+	cmd2->resource = buffer->gpu_buffer_matrix_it;
+	cmd2->slot = slot + 1;
+	cmd2->stage_mask = stagemask;
+
+	return cmd2;
 }

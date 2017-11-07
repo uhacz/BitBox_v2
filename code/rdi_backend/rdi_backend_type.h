@@ -114,6 +114,11 @@ struct RDIFormat
     RDIFormat& Normalized( uint32_t onOff ) { normalized = onOff; return *this; }
     RDIFormat& Srgb( uint32_t onOff ) { srgb = onOff; return *this; }
     inline uint32_t ByteWidth() const { return RDIEType::stride[type] * numElements; }
+
+	static RDIFormat Float()  { return RDIFormat( RDIEType::FLOAT, 1 ); }
+	static RDIFormat Float2() { return RDIFormat( RDIEType::FLOAT, 2 ); }
+	static RDIFormat Float3() { return RDIFormat( RDIEType::FLOAT, 3 ); }
+	static RDIFormat Float4() { return RDIFormat( RDIEType::FLOAT, 4 ); }
 };
 
 
@@ -508,6 +513,10 @@ union RDIVertexBufferDesc
         uint16_t typeNorm : 1;
         uint16_t numElements : 4;
     };
+
+	static RDIVertexBufferDesc POS() { return RDIVertexBufferDesc( RDIEVertexSlot::POSITION ).DataType( RDIEType::FLOAT, 3 ); }
+	static RDIVertexBufferDesc NRM() { return RDIVertexBufferDesc( RDIEVertexSlot::NORMAL ).DataType( RDIEType::FLOAT, 3 ); }
+	static RDIVertexBufferDesc UV0() { return RDIVertexBufferDesc( RDIEVertexSlot::TEXCOORD0 ).DataType( RDIEType::FLOAT, 2 ); }
 };
 
 struct RDIVertexLayout

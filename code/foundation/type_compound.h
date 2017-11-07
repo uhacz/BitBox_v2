@@ -33,7 +33,7 @@ union float4_t
 	float4_t( const float3_t xyz, float32_t vw ) : x( xyz.x ), y( xyz.y ), z( xyz.z ), w( vw ) {}
 };
 
-union int32_tx2
+union int32x2_t
 {
 	struct
 	{
@@ -41,11 +41,11 @@ union int32_tx2
 	};
 	int32_t xyz[2];
 
-	int32_tx2() : x( 0 ), y( 0 ) {}
-	int32_tx2( int32_t all ) : x( all ), y( all ) {}
-	int32_tx2( int32_t a, int32_t b ) : x( a ), y( b ) {}
+	int32x2_t() : x( 0 ), y( 0 ) {}
+	int32x2_t( int32_t all ) : x( all ), y( all ) {}
+	int32x2_t( int32_t a, int32_t b ) : x( a ), y( b ) {}
 };
-union int32_tx3
+union int32x3_t
 {
 	struct
 	{
@@ -53,8 +53,8 @@ union int32_tx3
 	};
 	int32_t xyz[3];
 
-	int32_tx3() : x( 0 ), y( 0 ), z( 0 ) {}
-	int32_tx3( int32_t all ) : x( all ), y( all ), z( all ) {}
-	int32_tx3( int32_t a, int32_t b, int32_t c ) : x( a ), y( b ), z( c ) {}
+	int32x3_t() : x( 0 ), y( 0 ), z( 0 ) {}
+	int32x3_t( int32_t all ) : x( all ), y( all ), z( all ) {}
+	int32x3_t( int32_t a, int32_t b, int32_t c ) : x( a ), y( b ), z( c ) {}
 };
 

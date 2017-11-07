@@ -16,8 +16,7 @@
 
 #include <filesystem/filesystem_plugin.h>
 
-#include <test_app/test_app.h>
-#include <asset_app/asset_app.h>
+#include <application/application_plugin.h>
 
 #include <foundation/time.h>
 
@@ -37,7 +36,7 @@ int main( int argc, const char** argv )
     BXIWindow* window_plug = (BXIWindow*)BXPluginLoad( plug_reg, BX_WINDOW_PLUGIN_NAME, default_allocator );
     BXWindow* window = window_plug->Create( "BitBox", 1600, 900, false, default_allocator );
 
-    const char* app_plug_name = BX_APPLICATION_PLUGIN_NAME_asset_app();
+	const char* app_plug_name = "asset_app"; // BX_APPLICATION_PLUGIN_NAME_asset_app();
     BXIApplication* app_plug = (BXIApplication*)BXPluginLoad( plug_reg, app_plug_name, default_allocator );
     if( app_plug->Startup( argc, argv, plug_reg, default_allocator ) )
     {
@@ -72,10 +71,6 @@ int main( int argc, const char** argv )
             InputUpdatePad_XInput( &input->pad, 1 );
             BXInput::ComputeMouseDelta( &window->input.mouse );
 
-            //if( input->IsKeyPressedOnce( BXInput::eKEY_ESC ) )
-            //    ret = 0;
-
-            //ret = app->update( deltaTimeUS );
             ret = app_plug->Update( window, delta_time_us, default_allocator );
 
             InputSwap( &window->input );

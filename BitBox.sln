@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.15
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bootstrap", "code\bootstrap\bootstrap.vcxproj", "{33A09D2D-70DD-44AF-90C7-BD600F9ACE51}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -56,6 +56,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "shaders", "code\shaders\shaders.vcxproj", "{42304925-462C-4B9F-922F-8AE0E02F2CCC}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AnyOption", "code\3rd_party\AnyOption\AnyOption.vcxproj", "{075D1924-EB5A-4BE3-9A27-D366F6CE77A8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "util", "code\util\util.vcxproj", "{DAD0A7D3-3C93-4A28-ABB9-CEE0E38F18BF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -151,6 +153,12 @@ Global
 		{075D1924-EB5A-4BE3-9A27-D366F6CE77A8}.Release|x64.ActiveCfg = Release|x64
 		{075D1924-EB5A-4BE3-9A27-D366F6CE77A8}.Release|x64.Build.0 = Release|x64
 		{075D1924-EB5A-4BE3-9A27-D366F6CE77A8}.Release|x86.ActiveCfg = Release|x64
+		{DAD0A7D3-3C93-4A28-ABB9-CEE0E38F18BF}.Debug|x64.ActiveCfg = Debug|x64
+		{DAD0A7D3-3C93-4A28-ABB9-CEE0E38F18BF}.Debug|x64.Build.0 = Debug|x64
+		{DAD0A7D3-3C93-4A28-ABB9-CEE0E38F18BF}.Debug|x86.ActiveCfg = Debug|x64
+		{DAD0A7D3-3C93-4A28-ABB9-CEE0E38F18BF}.Release|x64.ActiveCfg = Release|x64
+		{DAD0A7D3-3C93-4A28-ABB9-CEE0E38F18BF}.Release|x64.Build.0 = Release|x64
+		{DAD0A7D3-3C93-4A28-ABB9-CEE0E38F18BF}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

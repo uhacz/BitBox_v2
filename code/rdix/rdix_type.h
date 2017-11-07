@@ -173,8 +173,15 @@ struct RDIXRenderSourceDesc
 	}
 };
 
+// --- 
+struct RDIXTransformBufferDesc
+{
+	uint32_t capacity = 1024;
+};
+
+
 struct RDIXPipeline;
 struct RDIXResourceBinding;
 struct RDIXRenderSource;
 struct RDIXRenderTarget;
-
+struct RDIXTransformBuffer;

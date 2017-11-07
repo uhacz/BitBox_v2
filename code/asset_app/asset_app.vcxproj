@@ -13,7 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3E76CDE2-37E8-4E04-94C2-19EEFED7F69F}</ProjectGuid>
     <RootNamespace>asset_app</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -79,6 +79,9 @@
     <ProjectReference Include="..\foundation\foundation.vcxproj">
       <Project>{81e2ec47-feda-4c4d-a6f7-493c4b92d2ff}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\gfx\gfx.vcxproj">
+      <Project>{8333f018-a7d7-4ba7-8e2c-44655620860f}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\input\input.vcxproj">
       <Project>{15dae8e3-4c6a-4bd3-895f-546150f7f91e}</Project>
     </ProjectReference>
@@ -87,6 +90,9 @@
     </ProjectReference>
     <ProjectReference Include="..\rdi_backend\rdi_backend.vcxproj">
       <Project>{f442cd81-4b2a-4ac2-8592-609ce3965b5c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\util\util.vcxproj">
+      <Project>{dad0a7d3-3c93-4a28-abb9-cee0e38f18bf}</Project>
     </ProjectReference>
     <ProjectReference Include="..\window\window.vcxproj">
       <Project>{95b68f9d-6106-44ac-a567-c84925abf249}</Project>
