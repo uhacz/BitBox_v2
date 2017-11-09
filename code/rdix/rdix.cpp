@@ -650,6 +650,7 @@ struct BIT_ALIGNMENT_16 RDIXTransformBuffer
 {
 	static constexpr uint32_t NUM_ROWS_PER_MATRIX = 3;
 	
+	RDIConstantBuffer gpu_instance_offset = {};
 	RDIBufferRO gpu_buffer_matrix = {};
 	RDIBufferRO gpu_buffer_matrix_it = {};
 
@@ -680,6 +681,7 @@ RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformB
 	RDIXTransformBuffer* buffer = (RDIXTransformBuffer*)BX_MALLOC( allocator, mem_size, 16 );
 	memset( buffer, 0x00, mem_size );
 
+	buffer->gpu_instance_offset = CreateConstantBuffer( dev, 16 );
 	buffer->gpu_buffer_matrix = CreateBufferRO( dev, desc.capacity, gpu_format_m, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
 	buffer->gpu_buffer_matrix_it = CreateBufferRO( dev, desc.capacity, gpu_format_mit, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
 	buffer->max_elements = desc.capacity;
@@ -694,6 +696,7 @@ void DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAl
 
 	Destroy( &buffer[0]->gpu_buffer_matrix_it );
 	Destroy( &buffer[0]->gpu_buffer_matrix );
+	Destroy( &buffer[0]->gpu_instance_offset );
 
 	BX_FREE0( allocator, buffer[0] );
 }

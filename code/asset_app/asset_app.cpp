@@ -13,6 +13,15 @@
 #include <rdix/rdix_command_buffer.h>
 #include <gfx/gfx_camera.h>
 
+using float2 = vec2_t;
+using float3 = vec3_t;
+using float4 = vec4_t;
+using float3x3 = mat33_t;
+using float4x4 = mat44_t;
+using uint = uint32_t;
+
+#include <shaders/hlsl/material_frame_data.h>
+#include <shaders/hlsl/transform_instance_data.h>
 
 namespace
 {
@@ -22,9 +31,13 @@ namespace
 	static RDIXPipeline* g_pipeline = nullptr;
 	static RDIXRenderSource* g_rsource = nullptr;
 
+	static mat44_t g_camera_world = mat44_t::identity();
 	static GFXCameraParams g_camera_params = {};
 	static GFXCameraMatrices g_camera_matrices = {};
-	
+
+	static RDIConstantBuffer g_material_frame_data_gpu = {};
+	static RDIConstantBuffer g_transform_instance_data_gpu = {};
+
 }
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
@@ -36,10 +49,13 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 	const BXWindow* window = win_plugin->GetWindow();
 	::Startup( &_rdidev, &_rdicmdq, window->GetSystemHandle( window ), 800, 600, 0, allocator );
 
-	g_cmdbuffer = CreateCommandBuffer( allocator );
+	g_material_frame_data_gpu = CreateConstantBuffer( _rdidev, sizeof( MaterialFrameData ) );
+	g_transform_instance_data_gpu = CreateConstantBuffer( _rdidev, sizeof( TransformInstanceData ) );
 
 	RDIXTransformBufferDesc transform_buffer_desc = {};
 	g_transform_buffer = CreateTransformBuffer( _rdidev, transform_buffer_desc, allocator );
+
+	g_cmdbuffer = CreateCommandBuffer( allocator );
 
 	RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/material.shader", _filesystem, allocator );
 	
@@ -55,11 +71,19 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 		par_shapes_free_mesh( shape );
 	}
 
+
+
+	g_camera_world = mat44_t( mat33_t::identity(), vec3_t( 0.f, 1.f, -5.f ) );
+
+
     return true;
 }
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
+	Destroy( &g_transform_instance_data_gpu );
+	Destroy( &g_material_frame_data_gpu );
+
 	DestroyRenderSource( _rdidev, &g_rsource, allocator );
 	DestroyPipeline( _rdidev, &g_pipeline, allocator );
 	DestroyTransformBuffer( _rdidev, &g_transform_buffer, allocator );
@@ -74,7 +98,32 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     if( win->input.IsKeyPressedOnce( BXInput::eKEY_ESC ) )
         return false;
 
+	ComputeMatrices( &g_camera_matrices, g_camera_params, g_camera_world );
+	{
+		MaterialFrameData fdata;
+		fdata.camera_world = g_camera_matrices.world;
+		fdata.camera_view = g_camera_matrices.view;
+		fdata.camera_view_proj = g_camera_matrices.view_proj;
+		UpdateCBuffer( _rdicmdq, g_material_frame_data_gpu, &fdata );
+	};
+		
+	ClearState( _rdicmdq );
+	
+	SetCbuffers( _rdicmdq, &g_material_frame_data_gpu, MATERIAL_FRAME_DATA_SLOT, 1, RDIEPipeline::ALL_STAGES_MASK );
 
+
+
+	
+	float clear_color[5] = { 0.f, 0.f, 0.f, 1.f, 1.f };
+	ClearBuffers( _rdicmdq, nullptr, 0, RDITextureDepth(), clear_color, 1, 1 );
+	
+	ClearCommandBuffer( g_cmdbuffer, allocator );
+
+	SubmitCommandBuffer( _rdicmdq, g_cmdbuffer );
+
+	Swap( _rdicmdq );
+
+	
 
     return true;
 }

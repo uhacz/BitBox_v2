@@ -56,10 +56,15 @@ void StartupDX11( RDIDevice** dev, RDICommandQueue** cmdq, uintptr_t hWnd, int w
     {
         SYS_NOT_IMPLEMENTED;
     }
-
+	
 	RDIDevice* device = BX_NEW( allocator, RDIDevice );
 	RDICommandQueue* cmd_queue = BX_NEW( allocator, RDICommandQueue);
-    
+
+	if( flags & D3D11_CREATE_DEVICE_DEBUG )
+	{
+		dx11Dev->QueryInterface( __uuidof(ID3D11Debug), reinterpret_cast<void**>(&device->_debug) );
+	}
+
 	device->_device = dx11Dev;
     cmd_queue->_context = dx11Ctx;
     cmd_queue->_swapChain = dx11SwapChain;
@@ -86,11 +91,17 @@ void StartupDX11( RDIDevice** dev, RDICommandQueue** cmdq, uintptr_t hWnd, int w
 void ShutdownDX11( RDIDevice** dev, RDICommandQueue** cmdq, BXIAllocator* allocator )
 {
     cmdq[0]->_mainFramebuffer->Release();
-    cmdq[0]->_context->Release();
-    cmdq[0]->_swapChain->Release();
+	cmdq[0]->_swapChain->Release();
+	cmdq[0]->_context->Release();
     BX_DELETE0( allocator, cmdq[0] );
 
-    dev[0]->dx11()->Release();
+	dev[0]->dx11()->Release();
+	if( dev[0]->_debug )
+	{
+		dev[0]->_debug->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
+		dev[0]->_debug->Release();
+	}
+
 	BX_DELETE0( allocator, dev[0] );
 }
 
@@ -271,6 +282,11 @@ void Dx11FetchShaderReflection( RDIShaderReflection* out, const void* code_blob,
 }}///
 
 using namespace bx::rdi;
+
+void ReportLiveObjects( RDIDevice* dev )
+{
+	dev->_debug->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
+}
 
 RDIVertexBuffer CreateVertexBuffer( RDIDevice* dev,const RDIVertexBufferDesc& desc, uint32_t numElements, const void* data )
 {

@@ -242,8 +242,8 @@ struct RDICommandQueue
 
 struct RDIDevice
 {
-	ID3D11Device* _device;
-
+	ID3D11Device* _device = nullptr;
+	ID3D11Debug* _debug = nullptr;
 	ID3D11Device* dx11() { return _device; }
 };
 

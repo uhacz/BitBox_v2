@@ -25,6 +25,7 @@ namespace tool{
 	{
 		uint8_t* data = nullptr;
 		uint32_t size = 0;
+		BXIAllocator* allocator = nullptr;
 	};
 
     struct ConfigPass
@@ -65,7 +66,7 @@ namespace tool{
 
     struct SourceShader
     {
-        void* _internal_data;
+		void* _internal_data = nullptr;
         std::vector< ConfigPass > passes;
     };
 

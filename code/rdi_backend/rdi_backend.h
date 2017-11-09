@@ -96,6 +96,6 @@ inline void ClearColorBuffer( RDICommandQueue* cmdq, RDITextureRW colorTex, floa
 void Swap( RDICommandQueue* cmdq, unsigned syncInterval = 0 );
 void GenerateMipmaps( RDICommandQueue* cmdq, RDITextureRW texture );
 RDITextureRW GetBackBufferTexture( RDICommandQueue* cmdq );
-
+void ReportLiveObjects( RDIDevice* dev );
 
 

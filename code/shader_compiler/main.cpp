@@ -2,14 +2,16 @@
 #include <foundation/memory/memory.h>
 #include <3rd_party/AnyOption/anyoption.h>
 
+#define TEST 0
+
 int main( int argc, char** argv )
 {
 	BXIAllocator* allocator = nullptr;
 	BXMemoryStartUp( &allocator );
 
 #if TEST == 1
-    const char input_file[] = "x:/dev/BitBox_v2/code/shader/debug.hlsl";
-	const char output_dir[] = "x:/dev/assets/shader/";
+    const char input_file[] = "x:/dev/BitBox_v2/code/shaders/hlsl/material.hlsl";
+	const char output_dir[] = "x:/dev/assets/shader/hlsl/";
 #else
     AnyOption opt;
     opt.addUsage( "" );

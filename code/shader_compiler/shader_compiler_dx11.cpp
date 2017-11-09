@@ -12,7 +12,7 @@ IncludeMap::~IncludeMap()
 {
     for( std::map< std::string, File >::iterator it = _file_map.begin(); it != _file_map.end(); ++it )
     {
-		delete it->second.data;
+		BX_FREE( it->second.allocator, it->second.data );
     }
     _file_map.clear();
 }
@@ -64,6 +64,7 @@ HRESULT __stdcall dx11ShaderInclude::Open( D3D_INCLUDE_TYPE IncludeType, LPCSTR 
 
     if( file.data )
     {
+		file.allocator = _allocator;
         _inc_map->set( pFileName, file );
         *ppData = file.data;
         *pBytes = (UINT)file.size;

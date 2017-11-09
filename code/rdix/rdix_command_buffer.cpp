@@ -155,6 +155,9 @@ RDIXCommandBuffer* CreateCommandBuffer( BXIAllocator* allocator, uint32_t maxCom
 
 void DestroyCommandBuffer( RDIXCommandBuffer** cmdBuff, BXIAllocator* allocator )
 {
+	if( !cmdBuff[0] )
+		return;
+
 	RDIXCommandBuffer* impl = cmdBuff[0];
 	impl->FreeData( allocator );
 	BX_FREE0( allocator, cmdBuff[0] );
