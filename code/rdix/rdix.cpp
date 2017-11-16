@@ -136,6 +136,11 @@ RDIXResourceBinding* ResourceBinding( const RDIXPipeline* p )
 	return p->resources;
 }
 
+RDIXResourceBinding * CloneResourceBinding( const RDIXPipeline * p )
+{
+	return nullptr;
+}
+
 //---
 
 //////////////////////////////////////////////////////////////////////////
@@ -154,7 +159,8 @@ struct RDIXResourceBinding
 	const Binding* Bindings() const { return (Binding*)(HashedNames() + count); }
 	uint8_t* Data() { return (uint8_t*)(Bindings() + count); }
 	
-	uint32_t count = 0;
+	uint16_t count = 0;
+	uint16_t data_size = 0;
 };
 namespace
 {
@@ -165,17 +171,44 @@ namespace
 		sizeof( RDIConstantBuffer ), //eRESOURCE_TYPE_UNIFORM,
 		sizeof( RDISampler ),        //eRESOURCE_TYPE_SAMPLER,
 	};
+
+	static uint32_t CalculateResourceBindingDescriprorSize( uint32_t nbindings )
+	{
+		uint32_t result = 0;
+		result += sizeof( RDIXResourceBinding );
+		result += nbindings * sizeof( uint32_t ); // hashed names
+		result += nbindings * sizeof( RDIXResourceBinding::Binding );
+		return result;
+	}
+
 }///
+
+RDIXResourceBindingMemoryRequirments CalculateResourceBindingMemoryRequirments( const RDIXResourceLayout & layout )
+{
+	RDIXResourceBindingMemoryRequirments requirments = {};
+
+	requirments.descriptor_size = CalculateResourceBindingDescriprorSize( layout.count );
+
+	for( uint32_t i = 0; i < layout.count; ++i )
+	{
+		const RDIXResourceSlot slot = layout.slots[i];
+		requirments.data_size += _resource_size[slot.type];
+	}
+	return requirments;
+}
+
 RDIXResourceBinding* CreateResourceBinding( const RDIXResourceLayout& layout, BXIAllocator* allocator )
 {
 	RDIXResourceBindingMemoryRequirments mem_req = CalculateResourceBindingMemoryRequirments( layout );
 
 	const uint32_t mem_size = mem_req.Total();
-	uint8_t* mem = (uint8_t*)BX_MALLOC( allocator, mem_size, 16 );
+	uint8_t* mem = (uint8_t*)BX_MALLOC( allocator, mem_size, 8 );
 	memset( mem, 0x00, mem_size );
 
 	RDIXResourceBinding* impl = (RDIXResourceBinding*)mem;
 	impl->count = layout.count;
+	impl->data_size = mem_req.data_size;
+
 	uint32_t* hashed_names = (uint32_t*)impl->HashedNames();
 	RDIXResourceBinding::Binding* bindings = (RDIXResourceBinding::Binding*)impl->Bindings();
 
@@ -229,6 +262,17 @@ RDIXResourceBinding* CreateResourceBinding( const RDIXResourceLayout& layout, BX
 void DestroyResourceBinding( RDIXResourceBinding** binding, BXIAllocator* allocator )
 {
 	BX_FREE0( allocator, binding[0] );
+}
+
+RDIXResourceBinding* CloneResourceBinding( const RDIXResourceBinding* binding, BXIAllocator* allocator )
+{
+	uint32_t mem_size = 0;
+	mem_size += CalculateResourceBindingDescriprorSize( binding->count );
+	mem_size += binding->data_size;
+
+	RDIXResourceBinding* cloned = (RDIXResourceBinding*)BX_MALLOC( allocator, mem_size, 8 );
+	memcpy( cloned, binding, mem_size );
+	return cloned;
 }
 
 namespace
@@ -368,21 +412,7 @@ uint32_t GenerateResourceHashedName( const char * name )
 	return murmur3_hash32( name, (uint32_t)strlen( name ), tag32_t( "RDES" ) );
 }
 
-RDIXResourceBindingMemoryRequirments CalculateResourceBindingMemoryRequirments( const RDIXResourceLayout & layout )
-{
-	RDIXResourceBindingMemoryRequirments requirments = {};
 
-	requirments.descriptor_size = sizeof( RDIXResourceBinding );
-	requirments.descriptor_size += layout.count * sizeof( uint32_t ); // hashed names
-	requirments.descriptor_size += layout.count * sizeof( RDIXResourceBinding::Binding );
-
-	for( uint32_t i = 0; i < layout.count; ++i )
-	{
-		const RDIXResourceSlot slot = layout.slots[i];
-		requirments.data_size += _resource_size[slot.type];
-	}
-	return requirments;
-}
 
 
 
@@ -428,6 +458,12 @@ void DestroyRenderTarget( RDIDevice* dev, RDIXRenderTarget** renderTarget, BXIAl
 	}
 
 	BX_DELETE0( allocator, renderTarget[0] );
+}
+
+void ClearRenderTarget( RDICommandQueue * cmdq, RDIXRenderTarget * rtarget, float rgbad[5] )
+{
+	int clear_depth = (rgbad[4] >= 0.f) ? 1 : 0;
+	ClearBuffers( cmdq, rtarget->color_textures, rtarget->num_color_textures, rtarget->depth_texture, rgbad, 1, clear_depth );
 }
 
 void ClearRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float r, float g, float b, float a, float d )
@@ -706,7 +742,7 @@ void ClearTransformBuffer( RDIXTransformBuffer* buffer )
 	buffer->num_elements = 0;
 }
 
-bool AppendMatrix( RDIXTransformBuffer* buffer, const mat44_t& matrix )
+uint32_t AppendMatrix( RDIXTransformBuffer* buffer, const mat44_t& matrix )
 {
 	if( buffer->num_elements >= buffer->max_elements )
 		return false;
@@ -725,7 +761,7 @@ bool AppendMatrix( RDIXTransformBuffer* buffer, const mat44_t& matrix )
 	dst_it->row1 = tmp.c1.xyz();
 	dst_it->row2 = tmp.c2.xyz();
 
-	return true;
+	return index;
 }
 
 void UploadTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer )
@@ -778,4 +814,32 @@ RDIXCommand* BindTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* paren
 	cmd2->stage_mask = stagemask;
 
 	return cmd2;
+}
+
+RDIXTransformBufferCommands UploadAndSetTransformBuffer( RDIXCommandBuffer * cmdbuff, RDIXCommand * parentcmd, RDIXTransformBuffer * buffer, uint32_t slot, uint32_t stagemask )
+{	
+	const uint32_t data_size1 = buffer->num_elements * sizeof( rdix::Matrix );
+	const uint32_t data_size2 = buffer->num_elements * sizeof( rdix::MatrixIT );
+
+	RDIXUpdateBufferCmd* cmd1 = AllocateCommand<RDIXUpdateBufferCmd>( cmdbuff, data_size1, parentcmd );
+	cmd1->resource = buffer->gpu_buffer_matrix;
+	cmd1->size = data_size1;
+	memcpy( cmd1->DataPtr(), buffer->MatrixData(), data_size1 );
+
+	RDIXUpdateBufferCmd* cmd2 = AllocateCommand<RDIXUpdateBufferCmd>( cmdbuff, data_size1, cmd1 );
+	cmd2->resource = buffer->gpu_buffer_matrix_it;
+	cmd2->size = data_size2;
+	memcpy( cmd2->DataPtr(), buffer->MatrixITData(), data_size2 );
+
+	RDIXSetResourceROCmd* cmd3 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, cmd2 );
+	cmd3->resource = buffer->gpu_buffer_matrix;
+	cmd3->slot = slot;
+	cmd3->stage_mask = stagemask;
+
+	RDIXSetResourceROCmd* cmd4 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, cmd3 );
+	cmd4->resource = buffer->gpu_buffer_matrix_it;
+	cmd4->slot = slot + 1;
+	cmd4->stage_mask = stagemask;
+
+	return { cmd1, cmd4 };
 }

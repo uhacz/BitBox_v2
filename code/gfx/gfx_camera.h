@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdint.h>
+#include <foundation/type.h>
 #include <foundation/math/vmath_type.h>
 
 struct GFXCameraParams
@@ -31,3 +31,20 @@ struct GFXCameraMatrices
 void    ComputeViewport( int32_t xywh[4], float aspect, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
 mat44_t PerspectiveMatrix( float fov, float aspect, float znear, float zfar );
 void    ComputeMatrices( GFXCameraMatrices* out, const GFXCameraParams& params, const mat44_t& world );
+
+
+// --- movement utils
+struct GFXCameraInputContext
+{
+	float _left_x = 0.f;
+	float _left_y = 0.f;
+	float _right_x = 0.f;
+	float _right_y = 0.f;
+	float _up_down = 0.f;
+
+	void UpdateInput( int mouseL, int mouseM, int mouseR, int mouseDx, int mouseDy, float mouseSensitivityInPix, float dt );
+	void UpdateInput( float analogX, float analogY, float dt );
+	bool AnyMovement() const;
+};
+
+mat44_t CameraMovementFPP( const GFXCameraInputContext& input, const mat44_t& world, float sensitivity );

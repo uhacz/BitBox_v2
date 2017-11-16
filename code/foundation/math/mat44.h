@@ -1,5 +1,10 @@
 #pragma once
 
+inline mat44_t::mat44_t( const quat_t& rot, const vec3_t& pos )
+{
+	*this = mat44_t( mat33_t( rot ), pos );
+}
+
 inline mat44_t transpose( const mat44_t& m )
 {
     return mat44_t(

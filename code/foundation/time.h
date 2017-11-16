@@ -9,10 +9,14 @@ struct BXTime
 
     static void Sleep( uint64_t ms );
 
-    static inline double ToSeconds( uint64_t ms )
+    static inline double Micro_2_Sec( uint64_t us )
     {
-        return double( ms ) * 0.000001;
+        return double( us ) * 0.000001;
     }
+	static inline double Mili_2_Sec( uint64_t ms )
+	{
+		return (double)ms * 0.001;
+	}
 };
 
 struct BXTimeQuery
@@ -33,7 +37,7 @@ struct BXTimeQuery
 
     inline double DurationS()
     {
-        return BXTime::ToSeconds( duration_US );
+        return BXTime::Micro_2_Sec( duration_US );
     }
 };
 

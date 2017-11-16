@@ -10,7 +10,7 @@ int main( int argc, char** argv )
 	BXMemoryStartUp( &allocator );
 
 #if TEST == 1
-    const char input_file[] = "x:/dev/BitBox_v2/code/shaders/hlsl/material.hlsl";
+    const char input_file[] = "x:/dev/BitBox_v2/code/shaders/hlsl/texture_util.hlsl";
 	const char output_dir[] = "x:/dev/assets/shader/hlsl/";
 #else
     AnyOption opt;

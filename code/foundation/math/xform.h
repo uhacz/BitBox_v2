@@ -1,6 +1,6 @@
 #pragma once
 
-xform_t::xform_t( const mat44_t& m )
+inline xform_t::xform_t( const mat44_t& m )
 {
     rot = quat_t( mat33_t( m.c0.xyz(), m.c1.xyz(), m.c2.xyz() ) );
     pos = m.c3.xyz();

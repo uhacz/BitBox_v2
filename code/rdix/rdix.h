@@ -28,9 +28,11 @@ void				 DestroyPipeline( RDIDevice* dev, RDIXPipeline** pipeline, BXIAllocator*
 void				 BindPipeline( RDICommandQueue* cmdq, RDIXPipeline* pipeline, bool bindResources );
 RDIXResourceBinding* ResourceBinding( const RDIXPipeline* p );
 
+
 // --- Resources
 RDIXResourceBinding* CreateResourceBinding ( const RDIXResourceLayout& layout, BXIAllocator* allocator );
 void				 DestroyResourceBinding( RDIXResourceBinding** binding, BXIAllocator* allocator );
+RDIXResourceBinding* CloneResourceBinding( const RDIXResourceBinding* binding, BXIAllocator* allocator );
 bool				 ClearResource( RDICommandQueue* cmdq, RDIXResourceBinding* binding, const char* name );
 void				 BindResources( RDICommandQueue* cmdq, RDIXResourceBinding* binding );
 uint32_t			 FindResource( RDIXResourceBinding* binding, const char* name );
@@ -51,6 +53,7 @@ RDIXResourceBindingMemoryRequirments CalculateResourceBindingMemoryRequirments( 
 // --- RenderTarget
 RDIXRenderTarget* CreateRenderTarget ( RDIDevice* dev, const RDIXRenderTargetDesc& desc, BXIAllocator* allocator );
 void			  DestroyRenderTarget( RDIDevice* dev, RDIXRenderTarget** renderTarget, BXIAllocator* allocator );
+void			  ClearRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float rgbad[5] );
 void			  ClearRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float r, float g, float b, float a, float d );
 void			  ClearRenderTargetDepth( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float d );
 void			  BindRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* renderTarget, const std::initializer_list<uint8_t>& colorTextureIndices, bool useDepth );
@@ -79,7 +82,7 @@ RDIXRenderSourceRange Range( RDIXRenderSource* rsource, uint32_t index );
 RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformBufferDesc& desc, BXIAllocator* allocator );
 void				 DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAllocator* allocator );
 void				 ClearTransformBuffer( RDIXTransformBuffer* buffer );
-bool				 AppendMatrix( RDIXTransformBuffer* buffer, const struct mat44_t& matrix );
+uint32_t			 AppendMatrix( RDIXTransformBuffer* buffer, const struct mat44_t& matrix );
 
 void				 UploadTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer );
 RDIXCommand*		 UploadTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer );
@@ -87,3 +90,9 @@ RDIXCommand*		 UploadTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* p
 void				 BindTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask );
 RDIXCommand*		 BindTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask );
 
+struct RDIXTransformBufferCommands
+{
+	RDIXCommand* first;
+	RDIXCommand* last;
+};
+RDIXTransformBufferCommands UploadAndSetTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask );

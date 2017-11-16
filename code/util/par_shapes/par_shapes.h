@@ -51,7 +51,7 @@ par_shapes_mesh* par_shapes_create_cylinder(int slices, int stacks);
 par_shapes_mesh* par_shapes_create_torus(int slices, int stacks, float radius);
 
 // Create a sphere with texture coordinates and small triangles near the poles.
-par_shapes_mesh* par_shapes_create_parametric_sphere(int slices, int stacks);
+par_shapes_mesh* par_shapes_create_parametric_sphere(int slices, int stacks, float degenerated_tri_area = 0.01f );
 
 // Generate a sphere from a subdivided icosahedron, which produces a nicer
 // distribution of triangles, but no texture coordinates.
@@ -61,7 +61,7 @@ par_shapes_mesh* par_shapes_create_subdivided_sphere(int nsubdivisions);
 par_shapes_mesh* par_shapes_create_klein_bottle(int slices, int stacks);
 par_shapes_mesh* par_shapes_create_trefoil_knot(int slices, int stacks,
     float radius);
-par_shapes_mesh* par_shapes_create_hemisphere(int slices, int stacks);
+par_shapes_mesh* par_shapes_create_hemisphere(int slices, int stacks, float degenerated_tri_area = 0.01f );
 par_shapes_mesh* par_shapes_create_plane(int slices, int stacks);
 
 // Create a parametric surface from a callback function that consumes a 2D
@@ -284,25 +284,25 @@ par_shapes_mesh* par_shapes_create_cylinder(int slices, int stacks)
         stacks, 0);
 }
 
-par_shapes_mesh* par_shapes_create_parametric_sphere(int slices, int stacks)
+par_shapes_mesh* par_shapes_create_parametric_sphere(int slices, int stacks, float degenerated_tri_area )
 {
     if (slices < 3 || stacks < 3) {
         return 0;
     }
     par_shapes_mesh* m = par_shapes_create_parametric(par_shapes__sphere,
         slices, stacks, 0);
-    par_shapes_remove_degenerate(m, 0.01f);
+    par_shapes_remove_degenerate(m, degenerated_tri_area);
     return m;
 }
 
-par_shapes_mesh* par_shapes_create_hemisphere(int slices, int stacks)
+par_shapes_mesh* par_shapes_create_hemisphere(int slices, int stacks, float degenerated_tri_area )
 {
     if (slices < 3 || stacks < 3) {
         return 0;
     }
     par_shapes_mesh* m = par_shapes_create_parametric(par_shapes__hemisphere,
         slices, stacks, 0);
-    par_shapes_remove_degenerate(m, 0.01f);
+    par_shapes_remove_degenerate(m, degenerated_tri_area);
     return m;
 }
 

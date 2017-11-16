@@ -1,5 +1,5 @@
 #pragma once
-quat_t::quat_t( const mat33_t& m )
+inline quat_t::quat_t( const mat33_t& m )
 {
     if( m.c2.z < 0 )
     {
@@ -28,15 +28,38 @@ quat_t::quat_t( const mat33_t& m )
         }
     }
 }
-quat_t::quat_t( float radians, const vec3_t& axis )
+
+inline quat_t quat_t::rotationx( float radians )
 {
-    SYS_ASSERT( ::fabsf( 1.0f - length(axis) ) < 1e-3f );
-    const float a = radians * 0.5f;
-    const float s = ::sinf( a );
-    w = ::cosf( a );
-    x = axis.x * s;
-    y = axis.y * s;
-    z = axis.z * s;
+	const float a = (radians * 0.5f);
+	const float s = ::sinf( a );
+	const float c = ::cosf( a );
+	return quat_t( s, 0.0f, 0.0f, c );
+}
+
+inline quat_t quat_t::rotationy( float radians )
+{
+	const float a = (radians * 0.5f);
+	const float s = sinf( a );
+	const float c = cosf( a );
+	return quat_t( 0.0f, s, 0.0f, c );
+}
+
+inline quat_t quat_t::rotationz( float radians )
+{
+	const float a = (radians * 0.5f);
+	const float s = sinf( a );
+	const float c = cosf( a );
+	return quat_t( 0.0f, 0.0f, s, c );
+}
+
+inline quat_t quat_t::rotation( float radians, const vec3_t& axis )
+{
+	SYS_ASSERT( ::fabsf( 1.0f - length( axis ) ) < 1e-3f );
+	const float a = radians * 0.5f;
+	const float s = ::sinf( a );
+	const float c = ::cosf( a );
+	return quat_t( axis * s, ::cosf( a ) );
 }
 
 // returns: xyz - axis, w - angle

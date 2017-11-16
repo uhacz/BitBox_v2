@@ -390,8 +390,8 @@ union RDISamplerDesc
     RDISamplerDesc& Filter  ( RDIESamplerFilter::Enum f )     { filter = f; return *this; }
     RDISamplerDesc& Address ( RDIEAddressMode::Enum u )       { addressU = addressV = addressT = u; return *this;  }
     RDISamplerDesc& Address ( RDIEAddressMode::Enum u, 
-								   RDIEAddressMode::Enum v, 
-								   RDIEAddressMode::Enum t )       { addressU = u;  addressV = v;  addressT = t; return *this; }
+							  RDIEAddressMode::Enum v, 
+							  RDIEAddressMode::Enum t )       { addressU = u;  addressV = v;  addressT = t; return *this; }
     RDISamplerDesc& DepthCmp( RDIESamplerDepthCmp::Enum dc )  { depthCmpMode = dc; return *this; }
     RDISamplerDesc& Aniso   ( uint8_t a )                          { aniso = a; return *this; }
 
@@ -488,7 +488,18 @@ struct RDIViewport
 {
 	int16_t x, y;
 	uint16_t w, h;
+
+	static inline RDIViewport Create( const int32_t xywh[4] )
+	{
+		RDIViewport vp;
+		vp.x = (int16_t)xywh[0];
+		vp.y = (int16_t)xywh[1];
+		vp.w = (uint16_t)xywh[2];
+		vp.h = (uint16_t)xywh[3];
+		return vp;
+	}
 };
+
 
 //////////////////////////////////////////////////////////////////////////
 union RDIVertexBufferDesc

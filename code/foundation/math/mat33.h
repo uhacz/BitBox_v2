@@ -1,5 +1,6 @@
 #pragma once
-mat33_t::mat33_t( const quat_t& q )
+
+inline mat33_t::mat33_t( const quat_t& q )
 {
     const float x = q.x;
     const float y = q.y;

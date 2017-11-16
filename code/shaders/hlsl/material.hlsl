@@ -30,46 +30,15 @@ struct OUT_PS
 #define BSLOT( n ) b##n
 #define TSLOT( n ) t##n
 
+#define SHADER_IMPLEMENTATION
+
 // --- tansform buffer
 #include "transform_instance_data.h"
-shared cbuffer _InstanceOffset : register( BSLOT(TRANSFORM_INSTANCE_DATA_SLOT) )
-{
-	TransformInstanceData _instance_data;
-};
-Buffer<float4> _instance_world   : register( TSLOT( TRANSFORM_INSTANCE_WORLD_SLOT ) );
-Buffer<float3> _instance_worldIT : register( TSLOT( TRANSFORM_INSTANCE_WORLD_IT_SLOT ) );
-
-void LoadWorld( out float4 row0, out float4 row1, out float4 row2, uint instanceID )
-{
-	uint row0Index = (_instance_data.offset + instanceID) * 3;
-	row0 = _instance_world[row0Index];
-	row1 = _instance_world[row0Index + 1];
-	row2 = _instance_world[row0Index + 2];
-}
-
-void LoadWorldIT( out float3 row0IT, out float3 row1IT, out float3 row2IT, uint instanceID )
-{
-	uint row0Index = (_instance_data.offset + instanceID) * 3;
-	row0IT = _instance_worldIT[row0Index];
-	row1IT = _instance_worldIT[row0Index + 1];
-	row2IT = _instance_worldIT[row0Index + 2];
-}
-
-float3 TransformPosition( in float4 row0, in float4 row1, in float4 row2, in float4 localPos )
-{
-	return float3(dot( row0, localPos ), dot( row1, localPos ), dot( row2, localPos ));
-}
-float3 TransformNormal( in float3 row0IT, in float3 row1IT, in float3 row2IT, in float3 normal )
-{
-	return float3(dot( row0IT, normal ), dot( row1IT, normal ), dot( row2IT, normal ));
-}
-
 // --- frame
 #include "material_frame_data.h"
-shared cbuffer _Frame : register( BSLOT( MATERIAL_FRAME_DATA_SLOT ) )
-{
-	MaterialFrameData _fdata;
-};
+// --- material
+#include "material_data.h"
+
 
 IN_PS vs_base( IN_VS input )
 {
@@ -97,9 +66,87 @@ IN_PS vs_base( IN_VS input )
 	return output;
 }
 
+#define PI 3.1415926
+#define PI_RCP 0.31830988618379067154
+// ================================================================================================
+// Calculates the Fresnel factor using Schlick's approximation
+// ================================================================================================
+float3 Fresnel( in float3 specAlbedo, in float3 h, in float3 l )
+{
+	float lDotH = saturate( dot( l, h ) );
+	float3 fresnel = specAlbedo + (1.0f - specAlbedo) * pow( (1.0f - lDotH), 5.0f );
+
+	// Disable specular entirely if the albedo is set to 0.0
+	fresnel *= dot( specAlbedo, 1.0f ) > 0.0f;
+
+	return fresnel;
+}
+
+// ===============================================================================================
+// Helper for computing the GGX visibility term
+// ===============================================================================================
+float GGX_V1( in float m2, in float nDotX )
+{
+	return 1.0f / (nDotX + sqrt( m2 + (1 - m2) * nDotX * nDotX ));
+}
+
+// ===============================================================================================
+// Computes the specular term using a GGX microfacet distribution, with a matching
+// geometry factor and visibility term. Based on "Microfacet Models for Refraction Through
+// Rough Surfaces" [Walter 07]. m is roughness, n is the surface normal, h is the half vector,
+// l is the direction to the light source, and specAlbedo is the RGB specular albedo
+// ===============================================================================================
+float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3 l )
+{
+	float nDotH = saturate( dot( n, h ) );
+	float nDotL = saturate( dot( n, l ) );
+	float nDotV = saturate( dot( n, v ) );
+
+	float nDotH2 = nDotH * nDotH;
+	float m2 = m * m;
+
+	// Calculate the distribution term
+	float d = m2 / (PI * pow( nDotH * nDotH * (m2 - 1) + 1, 2.0f ));
+
+	// Calculate the matching visibility term
+	float v1i = GGX_V1( m2, nDotL );
+	float v1o = GGX_V1( m2, nDotV );
+	float vis = v1i * v1o;
+
+	return d * vis;
+}
+
+float3 CalcDirectionalLighting( in float3 normal, in float3 lightDir, in float3 lightColor,
+	in float3 diffuseAlbedo, in float3 specularAlbedo, in float roughness,
+	in float3 positionWS )
+{
+	float3 lighting = 0.0f;
+	float nDotL = saturate( dot( normal, lightDir ) );
+	if( nDotL > 0.0f )
+	{
+		float3 view = normalize( _fdata.camera_eye.xyz - positionWS );
+		float3 h = normalize( view + lightDir );
+		float specular = GGX_Specular( roughness, normal, h, view, lightDir );
+		float3 fresnel = Fresnel( specularAlbedo, h, lightDir );
+
+		lighting = (diffuseAlbedo * PI_RCP + specular * fresnel) * nDotL * lightColor;
+	}
+
+	return max( lighting, 0.0f );
+}
+
 OUT_PS ps_base( IN_PS input )
 {
+	const float3 light_pos = float3(-5.f, 5.f, 0.f);
+	const float3 light_color = float3(1, 1, 1);
+	const float3 L = normalize( light_pos - input.pos_ws );
+	const float3 N = normalize( input.nrm_ws );
+	const float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
+	const float3 H = normalize( L + V );
+
+	float3 color = CalcDirectionalLighting( N, L, light_color, _material.diffuse_albedo, _material.specular_albedo, _material.roughness, input.pos_ws );
+
 	OUT_PS output;
-	output.rgba = float4(1, 0, 0, 1);
+	output.rgba = float4(color, 1);
 	return output;
 }

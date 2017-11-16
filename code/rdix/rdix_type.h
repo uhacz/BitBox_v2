@@ -103,10 +103,9 @@ struct RDIXRenderTargetDesc
 	RDIFormat color_texture_formats[cRDI_MAX_RENDER_TARGETS] = {};
 	RDIEType::Enum depth_texture_type = RDIEType::UNKNOWN;
 
-	RDIXRenderTargetDesc& Size( uint16_t w, uint16_t h, uint16_t m = 1 )
+	RDIXRenderTargetDesc( uint16_t w, uint16_t h, uint16_t m = 1 )
 	{
 		width = w; height = h; mips = m;
-		return *this;
 	}
 	RDIXRenderTargetDesc& Texture( RDIFormat format )
 	{

@@ -82,6 +82,11 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
+    <CustomBuild>
+      <Command>$(SolutionDir)bin\$(PlatformName)\shader_compiler\shader_compiler.exe --input-file %(FullPath) --output-dir $(BX_ASSET_ROOT)shader\hlsl\</Command>
+      <Message>Compiling shader...</Message>
+      <Outputs>$(BX_ASSET_ROOT)shader/%(Identity)</Outputs>
+    </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -129,8 +134,13 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="hlsl\material_frame_data.h" />
+    <ClInclude Include="hlsl\material_data.h" />
     <ClInclude Include="hlsl\transform_instance_data.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="hlsl\texture_util.hlsl">
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
