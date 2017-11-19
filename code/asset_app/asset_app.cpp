@@ -126,7 +126,7 @@ static void CopyTexture( RDICommandQueue* cmdq, RDITextureRW* output, const RDIT
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
-	_filesystem->SetRoot( "x:/dev/assets/" );
+	_filesystem->SetRoot( "d:/dev/assets/" );
 
 	BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
 	const BXWindow* window = win_plugin->GetWindow();
@@ -155,7 +155,8 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
 	{
 		//par_shapes_mesh* shape = par_shapes_create_parametric_sphere( 64, 64, FLT_EPSILON );
-		par_shapes_mesh* shape = par_shapes_create_trefoil_knot( 64, 64, 0.5f);
+		//par_shapes_mesh* shape = par_shapes_create_torus( 64, 64, 0.5f);
+        par_shapes_mesh* shape = par_shapes_create_rock( 0xBCAA, 4 );
 		g_rsource = CreateRenderSourceFromShape( _rdidev, shape, allocator );
 		par_shapes_free_mesh( shape );
 	}
@@ -164,10 +165,10 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 	g_material_frame_data_gpu = CreateConstantBuffer( _rdidev, sizeof( MaterialFrameData ) );
 	g_transform_instance_data_gpu = CreateConstantBuffer( _rdidev, sizeof( TransformInstanceData ) );
 
-	g_material.specular_albedo = vec3_t( 0.f, 1.f, 0.f );
-	g_material.diffuse_albedo = vec3_t( 1.f );
+	g_material.specular_albedo = vec3_t( 1.f, 1.f, 1.f );
+	g_material.diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
 	g_material.metal = 0.f;
-	g_material.roughness = 0.8f;
+	g_material.roughness = 0.5f;
 	UpdateCBuffer( _rdicmdq, g_material_data_gpu, &g_material );
 	g_material_resource_binding = CloneResourceBinding( ResourceBinding( g_pipeline ), allocator );
 	SetConstantBuffer( g_material_resource_binding, "MaterialData", &g_material_data_gpu );

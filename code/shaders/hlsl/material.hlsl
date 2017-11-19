@@ -116,18 +116,16 @@ float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3
 	return d * vis;
 }
 
-float3 CalcDirectionalLighting( in float3 normal, in float3 lightDir, in float3 lightColor,
-	in float3 diffuseAlbedo, in float3 specularAlbedo, in float roughness,
-	in float3 positionWS )
+float3 CalcDirectionalLighting( in float3 N, in float3 L, in float3 lightColor, in float3 diffuseAlbedo, in float3 specularAlbedo, in float roughness, in float3 posWS )
 {
 	float3 lighting = 0.0f;
-	float nDotL = saturate( dot( normal, lightDir ) );
+	float nDotL = saturate( dot( N, L) );
 	if( nDotL > 0.0f )
 	{
-		float3 view = normalize( _fdata.camera_eye.xyz - positionWS );
-		float3 h = normalize( view + lightDir );
-		float specular = GGX_Specular( roughness, normal, h, view, lightDir );
-		float3 fresnel = Fresnel( specularAlbedo, h, lightDir );
+		float3 V = normalize( _fdata.camera_eye.xyz - posWS );
+		float3 H = normalize( V + L );
+		float specular = GGX_Specular( roughness, N, H, V, L );
+		float3 fresnel = Fresnel( specularAlbedo, H, L );
 
 		lighting = (diffuseAlbedo * PI_RCP + specular * fresnel) * nDotL * lightColor;
 	}
@@ -141,12 +139,16 @@ OUT_PS ps_base( IN_PS input )
 	const float3 light_color = float3(1, 1, 1);
 	const float3 L = normalize( light_pos - input.pos_ws );
 	const float3 N = normalize( input.nrm_ws );
-	const float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
-	const float3 H = normalize( L + V );
-
+	
 	float3 color = CalcDirectionalLighting( N, L, light_color, _material.diffuse_albedo, _material.specular_albedo, _material.roughness, input.pos_ws );
+    
+    float alpha = saturate( dot( N, -L ) );
+    float3 indirect = 0.1f * _material.diffuse_albedo * (1-alpha ) * PI_RCP;
+
+    color = max( color, indirect );
+    color = lerp( color, indirect, alpha );
 
 	OUT_PS output;
-	output.rgba = float4(color, 1);
+	output.rgba = float4( color, 1);
 	return output;
 }
