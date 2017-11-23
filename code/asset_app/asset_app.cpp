@@ -13,6 +13,7 @@
 
 #include <rdix/rdix.h>
 #include <rdix/rdix_command_buffer.h>
+#include <gfx/gfx.h>
 #include <gfx/gfx_camera.h>
 
 #include <string.h>
@@ -27,115 +28,59 @@ using uint = uint32_t;
 #include <shaders/hlsl/material_frame_data.h>
 #include <shaders/hlsl/material_data.h>
 #include <shaders/hlsl/transform_instance_data.h>
-#include <shaders/hlsl/samplers.h>
+
 
 namespace
 {
+	// batch
 	static RDIXCommandBuffer* g_cmdbuffer = nullptr;
 	static RDIXTransformBuffer* g_transform_buffer = nullptr;
-
-	static RDIXRenderTarget* g_render_target = nullptr;
-
-	static RDIXPipeline* g_pipeline = nullptr;
+	
+	// object
 	static RDIXRenderSource* g_rsource = nullptr;
 	static mat44_t g_instance_matrix = mat44_t::identity();
 
+	// camera
 	static mat44_t g_camera_world = mat44_t::identity();
 	static GFXCameraParams g_camera_params = {};
 	static GFXCameraMatrices g_camera_matrices = {};
 
+	// material system
 	static RDIConstantBuffer g_material_data_gpu = {};
 	static RDIConstantBuffer g_material_frame_data_gpu = {};
 	static RDIConstantBuffer g_transform_instance_data_gpu = {};
 
-	// ---
+	// material instance
 	static Material g_material = {};
 	static RDIXResourceBinding* g_material_resource_binding = nullptr;
-	// ---
-	static ShaderSamplers g_samplers = {};
-	static RDIXPipeline* g_copy_rgba_pipeline = nullptr;
-
-	// ---
-
+	
 	GFXCameraInputContext g_camera_input_ctx = {};
 
-}
+	GFX g_gfx = {};
 
-static void CreateShaderSamplers( RDIDevice* dev, ShaderSamplers* samplers )
-{
-	RDISamplerDesc desc = {};
-	
-	desc.Filter( RDIESamplerFilter::NEAREST );
-	samplers->_point = CreateSampler( dev, desc );
-
-	desc.Filter( RDIESamplerFilter::LINEAR );
-	samplers->_linear = CreateSampler( dev, desc );
-
-	desc.Filter( RDIESamplerFilter::BILINEAR_ANISO );
-	samplers->_bilinear = CreateSampler( dev, desc );
-
-	desc.Filter( RDIESamplerFilter::TRILINEAR_ANISO );
-	samplers->_trilinear = CreateSampler( dev, desc );
-}
-
-static void DestroyShaderSamplers( RDIDevice* dev, ShaderSamplers* samplers )
-{
-	Destroy( &samplers->_trilinear );
-	Destroy( &samplers->_bilinear );
-	Destroy( &samplers->_linear );
-	Destroy( &samplers->_point );
 }
 static void BindShaderSamplers( RDICommandQueue* cmdq, const ShaderSamplers& samplers, uint32_t slot )
 {
-	SetSamplers( cmdq, (RDISampler*)&samplers._point, slot, 4, RDIEPipeline::ALL_STAGES_MASK );
-}
-
-
-static void CopyTexture( RDICommandQueue* cmdq, RDITextureRW* output, const RDITextureRW& input, float aspect )
-{
-	const RDITextureInfo& src_info = input.info;
-	int32_t viewport[4] = {};
-	RDITextureInfo dst_info = {};
-
-	if( output )
-	{
-		dst_info = input.info;
-	}
-	else
-	{
-		RDITextureRW back_buffer = GetBackBufferTexture( cmdq );
-		dst_info = back_buffer.info;
-	}
-
-	ComputeViewport( viewport, aspect, dst_info.width, dst_info.height, src_info.width, src_info.height );
 	
-	RDIXResourceBinding* resources = ResourceBinding( g_copy_rgba_pipeline );
-	SetResourceRO( resources, "texture0", &input );
-	if( output )
-		ChangeRenderTargets( cmdq, output, 1, RDITextureDepth(), false );
-	else
-		ChangeToMainFramebuffer( cmdq );
-
-	SetViewport( cmdq, RDIViewport::Create( viewport ) );
-	BindPipeline( cmdq, g_copy_rgba_pipeline, true );
-	Draw( cmdq, 6, 0 );
 }
+
+
 
 
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
-	_filesystem->SetRoot( "d:/dev/assets/" );
+	_filesystem->SetRoot( "x:/dev/assets/" );
 
 	BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
 	const BXWindow* window = win_plugin->GetWindow();
 	::Startup( &_rdidev, &_rdicmdq, window->GetSystemHandle( window ), window->width, window->height, 0, allocator );
 
-	RDIXRenderTargetDesc render_target_desc( 1920, 1080 );
-	render_target_desc.Texture( RDIFormat::Float4() );
-	render_target_desc.Depth( RDIEType::DEPTH32F );
-	g_render_target = CreateRenderTarget( _rdidev, render_target_desc, allocator );
+	
+	GFXDesc gfx_desc = {};
+	g_gfx.StartUp( gfx_desc, _rdidev, _filesystem, allocator );
+
 
 	RDIXTransformBufferDesc transform_buffer_desc = {};
 	g_transform_buffer = CreateTransformBuffer( _rdidev, transform_buffer_desc, allocator );
@@ -143,20 +88,9 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 	g_cmdbuffer = CreateCommandBuffer( allocator );
 
 	{
-		RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/material.shader", _filesystem, allocator );
-
-		RDIXPipelineDesc pipeline_desc = {};
-		pipeline_desc.Shader( shader_file, "base" );
-		g_pipeline = CreatePipeline( _rdidev, pipeline_desc, allocator );
-
-		UnloadShaderFile( &shader_file, allocator );
-	}
-
-
-	{
 		//par_shapes_mesh* shape = par_shapes_create_parametric_sphere( 64, 64, FLT_EPSILON );
-		//par_shapes_mesh* shape = par_shapes_create_torus( 64, 64, 0.5f);
-        par_shapes_mesh* shape = par_shapes_create_rock( 0xBCAA, 4 );
+		par_shapes_mesh* shape = par_shapes_create_torus( 64, 64, 0.5f);
+        //par_shapes_mesh* shape = par_shapes_create_rock( 0xBCAA, 4 );
 		g_rsource = CreateRenderSourceFromShape( _rdidev, shape, allocator );
 		par_shapes_free_mesh( shape );
 	}
@@ -166,24 +100,15 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 	g_transform_instance_data_gpu = CreateConstantBuffer( _rdidev, sizeof( TransformInstanceData ) );
 
 	g_material.specular_albedo = vec3_t( 1.f, 1.f, 1.f );
-	g_material.diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
+	g_material.diffuse_albedo = vec3_t( 1.f, 0.f, 0.f );
 	g_material.metal = 0.f;
-	g_material.roughness = 0.5f;
+	g_material.roughness = 0.25f;
 	UpdateCBuffer( _rdicmdq, g_material_data_gpu, &g_material );
-	g_material_resource_binding = CloneResourceBinding( ResourceBinding( g_pipeline ), allocator );
+	g_material_resource_binding = CloneResourceBinding( ResourceBinding( g_gfx.MaterialBase() ), allocator );
 	SetConstantBuffer( g_material_resource_binding, "MaterialData", &g_material_data_gpu );
 
-	{
-		RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/texture_util.shader", _filesystem, allocator );
-
-		RDIXPipelineDesc pipeline_desc = {};
-		pipeline_desc.Shader( shader_file, "copy_rgba" );
-		g_copy_rgba_pipeline = CreatePipeline( _rdidev, pipeline_desc, allocator );
-
-		UnloadShaderFile( &shader_file, allocator );
-	}
-
-	CreateShaderSamplers( _rdidev, &g_samplers );
+	
+	GFXUtils::StartUp( _rdidev, _filesystem, allocator );
 
 	g_camera_world = mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) );
 
@@ -193,8 +118,8 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-	DestroyShaderSamplers( _rdidev, &g_samplers );
-	DestroyPipeline( _rdidev, &g_copy_rgba_pipeline, allocator );
+	g_gfx.ShutDown();
+	GFXUtils::ShutDown( _rdidev );
 
 	Destroy( &g_transform_instance_data_gpu );
 	Destroy( &g_material_frame_data_gpu );
@@ -202,10 +127,8 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 
 	DestroyResourceBinding( &g_material_resource_binding, allocator );
 	DestroyRenderSource( _rdidev, &g_rsource, allocator );
-	DestroyPipeline( _rdidev, &g_pipeline, allocator );
 	DestroyTransformBuffer( _rdidev, &g_transform_buffer, allocator );
 	DestroyCommandBuffer( &g_cmdbuffer, allocator );
-	DestroyRenderTarget( _rdidev, &g_render_target, allocator );
 
 	::Shutdown( &_rdidev, &_rdicmdq, allocator );
     _filesystem = nullptr;
@@ -262,7 +185,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
 		memcpy( instance_offset_cmd->DataPtr(), &instance_offset, 4 );
 
 		RDIXSetPipelineCmd* pipeline_cmd = AllocateCommand<RDIXSetPipelineCmd>( g_cmdbuffer, instance_offset_cmd );
-		pipeline_cmd->pipeline = g_pipeline;
+		pipeline_cmd->pipeline = g_gfx.MaterialBase();
 		pipeline_cmd->bindResources = false;
 
 		RDIXSetResourcesCmd* resources_cmd = AllocateCommand<RDIXSetResourcesCmd>( g_cmdbuffer, pipeline_cmd );
@@ -277,20 +200,17 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
 		EndCommandBuffer( g_cmdbuffer );
 	}
 
-
-	ClearState( _rdicmdq );
+	g_gfx.BeginFrame( _rdicmdq );
 	
-	BindShaderSamplers( _rdicmdq, g_samplers, 0 );
 	SetCbuffers( _rdicmdq, &g_material_frame_data_gpu, MATERIAL_FRAME_DATA_SLOT, 1, RDIEPipeline::ALL_STAGES_MASK );
 		
-	BindRenderTarget( _rdicmdq, g_render_target );
-	ClearRenderTarget( _rdicmdq, g_render_target, 0.f, 0.f, 0.f, 1.f, 1.f );
+	BindRenderTarget( _rdicmdq, g_gfx.Framebuffer() );
+	ClearRenderTarget( _rdicmdq, g_gfx.Framebuffer() , 0.f, 0.f, 0.f, 1.f, 1.f );
 	
 	SubmitCommandBuffer( _rdicmdq, g_cmdbuffer );
 
-	CopyTexture( _rdicmdq, nullptr, Texture( g_render_target, 0 ), g_camera_params.aspect() );
-
-	Swap( _rdicmdq );
+	g_gfx.RasterizeFramebuffer( _rdicmdq, 0, g_camera_params.aspect() );
+	g_gfx.EndFrame( _rdicmdq );
 	
     return true;
 }

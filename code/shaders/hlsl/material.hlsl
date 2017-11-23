@@ -68,6 +68,12 @@ IN_PS vs_base( IN_VS input )
 
 #define PI 3.1415926
 #define PI_RCP 0.31830988618379067154
+
+float WrappedNdotL( in float3 N, in float3 L, in float w )
+{
+	return saturate( (dot( N, L ) + w) / ((1 + w) * (1 + w)) );
+}
+
 // ================================================================================================
 // Calculates the Fresnel factor using Schlick's approximation
 // ================================================================================================
@@ -96,10 +102,10 @@ float GGX_V1( in float m2, in float nDotX )
 // Rough Surfaces" [Walter 07]. m is roughness, n is the surface normal, h is the half vector,
 // l is the direction to the light source, and specAlbedo is the RGB specular albedo
 // ===============================================================================================
-float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3 l )
+float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3 l, in float w )
 {
 	float nDotH = saturate( dot( n, h ) );
-	float nDotL = saturate( dot( n, l ) );
+	float nDotL = WrappedNdotL( n, l, w );
 	float nDotV = saturate( dot( n, v ) );
 
 	float nDotH2 = nDotH * nDotH;
@@ -116,15 +122,18 @@ float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3
 	return d * vis;
 }
 
-float3 CalcDirectionalLighting( in float3 N, in float3 L, in float3 lightColor, in float3 diffuseAlbedo, in float3 specularAlbedo, in float roughness, in float3 posWS )
+
+
+float3 CalcDirectionalLighting( in float3 N, in float3 L, in float3 lightColor, in float3 diffuseAlbedo, in float3 specularAlbedo, in float roughness, in float3 posWS, in float w )
 {
 	float3 lighting = 0.0f;
-	float nDotL = saturate( dot( N, L) );
+	float nDotL = WrappedNdotL( N, L, w );
+	//float nDotL = saturate( dot( N, L) );
 	if( nDotL > 0.0f )
 	{
 		float3 V = normalize( _fdata.camera_eye.xyz - posWS );
 		float3 H = normalize( V + L );
-		float specular = GGX_Specular( roughness, N, H, V, L );
+		float specular = GGX_Specular( roughness, N, H, V, L, w );
 		float3 fresnel = Fresnel( specularAlbedo, H, L );
 
 		lighting = (diffuseAlbedo * PI_RCP + specular * fresnel) * nDotL * lightColor;
@@ -140,15 +149,17 @@ OUT_PS ps_base( IN_PS input )
 	const float3 L = normalize( light_pos - input.pos_ws );
 	const float3 N = normalize( input.nrm_ws );
 	
-	float3 color = CalcDirectionalLighting( N, L, light_color, _material.diffuse_albedo, _material.specular_albedo, _material.roughness, input.pos_ws );
+	
+	float w = 0.1f;
+	float3 color = CalcDirectionalLighting( N, L, light_color, _material.diffuse_albedo, _material.specular_albedo, _material.roughness, input.pos_ws, w );
     
-    float alpha = saturate( dot( N, -L ) );
-    float3 indirect = 0.1f * _material.diffuse_albedo * (1-alpha ) * PI_RCP;
+	float alpha = WrappedNdotL( N, L, 1.1f );
+	float3 indirect = 0.1f * _material.diffuse_albedo * (alpha) * PI_RCP;
 
     color = max( color, indirect );
-    color = lerp( color, indirect, alpha );
+	color += indirect;
 
 	OUT_PS output;
-	output.rgba = float4( color, 1);
+	output.rgba = float4(color, 1);
 	return output;
 }

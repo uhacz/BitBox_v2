@@ -25,7 +25,6 @@ union TypeReinterpert
     explicit TypeReinterpert( float32_t v ) : f( v ) {}
 };
 
-
 #define BIT_OFFSET(n) (1<<n)
 #define PTR_TO_UINT32( p )   ((uint32_t)(uintptr_t) (uint32_t*) (p))
 #define UINT32_TO_PTR( ui )  ((void *)(uint32_t*)((uint32_t)ui))
