@@ -39,7 +39,14 @@ struct GFXMeshLookup
 	void SetName( id_t id, const char* name )
 	{
 		SYS_ASSERT( id_table::has( _id, id ) );
-		_name[id.index] = string::duplicate( _name[id.index], name, _name_allocator );
+        if( !name )
+        {
+            string::free_and_null( &_name[id.index], _name_allocator );
+        }
+        else
+        {
+            _name[id.index] = string::duplicate( _name[id.index], name, _name_allocator );
+        }
 	}
 
 };
