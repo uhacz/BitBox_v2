@@ -59,19 +59,102 @@ namespace
 	GFX g_gfx = {};
 
 }
-static void BindShaderSamplers( RDICommandQueue* cmdq, const ShaderSamplers& samplers, uint32_t slot )
+
+#define FIXED_USE_OVERFLOW 0
+
+struct fixed_t
 {
-	
+	static constexpr uint32_t SHIFT  = 18;
+	static constexpr uint32_t ONE    = 1 << SHIFT;
+	static constexpr int32_t MINIMUM = INT32_MIN;
+	static constexpr int32_t MAXIMUM = INT32_MAX;	
+	static constexpr float ONE_RCP   = 1.f / (float)ONE;
+
+	fixed_t() {}
+	fixed_t( int32_t value )
+		: sbits( value )
+	{}
+	fixed_t( uint32_t value )
+		: ubits( value )
+	{}
+
+	fixed_t( float value )
+	{
+		float tmp = (value * ONE);
+		tmp += (tmp >= 0.f) ? 0.5f : -0.5f;
+		ubits = (uint32_t)tmp;
+	}
+
+	fixed_t( const fixed_t& value )
+		: ubits( value.ubits )
+	{}
+
+	float AsFloat() const { return ubits * ONE_RCP; }
+
+	union
+	{
+		int32_t  sbits;
+		uint32_t ubits;
+		struct
+		{
+			int32_t f : SHIFT;
+			int32_t i : 32-SHIFT;
+		};
+	};
+};
+inline fixed_t operator + ( fixed_t a, fixed_t b )
+{
+#if FIXED_USE_OVERFLOW == 1
+	// Use unsigned integers because overflow with signed integers is
+	// an undefined operation (http://www.airs.com/blog/archives/120).
+	const uint32_t sum_bits = a.ubits + b.ubits;
+
+	// if sign of a == sign of b and sign of sum != sign of a then overflow
+	const uint32_t overflow_mask = ((a.ubits ^ b.ubits) & 0x80000000) && ((a.ubits ^ sum_bits) & 0x80000000);
+	return (overflow_mask) ? fixed_t( fixed_t::MAXIMUM ): fixed_t( sum_bits );
+#else
+	return fixed_t( a.ubits + b.ubits );
+#endif
+}
+inline fixed_t operator - ( fixed_t a, fixed_t b )
+{
+	return fixed_t( a.sbits - b.sbits );
 }
 
-
-
-
+inline fixed_t operator + ( const fixed_t a, float b )
+{
+	return a + fixed_t( b );
+}
+inline fixed_t operator - ( const fixed_t a, float b )
+{
+	return a - fixed_t( b );
+}
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
+	fixed_t fx = 125.55435f;
+	fixed_t fx_min = INT32_MIN;
+	fixed_t fx_max = INT32_MAX;
+	float f = fx.AsFloat();
+	float fmin = fx_min.AsFloat();
+	float fmax = fx_max.AsFloat();
+
+
+	fixed_t sum = 0;
+	float fsum = 0.f;
+	double dsum = 0.0;
+	for( uint32_t i = 0; i < 8*1024; ++i )
+	{
+		printf( "%u => fixed: %5.7f ............ float: %5.7f ............ double: %5.7LF\n", i, sum.AsFloat(), fsum, dsum );
+
+		sum = sum + 0.1f;
+		fsum = fsum + 0.1f;
+		dsum = dsum + 0.1;
+	}
+
+
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
-	_filesystem->SetRoot( "d:/dev/assets/" );
+	_filesystem->SetRoot( "x:/dev/assets/" );
 
 	BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
 	const BXWindow* window = win_plugin->GetWindow();
@@ -133,6 +216,8 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 	::Shutdown( &_rdidev, &_rdicmdq, allocator );
     _filesystem = nullptr;
 }
+
+
 
 bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocator* allocator )
 {

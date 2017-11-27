@@ -167,4 +167,7 @@ DECL_WRAP_DEC( int32_t, int32_t, int32_t, 31 )
 DECL_WRAP_DEC( int64_t, int64_t, int64_t, 63 )
 //////////////////////////////////////////////////////////////////////////
 
-
+inline uint32_t select( uint32_t a, uint32_t b, uint32_t select_b )
+{
+	return  ((a ^ b) & select_b) ^ a;
+}
