@@ -67,6 +67,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\gfx\gfx_shader_interop.h" />
     <ClInclude Include="asset_app.h" />
   </ItemGroup>
   <ItemGroup>

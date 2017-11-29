@@ -94,9 +94,6 @@ struct id_array_t
         }
     }
 
-    //T& operator[]( uint32_t index );
-    //const T& operator[]( uint32_t index ) const;
-
     uint16_t _freelist;
     uint16_t _next_id;
     uint16_t _size;
@@ -104,7 +101,6 @@ struct id_array_t
     Tid _sparse[MAX];
     uint16_t _sparse_to_dense[MAX];
     uint16_t _dense_to_sparse[MAX];
-    //T _objects[MAX];
 };
 
 template <uint32_t MAX, typename Tid = id_t>
@@ -119,7 +115,6 @@ struct id_table_t
     }
 
     uint16_t _freelist;
-
     uint16_t _next_id;
     uint16_t _size;
 

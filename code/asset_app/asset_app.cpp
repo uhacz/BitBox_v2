@@ -18,12 +18,7 @@
 
 #include <string.h>
 
-using float2 = vec2_t;
-using float3 = vec3_t;
-using float4 = vec4_t;
-using float3x3 = mat33_t;
-using float4x4 = mat44_t;
-using uint = uint32_t;
+#include <gfx/gfx_shader_interop.h>
 
 #include <shaders/hlsl/material_frame_data.h>
 #include <shaders/hlsl/material_data.h>
@@ -64,25 +59,32 @@ namespace
 
 struct fixed_t
 {
-	static constexpr uint32_t SHIFT  = 18;
-	static constexpr uint32_t ONE    = 1 << SHIFT;
-	static constexpr int32_t MINIMUM = INT32_MIN;
-	static constexpr int32_t MAXIMUM = INT32_MAX;	
-	static constexpr float ONE_RCP   = 1.f / (float)ONE;
+	using signed_t = int64_t;
+	using unsigned_t = uint64_t;
+	static constexpr uint8_t BITCOUNT = sizeof( unsigned_t ) * 8;
+	static constexpr unsigned_t SHIFT  = 48;
+	static constexpr unsigned_t ONE    = unsigned_t(1) << SHIFT;
+	static constexpr float   ONE_RCP = 1.f / (float)ONE;
+	static constexpr signed_t MINIMUM = INT64_MIN;
+	static constexpr signed_t MAXIMUM = INT64_MAX;
 
 	fixed_t() {}
 	fixed_t( int32_t value )
 		: sbits( value )
 	{}
-	fixed_t( uint32_t value )
+
+	fixed_t( signed_t value )
+		: sbits( value )
+	{}
+	fixed_t( unsigned_t value )
 		: ubits( value )
 	{}
 
 	fixed_t( float value )
 	{
-		float tmp = (value * ONE);
+		float tmp = ((float)value * ONE);
 		tmp += (tmp >= 0.f) ? 0.5f : -0.5f;
-		ubits = (uint32_t)tmp;
+		ubits = (unsigned_t)tmp;
 	}
 
 	fixed_t( const fixed_t& value )
@@ -93,12 +95,12 @@ struct fixed_t
 
 	union
 	{
-		int32_t  sbits;
-		uint32_t ubits;
+		signed_t  sbits;
+		unsigned_t ubits;
 		struct
 		{
-			int32_t f : SHIFT;
-			int32_t i : 32-SHIFT;
+			signed_t f : SHIFT;
+			signed_t i : BITCOUNT - SHIFT;
 		};
 	};
 };
@@ -132,25 +134,26 @@ inline fixed_t operator - ( const fixed_t a, float b )
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-	fixed_t fx = 125.55435f;
-	fixed_t fx_min = INT32_MIN;
-	fixed_t fx_max = INT32_MAX;
-	float f = fx.AsFloat();
-	float fmin = fx_min.AsFloat();
-	float fmax = fx_max.AsFloat();
+	//fixed_t fx = 125.55435f;
+	//fixed_t fx_min = fixed_t::MINIMUM;
+	//fixed_t fx_max = fixed_t::MAXIMUM;
+	//float f = fx.AsFloat();
+	//float fmin = fx_min.AsFloat();
+	//float fmax = fx_max.AsFloat();
 
+	//const float fadd = 0.123f;
+	//const fixed_t add( fadd );
+	//fixed_t sum = 0;
+	//float fsum = 0.f;
+	//double dsum = 0.0;
+	//for( uint32_t i = 0; i < 8*1024; ++i )
+	//{
+	//	printf( "%u => fixed: %5.7f ............ float: %5.7f ............ double: %5.7LF\n", i, sum.AsFloat(), fsum, dsum );
 
-	fixed_t sum = 0;
-	float fsum = 0.f;
-	double dsum = 0.0;
-	for( uint32_t i = 0; i < 8*1024; ++i )
-	{
-		printf( "%u => fixed: %5.7f ............ float: %5.7f ............ double: %5.7LF\n", i, sum.AsFloat(), fsum, dsum );
-
-		sum = sum + 0.1f;
-		fsum = fsum + 0.1f;
-		dsum = dsum + 0.1;
-	}
+	//	sum = sum + add;
+	//	fsum = fsum + fadd;
+	//	dsum = dsum + fadd;
+	//}
 
 
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );

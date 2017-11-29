@@ -4,7 +4,11 @@
 #include <foundation/math/vmath.h>
 
 #include <rdi_backend/rdi_backend_type.h>
+
+namespace gfx_shader
+{
 #include <shaders/hlsl/samplers.h>
+}//
 
 struct BXIFilesystem;
 struct BXIAllocator;
@@ -22,27 +26,7 @@ struct GFXCameraID   { uint32_t i; };
 struct GFXLightID    { uint32_t i; };
 struct GFXMeshID     { uint32_t i; };
 struct GFXMaterialID { uint32_t i; };
-
-
-struct GFXLightParams
-{
-    vec3_t pos;
-    vec3_t dir;
-    uint32_t color;
-};
-
-struct GFXMaterial
-{
-    RDIXPipeline* piepeline;
-    RDIXResourceBinding* resources;
-};
-
-struct GFXMeshParams
-{
-    RDIXRenderSource* rsource;
-    GFXMaterialID material_id;
-    uint32_t render_mask;
-};
+struct GFXMeshInstanceID { uint32_t i; };
 
 struct GFXDesc
 {
@@ -63,13 +47,12 @@ public:
 	static void Destroy( GFXMeshID* id );
 	static void Destroy( GFXMaterialID* id );
 	
-    bool Add( GFXCameraID id );
-	bool Add( GFXLightID id );
-	bool Add( GFXMeshID id );
+	GFXMeshInstanceID Add( GFXMeshID idmesh, GFXMaterialID idmat, uint32_t ninstances );
+	void Remove( GFXMeshInstanceID id );
 
-	void Remove( GFXCameraID id );
-	void Remove( GFXLightID id );
-	void Remove( GFXMeshID id );
+	void SetRenderMask( GFXMeshInstanceID id, uint8_t mask );
+	void SetAABB( GFXMeshInstanceID id );
+
 
 public:
 	void StartUp( const GFXDesc& desc, RDIDevice* dev, BXIFilesystem* filesystem, BXIAllocator* allocator );
@@ -96,9 +79,12 @@ private:
 		RDIXPipeline* base = nullptr;
 	}_material;
 	
-	ShaderSamplers _samplers;
+	gfx_shader::ShaderSamplers _samplers;
 
 	uint32_t _sync_interval = 0;
+
+
+
 };
 
 // ---

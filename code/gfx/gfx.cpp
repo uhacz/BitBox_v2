@@ -8,58 +8,116 @@
 #include <foundation/id_table.h>
 #include <mutex>
 
-// ---
-struct GFXMeshLookup
+#include "gfx_shader_interop.h"
+
+namespace gfx_shader
 {
-	static const uint32_t MAX_COUNT = 8*1024;
-	
-	std::mutex _idlock;
-	id_table_t<MAX_COUNT> _id;
+#include <shaders/hlsl/material_data.h>
+}//
 
-	RDIXRenderSource* _rsource[MAX_COUNT] = {};
-	
-	char* _name[MAX_COUNT] = {};
-	BXIAllocator* _name_allocator = nullptr;
-
-	id_t CreateId()
+// ---
+namespace gfx_internal
+{
+	template< uint32_t MAX, typename TId>
+	struct IDTable
 	{
-		_idlock.lock();
-		id_t id = id_table::create( _id );
-		_idlock.unlock();
+		typedef TId IdType;
+
+		std::mutex _idlock;
+		id_table_t<MAX> _id;
+
+		char* _name[MAX] = {};
+		BXIAllocator* _name_allocator = nullptr;
+
+		TId CreateId()
+		{
+			_idlock.lock();
+			id_t id = id_table::create( _id );
+			_idlock.unlock();
+
+			return { id.hash };
+		}
+		void DestroyId( TId id )
+		{
+			id_t iid = { id.i };
+			_idlock.lock();
+			id_table::destroy( _id, iid );
+			_idlock.unlock();
+		}
+
+		void SetName( TId id, const char* name )
+		{
+			id_t iid = { id.i };
+			SYS_ASSERT( id_table::has( _id, iid ) );
+			if( !name )
+			{
+				string::free_and_null( &_name[iid.index], _name_allocator );
+			}
+			else
+			{
+				_name[iid.index] = string::duplicate( _name[iid.index], name, _name_allocator );
+			}
+		}
+
+	};
+
+	struct GFXLookup
+	{
+		struct
+		{
+			static constexpr uint8_t MAX_MATERIALS = 64;
+			IDTable< MAX_MATERIALS, GFXMaterialID > idtable;
+			gfx_shader::Material data[MAX_MATERIALS] = {};
+			RDIXResourceBinding* resources[MAX_MATERIALS] = {};
+		}_material;
+
+		struct
+		{
+			static const uint16_t MAX_MESHES = 1024;
+			IDTable< MAX_MESHES, GFXMeshID > idtable;
+			RDIXRenderSource* source[MAX_MESHES] = {};
+		}_mesh;
+
+		struct
+		{
+			static const uint8_t MAX_CAMERAS = 16;
+			IDTable<MAX_CAMERAS, GFXCameraID> idtable;
+			GFXCameraParams params[MAX_CAMERAS] = {};
+			GFXCameraMatrices matrices[MAX_CAMERAS] = {};
+		}_camera;
+	};
+	static GFXLookup g_lookup = {};
+}
+
+
+
+namespace
+{
+	template< typename T >
+	static inline typename T::IdType CreateObject( T* container, const char* name )
+	{
+		T::IdType id = container->CreateId();
+		container->SetName( id, name );
 
 		return id;
 	}
-	void DestroyId( id_t id )
+
+	template< typename T >
+	static inline void DestroyObject( T* container, typename T::IdType* id )
 	{
-		_idlock.lock();
-		id_table::destroy( _id, id );
-		_idlock.unlock();
+		container->SetName( *id, nullptr );
+		container->DestroyId( *id );
+		id[0] = makeInvalidHandle<T::IdType>();
 	}
-
-	void SetName( id_t id, const char* name )
-	{
-		SYS_ASSERT( id_table::has( _id, id ) );
-        if( !name )
-        {
-            string::free_and_null( &_name[id.index], _name_allocator );
-        }
-        else
-        {
-            _name[id.index] = string::duplicate( _name[id.index], name, _name_allocator );
-        }
-	}
-
-};
-static GFXMeshLookup g_mesh_lookup = {};
-
-
-GFXMeshID GFX::CreateMesh( const char* name )
-{
-	id_t id = g_mesh_lookup.CreateId();
-	g_mesh_lookup.SetName( id, name );
-
-	return { id.id };
 }
+
+GFXMeshID     GFX::CreateMesh    ( const char* name ) {	return { CreateObject( &gfx_internal::g_lookup._mesh.idtable, name ) }; }
+GFXCameraID	  GFX::CreateCamera  ( const char* name ) {	return { CreateObject( &gfx_internal::g_lookup._camera.idtable, name ) }; }
+GFXMaterialID GFX::CreateMaterial( const char* name ) { return { CreateObject( &gfx_internal::g_lookup._material.idtable, name ) }; }
+
+void GFX::Destroy( GFXCameraID* id ) {}
+void GFX::Destroy( GFXMeshID* id ) {}
+void GFX::Destroy( GFXMaterialID* id ) {}
 
 void GFX::StartUp( const GFXDesc& desc, RDIDevice* dev, BXIFilesystem * filesystem, BXIAllocator * allocator )
 {
