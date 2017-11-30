@@ -79,6 +79,16 @@ private:
 		RDIXPipeline* base = nullptr;
 	}_material;
 	
+	struct
+	{
+		static constexpr uint32_t MAX_MESH_INSTANCES = 1024;
+		id_array_t<MAX_MESH_INSTANCES> id_alloc;
+		mat44_t world_matrix[MAX_MESH_INSTANCES] = {};
+		AABB local_aabb[MAX_MESH_INSTANCES] = {};
+		uint8_t render_mask[MAX_MESH_INSTANCES] = {};
+		GFXMaterialID material_id[MAX_MESH_INSTANCES] = {};
+	} _mesh;
+
 	gfx_shader::ShaderSamplers _samplers;
 
 	uint32_t _sync_interval = 0;

@@ -6,6 +6,7 @@
 
 #include <foundation/string_util.h>
 #include <foundation/id_table.h>
+#include <util/bbox.h>
 #include <mutex>
 
 #include "gfx_shader_interop.h"
@@ -76,6 +77,7 @@ namespace gfx_internal
 			static const uint16_t MAX_MESHES = 1024;
 			IDTable< MAX_MESHES, GFXMeshID > idtable;
 			RDIXRenderSource* source[MAX_MESHES] = {};
+			AABB local_aabb[MAX_MESHES] = {};
 		}_mesh;
 
 		struct
