@@ -35,7 +35,16 @@ namespace id_array
     }
 
     template <BX_ID_ARRAY_T_DEF>
-    inline void destroy( id_array_t<BX_ID_ARRAY_T_ARG>& a, Tid id )
+    inline Tid invalidate( id_array_t<BX_ID_ARRAY_T_ARG>& a, Tid id )
+    {
+        SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );
+        a._sparse[id.index].id = ++a._next_id;
+
+        return a._sparse[id.index];
+    }
+
+    template <BX_ID_ARRAY_T_DEF>
+    inline id_array_destroy_info_t destroy( id_array_t<BX_ID_ARRAY_T_ARG>& a, Tid id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );
 
@@ -48,12 +57,18 @@ namespace id_array
         SYS_ASSERT_TXT( last >= a._sparse_to_dense[id.index], "Swapping with previous item" );
         //a._objects[a._sparse_to_dense[id.index]] = a._objects[last];
 
+        id_array_destroy_info_t ret;
+        ret.copy_data_from_index = last;
+        ret.copy_data_to_index = a._sparse_to_dense[id.index];
+
         // Update tables
         uint16_t std = a._sparse_to_dense[id.index];
         uint16_t dts = a._dense_to_sparse[last];
         a._sparse_to_dense[dts] = std;
         a._dense_to_sparse[std] = dts;
         a._size--;
+               
+        return ret;
     }
 
     template <BX_ID_ARRAY_T_DEF>

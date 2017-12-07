@@ -68,6 +68,7 @@
   <ItemGroup>
     <ClInclude Include="gfx.h" />
     <ClInclude Include="gfx_camera.h" />
+    <ClInclude Include="gfx_shader_interop.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gfx.cpp" />

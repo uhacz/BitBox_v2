@@ -83,6 +83,12 @@ inline id_t make_id( uint32_t hash ){
     return id;
 }
 
+struct id_array_destroy_info_t
+{
+    uint16_t copy_data_from_index;
+    uint16_t copy_data_to_index;
+};
+
 template <uint32_t MAX, typename Tid = id_t >
 struct id_array_t
 {
@@ -93,7 +99,7 @@ struct id_array_t
             _sparse[i].id = BX_INVALID_ID;
         }
     }
-
+    
     uint16_t _freelist;
     uint16_t _next_id;
     uint16_t _size;
