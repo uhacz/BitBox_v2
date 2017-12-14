@@ -11,7 +11,7 @@ struct array_t
     BXIAllocator* allocator;
     T* data;
     
-    explicit array_t( BXIAllocator* alloc )
+    explicit array_t( BXIAllocator* alloc = BXDefaultAllocator() )
         : size( 0 ), capacity( 0 ), allocator( alloc ), data( 0 ) 
     {}
 
@@ -30,6 +30,33 @@ struct array_t
     const T* end  () const { return data + size; }
 };
 
+template< class T >
+struct array_span_t
+{
+    array_span_t( T* b, uint32_t size )
+        : _begin( b ), _size( size )
+    {}
+
+    array_span_t( T* b, T* e )
+        : _begin( b ), _size( (uint32_t)(ptrdiff_t)(e - b) )
+    {}
+
+    T* begin() { return _begin; }
+    T* end() { return _begin + _size; }
+
+    const T* begin() const { return _begin; }
+    const T* end()   const { return _begin + _size; }
+
+    uint32_t size() const { return _size; }
+
+    T& operator[] ( uint32_t i ) { return _begin[i]; }
+    const T& operator[] ( uint32_t i ) const { return _begin[i]; }
+
+private:
+    T* _begin = nullptr;
+    uint32_t _size = 0;
+};
+
 template< typename T >
 struct queue_t
 {
@@ -37,7 +64,7 @@ struct queue_t
     uint32_t size;
     uint32_t offset;
 
-    explicit queue_t( BXIAllocator* alloc )
+    explicit queue_t( BXIAllocator* alloc = BXDefaultAllocator() )
         : data( alloc ) , size( 0 ) , offset( 0 )
     {}
     ~queue_t()
@@ -51,7 +78,7 @@ template<typename T>
 struct hash_t
 {
 public:
-    hash_t( BXIAllocator* a )
+    hash_t( BXIAllocator* a = BXDefaultAllocator() )
         : _hash( a )
         , _data( a )
     {}
@@ -132,3 +159,76 @@ template< typename T > T makeInvalidHandle()
     T h = { 0 };
     return h;
 }
+
+// ---
+#include <tuple>
+
+template<class... _Types> class tuple;
+
+// empty tuple
+template<> struct tuple<> {};
+
+// recursive tuple definition
+template<class _This, class... _Rest>
+struct tuple<_This, _Rest...> : tuple<_Rest...>
+{
+    _This _Myfirst;
+};
+
+// tuple_element
+template<size_t _Index, class _Tuple> struct tuple_element;
+
+// select first element
+template<class _This, class... _Rest>
+struct tuple_element<0, tuple<_This, _Rest...>>
+{
+    typedef _This& type;
+    typedef tuple<_This, _Rest...> _Ttype;
+};
+
+// recursive tuple_element definition
+template <size_t _Index, class _This, class... _Rest>
+struct tuple_element<_Index, tuple<_This, _Rest...>> : tuple_element<_Index - 1, tuple<_Rest...> >
+{};
+
+template<size_t _Index, class... _Types> 
+inline typename tuple_element<_Index, tuple<_Types...>>::type tuple_get( tuple<_Types...>& _Tuple )
+{
+    typedef typename tuple_element<_Index, tuple<_Types...>>::_Ttype _Ttype;
+    return (((_Ttype&)_Tuple)._Myfirst);
+}
+
+template <uint32_t MAX, class... Ts>
+struct dense_container_t : public tuple<Ts...>
+{
+    dense_container_t() = default;
+
+    using tuple_t = tuple<Ts...>;
+    static constexpr size_t NUM_STREAMS = std::tuple_size<tuple_t>::value;
+    id_array_t<MAX> _id;
+
+    template< uint32_t SI, class T >
+    const T& get( id_t id ) const
+    {
+        const uint32_t index = id_array::index( _id, id );
+        const auto& stream = tuple_get<SI>( *this );
+        return stream[index];
+    }
+    template< uint32_t SI, class T>
+    void set( id_t id, const T& data )
+    {
+        const uint32_t index = id_array::index( _id, id );
+        auto& stream = tuple_get<SI>( *this );
+        stream[index] = data;
+    }
+
+    bool has( id_t id ) const { return id_array::has( _id, id ); }
+
+    template< uint32_t SI >
+    auto stream()
+    {
+        auto& begin = tuple_get<SI>( *this );
+        using value_type = std::remove_reference<decltype(*begin)>::type;
+        return array_span_t< value_type >( begin, id_array::size( _id ) );
+    }
+};

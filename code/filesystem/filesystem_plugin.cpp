@@ -19,6 +19,7 @@ BXFileWaitResult LoadFileSync( BXIFilesystem* fs, const char * relativePath, BXI
 
 PLUGIN_EXPORT void* BXLoad_filesystem( BXIAllocator * allocator )
 {
+    BXDLLSetMemoryHook( allocator );
 	bx::FilesystemWindows* fs = BX_NEW( allocator, bx::FilesystemWindows, allocator );
 	fs->LoadFileSync = LoadFileSync;
 	fs->Startup();

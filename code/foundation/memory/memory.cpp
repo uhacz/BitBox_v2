@@ -33,26 +33,33 @@ namespace bx
 
 }
 
-static bx::AllocatorDlmalloc __defaultAllocator;
+BXIAllocator* __default_allocator = nullptr;
+static bx::AllocatorDlmalloc __main_allocator;
 void BXMemoryStartUp( BXIAllocator** defaultAllocator )
 {
-    __defaultAllocator.Alloc = bx::DefaultAlloc;
-    __defaultAllocator.Free  = bx::DefaultFree;
+    __main_allocator.Alloc = bx::DefaultAlloc;
+    __main_allocator.Free  = bx::DefaultFree;
 
-    defaultAllocator[0] = &__defaultAllocator;
+    __default_allocator = &__main_allocator;
+    defaultAllocator[0] = __default_allocator;
 }
 
 void BXMemoryShutDown( BXIAllocator** defaultAllocator )
 {
     defaultAllocator[0] = nullptr;
-    if( __defaultAllocator.allocated_size != 0 )
+    if( __main_allocator.allocated_size != 0 )
     {
         perror( "Memory leak!!" );
         system( "PAUSE" );
     }
 }
 
-//extern BXIAllocator* BXDefaultAllocator()
-//{
-//    return &__defaultAllocator;
-//}
+void BXDLLSetMemoryHook( BXIAllocator * allocator )
+{
+    __default_allocator = allocator;
+}
+
+BXIAllocator* BXDefaultAllocator()
+{
+    return __default_allocator;
+}

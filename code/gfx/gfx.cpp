@@ -85,8 +85,13 @@ namespace gfx_internal
 				_name[iid.index] = string::duplicate( _name[iid.index], name, _name_allocator );
 			}
 		}
-
 	};
+
+    struct DeadID
+    {
+        uintptr_t type = 0;
+        uint32_t id = 0;
+    };
 
 	struct GFXLookup
 	{
@@ -96,8 +101,6 @@ namespace gfx_internal
 			IDTable< MAX_MATERIALS, GFXMaterialID > idtable;
 			gfx_shader::Material data[MAX_MATERIALS] = {};
 			RDIXResourceBinding* resources[MAX_MATERIALS] = {};
-
-            array_t< GFXMaterialID > _to_destroy;
 		}_material;
 
 		struct
@@ -106,8 +109,6 @@ namespace gfx_internal
 			IDTable< MAX_MESHES, GFXMeshID > idtable;
 			RDIXRenderSource* source[MAX_MESHES] = {};
 			AABB local_aabb[MAX_MESHES] = {};
-
-            array_t< GFXMeshID > _to_destroy;
 		}_mesh;
 
 		struct
@@ -116,9 +117,10 @@ namespace gfx_internal
 			IDTable<MAX_CAMERAS, GFXCameraID> idtable;
 			GFXCameraParams params[MAX_CAMERAS] = {};
 			GFXCameraMatrices matrices[MAX_CAMERAS] = {};
-
-            array_t< GFXCameraID > _to_destroy;
 		}_camera;
+
+        std::mutex _to_destroy_lock;
+        array_t<DeadID> _to_destroy;
 	};
 	static GFXLookup g_lookup = {};
 }
@@ -135,10 +137,17 @@ namespace
 	}
 
 	template< typename T >
-	static inline void DestroyObject( T* container, typename T::IdType* id )
+	static inline void DestroyObject( T* container, typename T::IdType* id, uintptr_t type )
 	{
-		container->SetName( *id, nullptr );
-		container->DestroyId( *id );
+        container->InvalidateId( *id );
+        gfx_internal::DeadID deadid;
+        deadid.type = type;
+        deadid.id = id->i;
+
+        gfx_internal::g_lookup._to_destroy_lock.lock();
+        array::push_back( gfx_internal::g_lookup._to_destroy, deadid );
+        gfx_internal::g_lookup._to_destroy_lock.unlock();
+
 		id[0] = makeInvalidHandle<T::IdType>();
 	}
 
@@ -154,9 +163,9 @@ GFXMeshID     GFX::CreateMesh    ( const char* name ) {	return { CreateObject( &
 GFXCameraID	  GFX::CreateCamera  ( const char* name ) {	return { CreateObject( &gfx_internal::g_lookup._camera.idtable, name ) }; }
 GFXMaterialID GFX::CreateMaterial( const char* name ) { return { CreateObject( &gfx_internal::g_lookup._material.idtable, name ) }; }
 
-void GFX::Destroy( GFXCameraID* id ) {}
-void GFX::Destroy( GFXMeshID* id ) {}
-void GFX::Destroy( GFXMaterialID* id ) {}
+void GFX::DestroyCamera  ( GFXCameraID* id )   { DestroyObject( &gfx_internal::g_lookup._camera.idtable, id, (uintptr_t)GFX::DestroyCamera ); }
+void GFX::DestroyMesh    ( GFXMeshID* id )     { DestroyObject( &gfx_internal::g_lookup._mesh.idtable, id, (uintptr_t)GFX::DestroyMesh ); }
+void GFX::DestroyMaterial( GFXMaterialID* id ) { DestroyObject( &gfx_internal::g_lookup._material.idtable, id, (uintptr_t)GFX::DestroyMaterial ); }
 
 GFXMeshInstanceID GFX::Add( GFXMeshID idmesh, GFXMaterialID idmat, uint32_t ninstances, uint8_t rendermask )
 {
@@ -264,9 +273,11 @@ void GFX::ShutDown()
 
 void GFX::BeginFrame( RDICommandQueue* cmdq )
 {
+
+
+
 	ClearState( cmdq );
 	SetSamplers( cmdq, (RDISampler*)&_samplers._point, 0, 4, RDIEPipeline::ALL_STAGES_MASK );
-
 }
 
 void GFX::EndFrame( RDICommandQueue* cmdq )

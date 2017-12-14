@@ -58,9 +58,9 @@ public:
 	static GFXMeshID	 CreateMesh( const char* name );
 	static GFXMaterialID CreateMaterial( const char* name );
 
-	static void Destroy( GFXCameraID* id );
-	static void Destroy( GFXMeshID* id );
-	static void Destroy( GFXMaterialID* id );
+	static void DestroyCamera( GFXCameraID* id );
+	static void DestroyMesh( GFXMeshID* id );
+	static void DestroyMaterial( GFXMaterialID* id );
 	
 	GFXMeshInstanceID Add( GFXMeshID idmesh, GFXMaterialID idmat, uint32_t ninstances, uint8_t rendermask = GFXERenderMask::COLOR_SHADOW );
 	void Remove( GFXMeshInstanceID id );
@@ -72,6 +72,7 @@ public:
 	void GenerateCommandBuffer( RDIXCommandBuffer* cmdbuffer, GFXCameraID cameraid );
 
 public:
+    GFX() {}
 	void StartUp( const GFXDesc& desc, RDIDevice* dev, BXIFilesystem* filesystem, BXIAllocator* allocator );
 	void ShutDown();
 
@@ -106,7 +107,17 @@ private:
 	{
 		static constexpr uint32_t MAX_MESH_INSTANCES = 1024;
 		id_array_t<MAX_MESH_INSTANCES> id_alloc;
-		std::mutex idlock;
+        using MeshContainer = dense_container_t<MAX_MESH_INSTANCES,
+            mat44_t[MAX_MESH_INSTANCES],
+            MeshMatrix[MAX_MESH_INSTANCES],
+            AABB[MAX_MESH_INSTANCES],
+            uint8_t[MAX_MESH_INSTANCES],
+            GFXMeshID[MAX_MESH_INSTANCES],
+            GFXMaterialID[MAX_MESH_INSTANCES],
+            GFXMeshInstanceID[MAX_MESH_INSTANCES] >;
+        
+        std::mutex idlock;
+        MeshContainer container;
 
 		mat44_t			_single_world_matrix[MAX_MESH_INSTANCES] = {};
 		MeshMatrix		matrices	        [MAX_MESH_INSTANCES] = {};

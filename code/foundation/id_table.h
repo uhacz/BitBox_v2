@@ -33,7 +33,7 @@ namespace id_table
     }
 
     template <BX_ID_TABLE_T_DEF>
-    inline Tid invalidate( id_table_t<BX_ID_TABLE_T_ARG>& a )
+    inline Tid invalidate( id_table_t<BX_ID_TABLE_T_ARG>& a, Tid id )
     {
         SYS_ASSERT_TXT( has( a, id ), "IdTable does not have ID: %d,%d", id.id, id.index );
 

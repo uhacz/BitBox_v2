@@ -5,6 +5,8 @@
 void BXMemoryStartUp( BXIAllocator** defaultAllocator );
 void BXMemoryShutDown( BXIAllocator** defaultAllocator );
 
+void BXDLLSetMemoryHook( BXIAllocator* allocator );
+
 //extern BXIAllocator* BXDefaultAllocator();
 //////////////////////////////////////////////////////////////////////////
 

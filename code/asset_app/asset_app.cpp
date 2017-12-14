@@ -24,6 +24,9 @@
 #include <shaders/hlsl/material_data.h>
 #include <shaders/hlsl/transform_instance_data.h>
 
+#include <tuple>
+#include <foundation/id_array.h>
+#include <foundation/dense_container.h>
 
 namespace
 {
@@ -55,106 +58,35 @@ namespace
 
 }
 
-#define FIXED_USE_OVERFLOW 0
 
-struct fixed_t
-{
-	using signed_t = int64_t;
-	using unsigned_t = uint64_t;
-	static constexpr uint8_t BITCOUNT = sizeof( unsigned_t ) * 8;
-	static constexpr unsigned_t SHIFT  = 48;
-	static constexpr unsigned_t ONE    = unsigned_t(1) << SHIFT;
-	static constexpr float   ONE_RCP = 1.f / (float)ONE;
-	static constexpr signed_t MINIMUM = INT64_MIN;
-	static constexpr signed_t MAXIMUM = INT64_MAX;
 
-	fixed_t() {}
-	fixed_t( int32_t value )
-		: sbits( value )
-	{}
 
-	fixed_t( signed_t value )
-		: sbits( value )
-	{}
-	fixed_t( unsigned_t value )
-		: ubits( value )
-	{}
-
-	fixed_t( float value )
-	{
-		float tmp = ((float)value * ONE);
-		tmp += (tmp >= 0.f) ? 0.5f : -0.5f;
-		ubits = (unsigned_t)tmp;
-	}
-
-	fixed_t( const fixed_t& value )
-		: ubits( value.ubits )
-	{}
-
-	float AsFloat() const { return ubits * ONE_RCP; }
-
-	union
-	{
-		signed_t  sbits;
-		unsigned_t ubits;
-		struct
-		{
-			signed_t f : SHIFT;
-			signed_t i : BITCOUNT - SHIFT;
-		};
-	};
-};
-inline fixed_t operator + ( fixed_t a, fixed_t b )
-{
-#if FIXED_USE_OVERFLOW == 1
-	// Use unsigned integers because overflow with signed integers is
-	// an undefined operation (http://www.airs.com/blog/archives/120).
-	const uint32_t sum_bits = a.ubits + b.ubits;
-
-	// if sign of a == sign of b and sign of sum != sign of a then overflow
-	const uint32_t overflow_mask = ((a.ubits ^ b.ubits) & 0x80000000) && ((a.ubits ^ sum_bits) & 0x80000000);
-	return (overflow_mask) ? fixed_t( fixed_t::MAXIMUM ): fixed_t( sum_bits );
-#else
-	return fixed_t( a.ubits + b.ubits );
-#endif
-}
-inline fixed_t operator - ( fixed_t a, fixed_t b )
-{
-	return fixed_t( a.sbits - b.sbits );
-}
-
-inline fixed_t operator + ( const fixed_t a, float b )
-{
-	return a + fixed_t( b );
-}
-inline fixed_t operator - ( const fixed_t a, float b )
-{
-	return a - fixed_t( b );
-}
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-	//fixed_t fx = 125.55435f;
-	//fixed_t fx_min = fixed_t::MINIMUM;
-	//fixed_t fx_max = fixed_t::MAXIMUM;
-	//float f = fx.AsFloat();
-	//float fmin = fx_min.AsFloat();
-	//float fmax = fx_max.AsFloat();
+    const uint32_t MAX = 10;
+    dense_container_t < MAX, double[MAX], int[MAX], float[MAX] > t1;
 
-	//const float fadd = 0.123f;
-	//const fixed_t add( fadd );
-	//fixed_t sum = 0;
-	//float fsum = 0.f;
-	//double dsum = 0.0;
-	//for( uint32_t i = 0; i < 8*1024; ++i )
-	//{
-	//	printf( "%u => fixed: %5.7f ............ float: %5.7f ............ double: %5.7LF\n", i, sum.AsFloat(), fsum, dsum );
+    id_t ids[10];
+    for( uint32_t i = 0; i < MAX; ++i )
+        ids[i] = dense_container::create( t1 );
 
-	//	sum = sum + add;
-	//	fsum = fsum + fadd;
-	//	dsum = dsum + fadd;
-	//}
+    for( uint32_t i = 0; i < MAX; ++i )
+    {
+        t1.set<0>( ids[i], double( i ) );
+        t1.set<1>( ids[i], int( i ) );
+        t1.set<2>( ids[i], float( i * 10 ) );
+    }
+    int n = t1.NUM_STREAMS;
 
+    //auto stream = t1.stream<0>();
+    ////auto& stream = std::get<0>( t1 );
+
+    ////double d9 = t1.get<0, double>( ids[9] );
+
+    ////dense_container::destroy( t1, ids[5] );
+
+    ////d9 = t1.get<0, double>( ids[9] );
 
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
 	_filesystem->SetRoot( "x:/dev/assets/" );

@@ -204,7 +204,7 @@ struct mat44_t
 	vec4_t c2;
 	vec4_t c3;
 
-	inline mat44_t() {}
+	inline mat44_t(){}
 	inline mat44_t( float s ) : c0( s ), c1( s ), c2( s ), c3(s) {}
     inline mat44_t( const mat44_t& m ) : c0( m.c0 ), c1( m.c1 ), c2( m.c2 ), c3( m.c3 ) {}
     inline mat44_t( const vec4_t& v0, const vec4_t& v1, const vec4_t& v2, const vec4_t& v3 ) : c0( v0 ), c1( v1 ), c2( v2 ), c3( v3 ) {}
