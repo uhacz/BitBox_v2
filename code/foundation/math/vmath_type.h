@@ -36,10 +36,10 @@ struct vec3_t
     };
 
              inline vec3_t() {}
-    explicit inline vec3_t( float s                      ) : x( s ), y( s ), z( s ) {}
-             inline vec3_t( float x_, float y_, float z_ ) : x( x_ ), y( y_ ), z( z_ ) {}
-             inline vec3_t( const vec2_t& v, float z_    ) : x( v.x ), y( v.y ), z( z_ ) {}
-             inline vec3_t( const vec3_t& v              ) : x( v.x ), y( v.y ), z( v.z ) {}
+    explicit constexpr vec3_t( float s                      ) : x( s ), y( s ), z( s ) {}
+             constexpr vec3_t( float x_, float y_, float z_ ) : x( x_ ), y( y_ ), z( z_ ) {}
+             constexpr vec3_t( const vec2_t& v, float z_    ) : x( v.x ), y( v.y ), z( z_ ) {}
+             constexpr vec3_t( const vec3_t& v              ) : x( v.x ), y( v.y ), z( v.z ) {}
 
     inline vec3_t  operator- ()                  const { return vec3_t( -x, -y, -z ); }
     inline vec3_t  operator+ ( const vec3_t& v ) const { return vec3_t( x + v.x, y + v.y, z + v.z ); }
@@ -67,10 +67,10 @@ struct vec4_t
     };
 
 	         inline vec4_t(                                        ) {}
-	explicit inline vec4_t( float s                                ) : x( s ), y( s ), z( s ), w( s ) {}
-	         inline vec4_t( float x_, float y_, float z_, float w_ ) : x( x_ ), y( y_ ), z( z_ ), w( w_ ) {}
-	         inline vec4_t( const vec3_t& v, float w_              ) : x( v.x ), y( v.y ), z( v.z ), w( w_ ) {}
-             inline vec4_t( const vec4_t& v                        ) : x( v.x ), y( v.y ), z( v.z ), w( v.w ) {}
+	explicit constexpr vec4_t( float s                                ) : x( s ), y( s ), z( s ), w( s ) {}
+	         constexpr vec4_t( float x_, float y_, float z_, float w_ ) : x( x_ ), y( y_ ), z( z_ ), w( w_ ) {}
+	         constexpr vec4_t( const vec3_t& v, float w_              ) : x( v.x ), y( v.y ), z( v.z ), w( w_ ) {}
+             constexpr vec4_t( const vec4_t& v                        ) : x( v.x ), y( v.y ), z( v.z ), w( v.w ) {}
 
     inline vec4_t operator-()                  const { return vec4_t( -x, -y, -z, -w ); }
     inline vec4_t operator+( const vec4_t& v ) const { return vec4_t( x + v.x, y + v.y, z + v.z, w + v.w ); }
@@ -102,11 +102,11 @@ struct quat_t
 	};
 
 	         inline quat_t(                                        ) {}
-	explicit inline quat_t( float s                                ) : x( s ), y( s ), z( s ), w( s ) {}
-	         inline quat_t( float x_, float y_, float z_, float w_ ) : x( x_ ), y( y_ ), z( z_ ), w( w_ ) {}
-	         inline quat_t( const vec3_t& v, float w_              ) : x( v.x ), y( v.y ), z( v.z ), w( w_ ) {}
-	explicit inline quat_t( const vec4_t& v                        ) : x( v.x ), y( v.y ), z( v.z ), w( v.w ) {}
-	         inline quat_t( const quat_t& q                        ) : x( q.x ), y( q.y ), z( q.z ), w( q.w ) {}
+	explicit constexpr quat_t( float s                                ) : x( s ), y( s ), z( s ), w( s ) {}
+	         constexpr quat_t( float x_, float y_, float z_, float w_ ) : x( x_ ), y( y_ ), z( z_ ), w( w_ ) {}
+	         constexpr quat_t( const vec3_t& v, float w_              ) : x( v.x ), y( v.y ), z( v.z ), w( w_ ) {}
+	explicit constexpr quat_t( const vec4_t& v                        ) : x( v.x ), y( v.y ), z( v.z ), w( v.w ) {}
+	         constexpr quat_t( const quat_t& q                        ) : x( q.x ), y( q.y ), z( q.z ), w( q.w ) {}
 	explicit inline quat_t( const mat33_t& m                       );
 
 	static inline quat_t identity() { return quat_t( 0.f, 0.f, 0.f, 1.f ); }
@@ -152,7 +152,7 @@ struct xform_t
 	vec3_t pos;
 
 	xform_t() {}
-    xform_t( const quat_t& q, const vec3_t& p ) : rot( q ), pos( p ) {}
+    constexpr xform_t( const quat_t& q, const vec3_t& p ) : rot( q ), pos( p ) {}
     
     explicit inline xform_t( const quat_t& q  ) : rot( q ), pos( 0.f ) {}
 	explicit inline xform_t( const vec3_t& p  ) : rot( quat_t::identity() ), pos( p ) {}
@@ -173,9 +173,9 @@ struct mat33_t
 	vec3_t c2;
 
 	inline mat33_t() {}
-    inline mat33_t( float s ) : c0( s, 0.f, 0.f ), c1( 0.f, s, 0.f ), c2( 0.f, 0.f, s ) {}
-    inline mat33_t( const mat33_t& m ) : c0( m.c0 ), c1( m.c1 ), c2( m.c2 ) {}
-    inline mat33_t( const vec3_t& v0, const vec3_t& v1, const vec3_t& v2 ) : c0( v0 ), c1( v1 ), c2( v2 ) {}
+   constexpr mat33_t( float s ) : c0( s, 0.f, 0.f ), c1( 0.f, s, 0.f ), c2( 0.f, 0.f, s ) {}
+   constexpr mat33_t( const mat33_t& m ) : c0( m.c0 ), c1( m.c1 ), c2( m.c2 ) {}
+   constexpr mat33_t( const vec3_t& v0, const vec3_t& v1, const vec3_t& v2 ) : c0( v0 ), c1( v1 ), c2( v2 ) {}
 
     explicit inline mat33_t( const quat_t& q );
     explicit inline mat33_t( const vec3_t& v ) : c0( v ), c1( v ), c2( v ) {}
@@ -205,10 +205,10 @@ struct mat44_t
 	vec4_t c3;
 
 	inline mat44_t(){}
-	inline mat44_t( float s ) : c0( s ), c1( s ), c2( s ), c3(s) {}
-    inline mat44_t( const mat44_t& m ) : c0( m.c0 ), c1( m.c1 ), c2( m.c2 ), c3( m.c3 ) {}
-    inline mat44_t( const vec4_t& v0, const vec4_t& v1, const vec4_t& v2, const vec4_t& v3 ) : c0( v0 ), c1( v1 ), c2( v2 ), c3( v3 ) {}
-    inline mat44_t( const mat33_t& rot, const vec3_t& pos ) : c0( vec4_t( rot.c0, 0.f ) ), c1( vec4_t( rot.c1, 0.f ) ), c2( vec4_t( rot.c2, 0.f ) ), c3( pos, 1.f ) {}
+	constexpr mat44_t( float s ) : c0( s ), c1( s ), c2( s ), c3(s) {}
+    constexpr mat44_t( const mat44_t& m ) : c0( m.c0 ), c1( m.c1 ), c2( m.c2 ), c3( m.c3 ) {}
+    constexpr mat44_t( const vec4_t& v0, const vec4_t& v1, const vec4_t& v2, const vec4_t& v3 ) : c0( v0 ), c1( v1 ), c2( v2 ), c3( v3 ) {}
+    constexpr mat44_t( const mat33_t& rot, const vec3_t& pos ) : c0( vec4_t( rot.c0, 0.f ) ), c1( vec4_t( rot.c1, 0.f ) ), c2( vec4_t( rot.c2, 0.f ) ), c3( pos, 1.f ) {}
 	inline mat44_t( const quat_t& rot, const vec3_t& pos );
 
     explicit inline mat44_t( const vec4_t& v ) : c0( v ), c1( v ), c2( v ), c3( v ) {}

@@ -163,47 +163,12 @@ template< typename T > T makeInvalidHandle()
 // ---
 #include <tuple>
 
-template<class... _Types> class tuple;
-
-// empty tuple
-template<> struct tuple<> {};
-
-// recursive tuple definition
-template<class _This, class... _Rest>
-struct tuple<_This, _Rest...> : tuple<_Rest...>
-{
-    _This _Myfirst;
-};
-
-// tuple_element
-template<size_t _Index, class _Tuple> struct tuple_element;
-
-// select first element
-template<class _This, class... _Rest>
-struct tuple_element<0, tuple<_This, _Rest...>>
-{
-    typedef _This& type;
-    typedef tuple<_This, _Rest...> _Ttype;
-};
-
-// recursive tuple_element definition
-template <size_t _Index, class _This, class... _Rest>
-struct tuple_element<_Index, tuple<_This, _Rest...>> : tuple_element<_Index - 1, tuple<_Rest...> >
-{};
-
-template<size_t _Index, class... _Types> 
-inline typename tuple_element<_Index, tuple<_Types...>>::type tuple_get( tuple<_Types...>& _Tuple )
-{
-    typedef typename tuple_element<_Index, tuple<_Types...>>::_Ttype _Ttype;
-    return (((_Ttype&)_Tuple)._Myfirst);
-}
-
 template <uint32_t MAX, class... Ts>
-struct dense_container_t : public tuple<Ts...>
+struct dense_container_t : public std::tuple<Ts...>
 {
     dense_container_t() = default;
 
-    using tuple_t = tuple<Ts...>;
+    using tuple_t = std::tuple<Ts...>;
     static constexpr size_t NUM_STREAMS = std::tuple_size<tuple_t>::value;
     id_array_t<MAX> _id;
 
@@ -218,7 +183,7 @@ struct dense_container_t : public tuple<Ts...>
     void set( id_t id, const T& data )
     {
         const uint32_t index = id_array::index( _id, id );
-        auto& stream = tuple_get<SI>( *this );
+        auto& stream = std::get<SI>( *this );
         stream[index] = data;
     }
 

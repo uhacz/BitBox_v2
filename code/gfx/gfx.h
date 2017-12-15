@@ -107,17 +107,17 @@ private:
 	{
 		static constexpr uint32_t MAX_MESH_INSTANCES = 1024;
 		id_array_t<MAX_MESH_INSTANCES> id_alloc;
-        using MeshContainer = dense_container_t<MAX_MESH_INSTANCES,
-            mat44_t[MAX_MESH_INSTANCES],
-            MeshMatrix[MAX_MESH_INSTANCES],
-            AABB[MAX_MESH_INSTANCES],
-            uint8_t[MAX_MESH_INSTANCES],
-            GFXMeshID[MAX_MESH_INSTANCES],
-            GFXMaterialID[MAX_MESH_INSTANCES],
-            GFXMeshInstanceID[MAX_MESH_INSTANCES] >;
+        //using MeshContainer = dense_container_t<MAX_MESH_INSTANCES,
+        //    mat44_t[MAX_MESH_INSTANCES],
+        //    MeshMatrix[MAX_MESH_INSTANCES],
+        //    AABB[MAX_MESH_INSTANCES],
+        //    uint8_t[MAX_MESH_INSTANCES],
+        //    GFXMeshID[MAX_MESH_INSTANCES],
+        //    GFXMaterialID[MAX_MESH_INSTANCES],
+        //    GFXMeshInstanceID[MAX_MESH_INSTANCES] >;
         
         std::mutex idlock;
-        MeshContainer container;
+        //MeshContainer container;
 
 		mat44_t			_single_world_matrix[MAX_MESH_INSTANCES] = {};
 		MeshMatrix		matrices	        [MAX_MESH_INSTANCES] = {};
