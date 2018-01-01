@@ -1,7 +1,9 @@
 #pragma once
 
 #include "type.h"
-#include "memory/memory.h"
+#include "debug.h"
+#include "memory/memory_plugin.h"
+
 
 template< typename T >
 struct array_t
@@ -13,7 +15,9 @@ struct array_t
     
     explicit array_t( BXIAllocator* alloc = BXDefaultAllocator() )
         : size( 0 ), capacity( 0 ), allocator( alloc ), data( 0 ) 
-    {}
+    {
+        SYS_ASSERT( alloc != nullptr );
+    }
 
     ~array_t()
     {
@@ -160,40 +164,82 @@ template< typename T > T makeInvalidHandle()
     return h;
 }
 
-// ---
-#include <tuple>
-
-template <uint32_t MAX, class... Ts>
-struct dense_container_t : public std::tuple<Ts...>
+namespace dense_container
 {
-    dense_container_t() = default;
+    static constexpr uint8_t MAX_STREAMS = 32;
+}//
 
-    using tuple_t = std::tuple<Ts...>;
-    static constexpr size_t NUM_STREAMS = std::tuple_size<tuple_t>::value;
-    id_array_t<MAX> _id;
+template< uint32_t MAX >
+struct BIT_ALIGNMENT_16 dense_container_t
+{
+    BXIAllocator*   _allocator = nullptr;
+    id_array_t<MAX> _ids;
 
-    template< uint32_t SI, class T >
+    uint32_t _num_streams = 0;
+    uint8_t  _streams_stride[dense_container::MAX_STREAMS] = {};
+    uint32_t _names_hash    [dense_container::MAX_STREAMS] = {};
+    uint8_t* _streams       [dense_container::MAX_STREAMS] = {};
+
+    template< uint32_t STREAM_INDEX, typename T >
     const T& get( id_t id ) const
     {
-        const uint32_t index = id_array::index( _id, id );
-        const auto& stream = tuple_get<SI>( *this );
-        return stream[index];
-    }
-    template< uint32_t SI, class T>
-    void set( id_t id, const T& data )
-    {
-        const uint32_t index = id_array::index( _id, id );
-        auto& stream = std::get<SI>( *this );
-        stream[index] = data;
+        SYS_ASSERT( STREAM_INDEX < _num_streams );
+        SYS_ASSERT( sizeof( T ) == _streams_stride[STREAM_INDEX] );
+        const uint32_t index = id_array::index( _ids, id );
+        return (const T&)((T*)_streams[STREAM_INDEX])[index];
     }
 
-    bool has( id_t id ) const { return id_array::has( _id, id ); }
-
-    template< uint32_t SI >
-    auto stream()
+    template< uint32_t STREAM_INDEX, typename T >
+    void set( id_t id, const T& value )
     {
-        auto& begin = tuple_get<SI>( *this );
-        using value_type = std::remove_reference<decltype(*begin)>::type;
-        return array_span_t< value_type >( begin, id_array::size( _id ) );
+        SYS_ASSERT( STREAM_INDEX < _num_streams );
+        SYS_ASSERT( sizeof( T ) == _streams_stride[STREAM_INDEX] );
+        const uint32_t index = id_array::index( _ids, id );
+        ((T*)_streams[STREAM_INDEX])[index] = value;
+    }
+
+    template< typename T >
+    bool set( id_t id, const char* stream_name, const T& value )
+    {
+        const uint32_t stream_index = find_stream<T>( stream_name );
+        if( stream_index < _num_streams )
+        {
+            const uint32_t index = id_array::index( _ids, id );
+            ((T*)_streams[stream_index])[index] = value;
+            return true;
+        }
+        return false;
+    }
+
+    template< uint32_t STREAM_INDEX, typename T >
+    array_span_t<T> stream()
+    {
+        SYS_ASSERT( STREAM_INDEX < _num_streams );
+        T* data = (T*)_streams[STREAM_INDEX];
+        return array_span_t<T>( data, id_array::size( _ids ) );
+    }
+
+    template< typename T >
+    array_span_t<T> stream( const char* name )
+    {
+        const uint32_t stream_index = find_stream<T>( name );
+        if( stream_index < _num_streams )
+            return array_span_t<T>( (T*)_streams[stream_index], id_array::size( _ids ) );
+
+        return array_span_t<T>( nullptr, nullptr );
+    }
+
+private:
+    template< typename T >
+    uint32_t find_stream( const char* name )
+    {
+        const uint32_t hashed_name = dense_container::GenerateHashedName<T>( name );
+        for( uint32_t i = 0; i < _num_streams; ++i )
+        {
+            if( hashed_name == _names_hash[i] )
+                return i;
+        }
+        return TYPE_NOT_FOUND<uint32_t>();
     }
 };
+

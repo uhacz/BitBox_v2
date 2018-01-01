@@ -7,7 +7,7 @@
 
 #include <windows.h>
 
-#include <foundation/memory/memory.h>
+#include <memory/memory_plugin.h>
 #include <foundation/plugin/plugin_registry.h>
 #include <foundation/plugin/plugin_load.h>
 
@@ -25,9 +25,9 @@
 int main( int argc, const char** argv )
 {
     // --- startup
-    BXIAllocator* default_allocator = nullptr;
-    BXMemoryStartUp( &default_allocator );
-    
+    BXMemoryStartUp();
+    BXIAllocator* default_allocator = BXDefaultAllocator();
+
     BXPluginRegistry* plug_reg = nullptr;
     BXPluginRegistryStartup( &plug_reg, default_allocator );
 
@@ -88,6 +88,6 @@ int main( int argc, const char** argv )
 	BXPluginUnload( plug_reg, BX_FILESYSTEM_PLUGIN_NAME, default_allocator );
 
     BXPluginRegistryShutdown( &plug_reg, default_allocator );
-    BXMemoryShutDown( &default_allocator );
+    BXMemoryShutDown();
     return 0;
 }

@@ -6,7 +6,7 @@
 
 PLUGIN_EXPORT void* BXLoad_window( BXIAllocator* allocator )
 {
-    BXDLLSetMemoryHook( allocator );
+    //BXDLLSetMemoryHook( allocator );
     BXIWindow* plugin = BX_NEW( allocator, bx::Window );
     return plugin;
 }

@@ -120,3 +120,36 @@ char* string::find( const char* str, const char* to_find, char** next /*= 0 */ )
 
     return result;
 }
+
+namespace string
+{
+    void string::create( string_t* s, const char* data, BXIAllocator* allocator )
+    {
+        const uint32_t len = length( data );
+        if( len > string_t::MAX_STATIC_LENGTH )
+        {
+            s->_dynamic = string::duplicate( s->_dynamic, data, allocator );
+            s->_allocator = allocator;
+        }
+        else
+        {
+            if( s->_allocator )
+            {
+                string::free_and_null( &s->_dynamic, s->_allocator );
+            }
+            s->_allocator = nullptr;
+            strcpy( s->_static, data );
+        }
+    }
+
+    void string::free( string_t* s )
+    {
+        if( s->_allocator )
+        {
+            string::free_and_null( &s->_dynamic, s->_allocator );
+        }
+        memset( s, 0x00, sizeof( string_t ) );
+    }
+
+
+}

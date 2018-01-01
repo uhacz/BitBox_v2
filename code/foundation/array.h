@@ -96,4 +96,27 @@ namespace array
 
         arr.size = newSize;
     }
+
+    template< typename T > uint32_t find( const array_t<T>& arr, const T& to_find, uint32_t start_index = 0 )
+    {
+        for( uint32_t i = start_index; i < arr.size; ++i )
+        {
+            if( to_find == arr[i] )
+                return i;
+        }
+
+        return TYPE_NOT_FOUND<uint32_t>();
+    }
+
+    template< typename T > uint32_t find( const T* begin, uint32_t count, const T& to_find, uint32_t start_index = 0 )
+    {
+        for( uint32_t i = start_index; i < count; ++i )
+        {
+            if( to_find == begin[i] )
+                return i;
+        }
+
+        return TYPE_NOT_FOUND<uint32_t>();
+    }
 }///
+

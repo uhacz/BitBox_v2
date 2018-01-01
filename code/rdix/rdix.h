@@ -79,6 +79,13 @@ RDIIndexBuffer       IndexBuffer( RDIXRenderSource* rsource );
 RDIXRenderSourceRange Range( RDIXRenderSource* rsource, uint32_t index );
 
 // --- TransformBuffer
+struct RDIXTransformBufferBindInfo
+{
+    uint32_t instance_offset_slot = 0;
+    uint32_t matrix_start_slot = 0;
+    uint32_t stage_mask = RDIEPipeline::VERTEX_MASK;
+};
+
 RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformBufferDesc& desc, BXIAllocator* allocator );
 void				 DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAllocator* allocator );
 void				 ClearTransformBuffer( RDIXTransformBuffer* buffer );
@@ -87,12 +94,13 @@ uint32_t			 AppendMatrix( RDIXTransformBuffer* buffer, const struct mat44_t& mat
 void				 UploadTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer );
 RDIXCommand*		 UploadTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer );
 
-void				 BindTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask );
-RDIXCommand*		 BindTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask );
+void				 BindTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer, const RDIXTransformBufferBindInfo& bind_info );
+RDIXCommand*		 BindTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, const RDIXTransformBufferBindInfo& bind_info );
 
 struct RDIXTransformBufferCommands
 {
 	RDIXCommand* first;
 	RDIXCommand* last;
 };
-RDIXTransformBufferCommands UploadAndSetTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask );
+RDIXTransformBufferCommands UploadAndSetTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, const RDIXTransformBufferBindInfo& bind_info );
+RDIConstantBuffer GetInstanceOffsetCBuffer( RDIXTransformBuffer* cmdbuff );

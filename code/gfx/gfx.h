@@ -51,6 +51,14 @@ namespace GFXERenderMask
     };
 }//
 
+struct GFXSystem;
+GFXSystem* GFXStartUp( const GFXDesc* desc, BXIAllocator* allocator );
+void GFXShutDown( GFXSystem** gfx );
+
+
+
+
+
 class GFX
 {
 public:
@@ -103,19 +111,23 @@ private:
 		uint32_t count = 0;
 	};
 
-	struct
+	struct Mesh
 	{
 		static constexpr uint32_t MAX_MESH_INSTANCES = 1024;
-		id_array_t<MAX_MESH_INSTANCES> id_alloc;
-        //using MeshContainer = dense_container_t<MAX_MESH_INSTANCES,
-        //    mat44_t[MAX_MESH_INSTANCES],
-        //    MeshMatrix[MAX_MESH_INSTANCES],
-        //    AABB[MAX_MESH_INSTANCES],
-        //    uint8_t[MAX_MESH_INSTANCES],
-        //    GFXMeshID[MAX_MESH_INSTANCES],
-        //    GFXMaterialID[MAX_MESH_INSTANCES],
-        //    GFXMeshInstanceID[MAX_MESH_INSTANCES] >;
-        
+		enum EStreams : uint32_t
+        {
+            SINGLE_WORLD_MATRIX = 0,
+            MATRICES,
+            LOCAL_AABB,
+            RENDER_MASK,
+            MESH_ID,
+            MATERIAL_ID,
+            SELF_ID,
+        };
+
+        dense_container_t<MAX_MESH_INSTANCES>* container;
+       
+        id_array_t<MAX_MESH_INSTANCES> id_alloc;
         std::mutex idlock;
         //MeshContainer container;
 

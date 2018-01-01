@@ -21,7 +21,7 @@ namespace bx
     static const int NAME_SIZE = NAME_LEN + 1;
     static inline void GetDLLName( char* buff, const char* name )
     {
-        sprintf_s( buff, NAME_LEN, "../%s.dll", name );
+        sprintf_s( buff, NAME_LEN, "%s.dll", name );
     }
     static inline void GetDLLModuleName( char* buff, const char* name )
     {

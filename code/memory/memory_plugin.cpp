@@ -1,0 +1,61 @@
+#include "memory_plugin.h"
+#include "dlmalloc.h"
+#include <foundation/memory/allocator.h>
+
+#include <foundation/type.h>
+#include <foundation/debug.h>
+
+#include <stdlib.h>
+
+namespace bx
+{
+    struct AllocatorDlmalloc : BXIAllocator
+    {
+        size_t allocated_size = 0;
+    };
+
+    static void* DefaultAlloc( BXIAllocator* _this, size_t size, size_t align )
+    {
+        void* pointer = dlmemalign( align, size );
+        size_t usable_size = dlmalloc_usable_size( pointer );
+
+        AllocatorDlmalloc* alloc = (AllocatorDlmalloc*)_this;
+        alloc->allocated_size += usable_size;
+
+        return pointer;
+    }
+    static void DefaultFree( BXIAllocator* _this, void* ptr )
+    {
+        size_t usable_size = dlmalloc_usable_size( ptr );
+        dlfree( ptr );
+
+        AllocatorDlmalloc* alloc = (AllocatorDlmalloc*)_this;
+        SYS_ASSERT( alloc->allocated_size >= usable_size );
+        alloc->allocated_size -= usable_size;
+    }
+}
+
+static BIT_ALIGNMENT(sizeof(void*)) bx::AllocatorDlmalloc __default_allocator;
+
+extern "C"
+{
+    MEMORY_PLUGIN_EXPORT void BXMemoryStartUp()
+    {
+        __default_allocator.Alloc = bx::DefaultAlloc;
+        __default_allocator.Free = bx::DefaultFree;
+    }
+
+    MEMORY_PLUGIN_EXPORT void BXMemoryShutDown()
+    {
+        if( __default_allocator.allocated_size != 0 )
+        {
+            perror( "Memory leak!!" );
+            system( "PAUSE" );
+        }
+    }
+
+    MEMORY_PLUGIN_EXPORT BXIAllocator* BXDefaultAllocator()
+    {
+        return &__default_allocator;
+    }
+}//

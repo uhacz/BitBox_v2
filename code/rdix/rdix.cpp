@@ -796,27 +796,33 @@ RDIXCommand* UploadTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* par
 
 	return cmd2;
 }
-void BindTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask )
+void BindTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer, const RDIXTransformBufferBindInfo& bind_info )
 {
-	SetResourcesRO( cmdq, &buffer->gpu_buffer_matrix, slot, 2, stagemask );
+    SetCbuffers( cmdq, &buffer->gpu_instance_offset, bind_info.instance_offset_slot, 1, bind_info.stage_mask );
+	SetResourcesRO( cmdq, &buffer->gpu_buffer_matrix, bind_info.matrix_start_slot, 2, bind_info.stage_mask );
 }
 
-RDIXCommand* BindTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, uint32_t slot, uint32_t stagemask )
+RDIXCommand* BindTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* parentcmd, RDIXTransformBuffer* buffer, const RDIXTransformBufferBindInfo& bind_info )
 {
-	auto* cmd1 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, parentcmd );
+ 	auto* cmd1 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, parentcmd );
 	cmd1->resource = buffer->gpu_buffer_matrix;
-	cmd1->slot = slot;
-	cmd1->stage_mask = stagemask;
+	cmd1->slot = bind_info.matrix_start_slot;
+	cmd1->stage_mask = bind_info.stage_mask;
 
 	auto* cmd2 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, cmd1 );
 	cmd2->resource = buffer->gpu_buffer_matrix_it;
-	cmd2->slot = slot + 1;
-	cmd2->stage_mask = stagemask;
+	cmd2->slot = bind_info.matrix_start_slot + 1;
+	cmd2->stage_mask = bind_info.stage_mask;
 
-	return cmd2;
+    auto* cmd3 = AllocateCommand<RDIXSetConstantBufferCmd>( cmdbuff, cmd2 );
+    cmd3->resource = buffer->gpu_instance_offset;
+    cmd3->slot = bind_info.instance_offset_slot;
+    cmd3->stage_mask = bind_info.stage_mask;
+
+	return cmd3;
 }
 
-RDIXTransformBufferCommands UploadAndSetTransformBuffer( RDIXCommandBuffer * cmdbuff, RDIXCommand * parentcmd, RDIXTransformBuffer * buffer, uint32_t slot, uint32_t stagemask )
+RDIXTransformBufferCommands UploadAndSetTransformBuffer( RDIXCommandBuffer * cmdbuff, RDIXCommand * parentcmd, RDIXTransformBuffer * buffer, const RDIXTransformBufferBindInfo& bind_info )
 {	
 	const uint32_t data_size1 = buffer->num_elements * sizeof( rdix::Matrix );
 	const uint32_t data_size2 = buffer->num_elements * sizeof( rdix::MatrixIT );
@@ -833,13 +839,23 @@ RDIXTransformBufferCommands UploadAndSetTransformBuffer( RDIXCommandBuffer * cmd
 
 	RDIXSetResourceROCmd* cmd3 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, cmd2 );
 	cmd3->resource = buffer->gpu_buffer_matrix;
-	cmd3->slot = slot;
-	cmd3->stage_mask = stagemask;
+	cmd3->slot = bind_info.matrix_start_slot;
+	cmd3->stage_mask = bind_info.stage_mask;
 
 	RDIXSetResourceROCmd* cmd4 = AllocateCommand<RDIXSetResourceROCmd>( cmdbuff, cmd3 );
 	cmd4->resource = buffer->gpu_buffer_matrix_it;
-	cmd4->slot = slot + 1;
-	cmd4->stage_mask = stagemask;
+	cmd4->slot = bind_info.matrix_start_slot + 1;
+	cmd4->stage_mask = bind_info.stage_mask;
 
-	return { cmd1, cmd4 };
+    auto* cmd5 = AllocateCommand<RDIXSetConstantBufferCmd>( cmdbuff, cmd4 );
+    cmd5->resource = buffer->gpu_instance_offset;
+    cmd5->slot = bind_info.instance_offset_slot;
+    cmd5->stage_mask = bind_info.stage_mask;
+
+	return { cmd1, cmd5 };
+}
+
+RDIConstantBuffer GetInstanceOffsetCBuffer( RDIXTransformBuffer * cmdbuff )
+{
+    return cmdbuff->gpu_instance_offset;
 }

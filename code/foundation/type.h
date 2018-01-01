@@ -25,6 +25,8 @@ union TypeReinterpert
     explicit TypeReinterpert( float32_t v ) : f( v ) {}
 };
 
+
+
 #define BIT_OFFSET(n) (1<<n)
 #define PTR_TO_UINT32( p )   ((uint32_t)(uintptr_t) (uint32_t*) (p))
 #define UINT32_TO_PTR( ui )  ((void *)(uint32_t*)((uint32_t)ui))
@@ -70,4 +72,9 @@ size_t sizeof_array( const T( &)[N] )
 inline bool is_pow2( int n )
 {
     return ( n&( n - 1 ) ) == 0;
+}
+template< typename T >
+inline T TYPE_NOT_FOUND()
+{
+    return std::numeric_limits<T>::max();
 }

@@ -15,6 +15,7 @@
     </ClCompile>
     <Link>
       <ImportLibrary>$(SolutionDir)\lib\plugin\$(Platform)\$(Configuration)\$(TargetName).lib</ImportLibrary>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ProjectReference />
     <ProjectReference />

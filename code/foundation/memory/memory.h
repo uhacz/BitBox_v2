@@ -2,12 +2,11 @@
 #include "allocator.h"
 
 //////////////////////////////////////////////////////////////////////////
-void BXMemoryStartUp( BXIAllocator** defaultAllocator );
-void BXMemoryShutDown( BXIAllocator** defaultAllocator );
+//void BXMemoryStartUp( BXIAllocator** defaultAllocator );
+//void BXMemoryShutDown( BXIAllocator** defaultAllocator );
+//
+//void BXDLLSetMemoryHook( BXIAllocator* allocator );
 
-void BXDLLSetMemoryHook( BXIAllocator* allocator );
-
-//extern BXIAllocator* BXDefaultAllocator();
 //////////////////////////////////////////////////////////////////////////
 
 #ifndef alignof

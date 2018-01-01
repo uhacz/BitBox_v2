@@ -8,16 +8,6 @@
 #include <string.h>
 #include <algorithm>
 
-const DispatchFunction RDIXDrawCmd::DISPATCH_FUNCTION                 = DrawCmdDispatch;
-const DispatchFunction RDIXUpdateConstantBufferCmd::DISPATCH_FUNCTION = UpdateConstantBufferCmdDispatch;
-const DispatchFunction RDIXSetPipelineCmd::DISPATCH_FUNCTION          = SetPipelineCmdDispatch;
-const DispatchFunction RDIXSetResourcesCmd::DISPATCH_FUNCTION         = SetResourcesCmdDispatch;
-const DispatchFunction RDIXSetResourceROCmd::DISPATCH_FUNCTION		  = SetResourceROCmdDispatch;
-const DispatchFunction RDIXSetRenderSourceCmd::DISPATCH_FUNCTION      = SetRenderSourceCmdDispatch;
-const DispatchFunction RDIXRawDrawCallCmd::DISPATCH_FUNCTION          = RawDrawCallCmdDispatch;
-const DispatchFunction RDIXUpdateBufferCmd::DISPATCH_FUNCTION         = UpdateBufferCmdDispatch;
-const DispatchFunction RDIXDrawCallbackCmd::DISPATCH_FUNCTION         = DrawCallbackCmdDispatch;
-
 void SetPipelineCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
 {
 	RDIXSetPipelineCmd* cmd = (RDIXSetPipelineCmd*)cmdAddr;
@@ -33,6 +23,12 @@ void SetResourceROCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
 {
 	auto* cmd = (RDIXSetResourceROCmd*)cmdAddr;
 	SetResourcesRO( cmdq, &cmd->resource, cmd->slot, 1, cmd->stage_mask );
+}
+
+void SetConstantBufferCmdDispatch( RDICommandQueue * cmdq, RDIXCommand * cmdAddr )
+{
+    auto* cmd = (RDIXSetConstantBufferCmd*)cmdAddr;
+    SetCbuffers( cmdq, &cmd->resource, cmd->slot, 1, cmd->stage_mask );
 }
 
 void SetRenderSourceCmdDispatch( RDICommandQueue * cmdq, RDIXCommand * cmdAddr )
@@ -73,7 +69,17 @@ void DrawCallbackCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
 	RDIXDrawCallbackCmd* cmd = (RDIXDrawCallbackCmd*)cmdAddr;
 	(*cmd->ptr)(cmdq, cmd->flags, cmd->user_data);
 }
-
+// ---
+const DispatchFunction RDIXDrawCmd::DISPATCH_FUNCTION                 = DrawCmdDispatch;
+const DispatchFunction RDIXUpdateConstantBufferCmd::DISPATCH_FUNCTION = UpdateConstantBufferCmdDispatch;
+const DispatchFunction RDIXSetPipelineCmd::DISPATCH_FUNCTION          = SetPipelineCmdDispatch;
+const DispatchFunction RDIXSetResourcesCmd::DISPATCH_FUNCTION         = SetResourcesCmdDispatch;
+const DispatchFunction RDIXSetResourceROCmd::DISPATCH_FUNCTION		  = SetResourceROCmdDispatch;
+const DispatchFunction RDIXSetConstantBufferCmd::DISPATCH_FUNCTION    = SetConstantBufferCmdDispatch;
+const DispatchFunction RDIXSetRenderSourceCmd::DISPATCH_FUNCTION      = SetRenderSourceCmdDispatch;
+const DispatchFunction RDIXRawDrawCallCmd::DISPATCH_FUNCTION          = RawDrawCallCmdDispatch;
+const DispatchFunction RDIXUpdateBufferCmd::DISPATCH_FUNCTION         = UpdateBufferCmdDispatch;
+const DispatchFunction RDIXDrawCallbackCmd::DISPATCH_FUNCTION         = DrawCallbackCmdDispatch;
 // --- 
 struct RDIXCommandBuffer
 {

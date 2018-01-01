@@ -1,13 +1,14 @@
 #include "shader_compiler.h"
 #include <foundation/memory/memory.h>
 #include <3rd_party/AnyOption/anyoption.h>
+#include "memory/memory_plugin.h"
 
 #define TEST 0
 
 int main( int argc, char** argv )
 {
-	BXIAllocator* allocator = nullptr;
-	BXMemoryStartUp( &allocator );
+	BXMemoryStartUp();
+    BXIAllocator* allocator = BXDefaultAllocator();
 
 #if TEST == 1
     const char input_file[] = "x:/dev/BitBox_v2/code/shaders/hlsl/texture_util.hlsl";
@@ -43,6 +44,6 @@ int main( int argc, char** argv )
 
 	bx::tool::ShaderCompilerCompile( input_file, output_dir, allocator );
 	
-	BXMemoryShutDown( &allocator );
+	BXMemoryShutDown();
 	return 0;
 }

@@ -37,6 +37,10 @@ struct BXPluginRegistry
     BXPluginRegistry( BXIAllocator* allocator )
         : _plugs( allocator )
     {}
+
+    ~BXPluginRegistry()
+    {
+    }
 };
 
 void BXAddPlugin( BXPluginRegistry* reg, const char* name, void* plugin )

@@ -38,6 +38,13 @@ struct RDIXSetResourceROCmd : RDIXCommand
 	uint8_t slot = 0;
 	uint8_t stage_mask = 0;
 };
+struct RDIXSetConstantBufferCmd : RDIXCommand
+{
+    static const DispatchFunction DISPATCH_FUNCTION;
+    RDIConstantBuffer resource;
+    uint8_t slot = 0;
+    uint8_t stage_mask = 0;
+};
 
 struct RDIXSetRenderSourceCmd : RDIXCommand
 {
@@ -81,16 +88,6 @@ struct RDIXDrawCallbackCmd : RDIXCommand
 	void* user_data;
 	uint32_t flags;
 };
-
-void SetPipelineCmdDispatch         ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
-void SetResourcesCmdDispatch        ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
-void SetResourceROCmdDispatch		( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
-void SetRenderSourceCmdDispatch     ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
-void DrawCmdDispatch                ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
-void RawDrawCallCmdDispatch         ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
-void UpdateConstantBufferCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
-void UpdateBufferCmdDispatch        ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
-void DrawCallbackCmdDispatch        ( RDICommandQueue* cmdq, RDIXCommand* cmdAddr );
 
 //////////////////////////////////////////////////////////////////////////
 /// @dataCapacity : additional data for commands eg. for UpdateConstantBufferCmd data

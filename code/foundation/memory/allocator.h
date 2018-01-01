@@ -6,4 +6,4 @@ struct BXIAllocator
     void  ( *Free )( BXIAllocator* _this, void* ptr );
 };
 
-extern BXIAllocator* BXDefaultAllocator();
+

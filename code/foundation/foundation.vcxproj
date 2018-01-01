@@ -99,7 +99,6 @@
     <ClInclude Include="math\vmath.h" />
     <ClInclude Include="math\xform.h" />
     <ClInclude Include="memory\allocator.h" />
-    <ClInclude Include="memory\dlmalloc.h" />
     <ClInclude Include="memory\memory.h" />
     <ClInclude Include="plugin\plugin_interface.h" />
     <ClInclude Include="plugin\plugin_load.h" />
@@ -117,8 +116,6 @@
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="io.cpp" />
     <ClCompile Include="math\mat44.cpp" />
-    <ClCompile Include="memory\dlmalloc.c" />
-    <ClCompile Include="memory\memory.cpp" />
     <ClCompile Include="plugin\plugin_load.cpp" />
     <ClCompile Include="plugin\plugin_registry.cpp" />
     <ClCompile Include="tag.cpp" />

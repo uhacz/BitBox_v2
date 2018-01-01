@@ -15,3 +15,25 @@ namespace string
 
     inline void free_and_null( char** str, BXIAllocator* allocator ) { string::free( str[0], allocator ); str[0] = 0; }
 }
+
+struct string_t
+{
+    static constexpr unsigned MAX_STATIC_LENGTH = 15;
+    static constexpr unsigned MAX_STATIC_SIZE = MAX_STATIC_LENGTH + 1;
+    BXIAllocator* _allocator = nullptr;
+    union 
+    {
+        char* _dynamic = nullptr;
+        char _static[MAX_STATIC_SIZE];
+    };
+
+          char* c_str()       { return (_allocator) ? _dynamic : _static; }
+    const char* c_str() const { return (_allocator) ? _dynamic : _static; }
+};
+
+
+namespace string
+{
+    void create( string_t* s, const char* data, BXIAllocator* allocator );
+    void free( string_t* s );
+}

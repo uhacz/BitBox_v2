@@ -58,7 +58,7 @@ void StartupDX11( RDIDevice** dev, RDICommandQueue** cmdq, uintptr_t hWnd, int w
     }
 	
 	RDIDevice* device = BX_NEW( allocator, RDIDevice );
-	RDICommandQueue* cmd_queue = BX_NEW( allocator, RDICommandQueue);
+    RDICommandQueue* cmd_queue = &device->_immediate_command_queue;
 
 	if( flags & D3D11_CREATE_DEVICE_DEBUG )
 	{
@@ -93,7 +93,8 @@ void ShutdownDX11( RDIDevice** dev, RDICommandQueue** cmdq, BXIAllocator* alloca
     cmdq[0]->_mainFramebuffer->Release();
 	cmdq[0]->_swapChain->Release();
 	cmdq[0]->_context->Release();
-    BX_DELETE0( allocator, cmdq[0] );
+    //BX_DELETE0( allocator, cmdq[0] );
+    cmdq[0] = nullptr;
 
 	dev[0]->dx11()->Release();
 	if( dev[0]->_debug )
@@ -1022,6 +1023,10 @@ void GetAPIDevice( RDIDevice* dev,ID3D11Device** apiDev, ID3D11DeviceContext** a
 {
 	apiDev[0] = dev->dx11();
     dev->dx11()->GetImmediateContext( apiCtx );
+}
+RDICommandQueue* GetImmediateCommandQueue( RDIDevice* dev )
+{
+    return &dev->_immediate_command_queue;
 }
 
 void SetViewport( RDICommandQueue* cmdq, RDIViewport vp )

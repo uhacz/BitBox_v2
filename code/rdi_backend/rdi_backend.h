@@ -46,6 +46,7 @@ void Destroy( RDIHardwareState* id );
 
 // ---
 void GetAPIDevice( RDIDevice* dev, ID3D11Device** apiDev, ID3D11DeviceContext** apiCtx );
+RDICommandQueue* GetImmediateCommandQueue( RDIDevice* dev );
 
 
 void SetViewport      ( RDICommandQueue* cmdq, RDIViewport vp );

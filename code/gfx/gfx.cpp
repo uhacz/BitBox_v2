@@ -8,6 +8,7 @@
 #include <foundation/id_table.h>
 #include <foundation/id_array.h>
 #include <foundation/array.h>
+#include <foundation/dense_container.h>
 #include <util/bbox.h>
 #include <mutex>
 
@@ -122,7 +123,7 @@ namespace gfx_internal
         std::mutex _to_destroy_lock;
         array_t<DeadID> _to_destroy;
 	};
-	static GFXLookup g_lookup = {};
+	static GFXLookup* g_lookup = {};
 }
 
 namespace
@@ -144,28 +145,28 @@ namespace
         deadid.type = type;
         deadid.id = id->i;
 
-        gfx_internal::g_lookup._to_destroy_lock.lock();
-        array::push_back( gfx_internal::g_lookup._to_destroy, deadid );
-        gfx_internal::g_lookup._to_destroy_lock.unlock();
+        gfx_internal::g_lookup->_to_destroy_lock.lock();
+        array::push_back( gfx_internal::g_lookup->_to_destroy, deadid );
+        gfx_internal::g_lookup->_to_destroy_lock.unlock();
 
 		id[0] = makeInvalidHandle<T::IdType>();
 	}
 
-	static inline bool	   IsAlive( GFXMeshID id )      { return gfx_internal::g_lookup._mesh.idtable.IsAlive( id ); }
-	static inline uint32_t Index  ( GFXMeshID id )      { return gfx_internal::g_lookup._mesh.idtable.Index( id ); }
-	static inline bool	   IsAlive( GFXMaterialID id )	{ return gfx_internal::g_lookup._material.idtable.IsAlive( id ); }
-	static inline uint32_t Index  ( GFXMaterialID id )	{ return gfx_internal::g_lookup._material.idtable.Index( id ); }
-	static inline bool	   IsAlive( GFXCameraID id )    { return gfx_internal::g_lookup._camera.idtable.IsAlive( id ); }
-	static inline uint32_t Index  ( GFXCameraID id )    { return gfx_internal::g_lookup._camera.idtable.Index( id ); }
+	static inline bool	   IsAlive( GFXMeshID id )      { return gfx_internal::g_lookup->_mesh.idtable.IsAlive( id ); }
+	static inline uint32_t Index  ( GFXMeshID id )      { return gfx_internal::g_lookup->_mesh.idtable.Index( id ); }
+	static inline bool	   IsAlive( GFXMaterialID id )	{ return gfx_internal::g_lookup->_material.idtable.IsAlive( id ); }
+	static inline uint32_t Index  ( GFXMaterialID id )	{ return gfx_internal::g_lookup->_material.idtable.Index( id ); }
+	static inline bool	   IsAlive( GFXCameraID id )    { return gfx_internal::g_lookup->_camera.idtable.IsAlive( id ); }
+	static inline uint32_t Index  ( GFXCameraID id )    { return gfx_internal::g_lookup->_camera.idtable.Index( id ); }
 }
 
-GFXMeshID     GFX::CreateMesh    ( const char* name ) {	return { CreateObject( &gfx_internal::g_lookup._mesh.idtable, name ) }; }
-GFXCameraID	  GFX::CreateCamera  ( const char* name ) {	return { CreateObject( &gfx_internal::g_lookup._camera.idtable, name ) }; }
-GFXMaterialID GFX::CreateMaterial( const char* name ) { return { CreateObject( &gfx_internal::g_lookup._material.idtable, name ) }; }
+GFXMeshID     GFX::CreateMesh    ( const char* name ) {	return { CreateObject( &gfx_internal::g_lookup->_mesh.idtable, name ) }; }
+GFXCameraID	  GFX::CreateCamera  ( const char* name ) {	return { CreateObject( &gfx_internal::g_lookup->_camera.idtable, name ) }; }
+GFXMaterialID GFX::CreateMaterial( const char* name ) { return { CreateObject( &gfx_internal::g_lookup->_material.idtable, name ) }; }
 
-void GFX::DestroyCamera  ( GFXCameraID* id )   { DestroyObject( &gfx_internal::g_lookup._camera.idtable, id, (uintptr_t)GFX::DestroyCamera ); }
-void GFX::DestroyMesh    ( GFXMeshID* id )     { DestroyObject( &gfx_internal::g_lookup._mesh.idtable, id, (uintptr_t)GFX::DestroyMesh ); }
-void GFX::DestroyMaterial( GFXMaterialID* id ) { DestroyObject( &gfx_internal::g_lookup._material.idtable, id, (uintptr_t)GFX::DestroyMaterial ); }
+void GFX::DestroyCamera  ( GFXCameraID* id )   { DestroyObject( &gfx_internal::g_lookup->_camera.idtable, id, (uintptr_t)GFX::DestroyCamera ); }
+void GFX::DestroyMesh    ( GFXMeshID* id )     { DestroyObject( &gfx_internal::g_lookup->_mesh.idtable, id, (uintptr_t)GFX::DestroyMesh ); }
+void GFX::DestroyMaterial( GFXMaterialID* id ) { DestroyObject( &gfx_internal::g_lookup->_material.idtable, id, (uintptr_t)GFX::DestroyMaterial ); }
 
 GFXMeshInstanceID GFX::Add( GFXMeshID idmesh, GFXMaterialID idmat, uint32_t ninstances, uint8_t rendermask )
 {
@@ -185,7 +186,7 @@ GFXMeshInstanceID GFX::Add( GFXMeshID idmesh, GFXMaterialID idmat, uint32_t nins
         _mesh.matrices[index].data = (mat44_t*)BX_MALLOC( _mesh._matrix_allocator, ninstances * sizeof( mat44_t ), 16 );
 
     const uint32_t mesh_index = Index( idmesh );
-    _mesh.local_aabb[index] = gfx_internal::g_lookup._mesh.local_aabb[mesh_index];
+    _mesh.local_aabb[index] = gfx_internal::g_lookup->_mesh.local_aabb[mesh_index];
 
     _mesh.render_mask[index] = rendermask;
 	_mesh.mesh_id[index] = idmesh;
@@ -249,11 +250,25 @@ void GFX::StartUp( const GFXDesc& desc, RDIDevice* dev, BXIFilesystem * filesyst
 
 	{
 		_mesh._matrix_allocator = _allocator;
+
+        dense_container_desc_t desc = {};
+        desc.add_stream< mat44_t >( "SINGLE_WORLD_MATRIX" );
+        desc.add_stream< MeshMatrix >( "MATRICES" );
+        desc.add_stream< AABB >( "LOCAL_AABB" );
+        desc.add_stream< uint8_t >( "RENDER_MASK" );
+        desc.add_stream< GFXMeshID >( "MESH_ID" );
+        desc.add_stream< GFXMaterialID >( "MATERIAL_ID" );
+        desc.add_stream< GFXMeshInstanceID >( "SELF_ID" );
+
+        _mesh.container = dense_container::create<Mesh::MAX_MESH_INSTANCES>( desc, allocator );
 	}
 }
 
 void GFX::ShutDown()
 {
+    {
+        dense_container::destroy( &_mesh.container );
+    }
 	{// --- samplers
 		::Destroy( &_samplers._trilinear );
 		::Destroy( &_samplers._bilinear );
@@ -326,7 +341,8 @@ namespace GFXUtils
 		pipeline_desc.Shader( shader_file, "copy_rgba" );
 		g_utils.pipeline.copy_rgba = CreatePipeline( dev, pipeline_desc, allocator );
 
-		UnloadShaderFile( &shader_file, allocator );
+
+        UnloadShaderFile( &shader_file, allocator );
 	}
 
 	void ShutDown( RDIDevice* dev )

@@ -12,7 +12,6 @@ PLUGIN_EXPORT void  BXUnload_##name( void* ptr, BXIAllocator* allocator );\
 #define BX_APPLICATION_PLUGIN_DEFINE( name, class_name )\
 PLUGIN_EXPORT void* BXLoad_##name( BXIAllocator* allocator )\
 {\
-    BXDLLSetMemoryHook( allocator );\
     BXIApplication* plugin = BX_NEW( allocator, class_name );\
     return plugin;\
 }\
