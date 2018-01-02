@@ -27,12 +27,11 @@ struct RDIXRenderTarget;
 struct RDIXRenderSource;
 struct RDIXCommandBuffer;
 
-struct GFXCameraID   { uint32_t i; };
-struct GFXMeshID     { uint32_t i; };
-struct GFXMaterialID { uint32_t i; };
+struct GFXSceneID        { uint32_t i; };
+struct GFXCameraID       { uint32_t i; };
+struct GFXMeshID         { uint32_t i; };
+struct GFXMaterialID     { uint32_t i; };
 struct GFXMeshInstanceID { uint32_t i; };
-
-
 
 struct GFXDesc
 {
@@ -51,14 +50,57 @@ namespace GFXERenderMask
     };
 }//
 
-struct GFXSystem;
-GFXSystem* GFXStartUp( const GFXDesc* desc, BXIAllocator* allocator );
-void GFXShutDown( GFXSystem** gfx );
+using GFXDrawCallback = void( RDICommandQueue* cmdq, void* userdata );
+struct GFXMeshDesc
+{
+    const char* filename = nullptr;
+    RDIXRenderSource* rsouce = nullptr;
+    GFXDrawCallback* callback = nullptr;
+    GFXERenderMask::E rmask = GFXERenderMask::COLOR_SHADOW;
+};
+
+struct GFXMaterialDesc
+{
+    const char* filename = nullptr;
+    const struct Material* data = nullptr;
+};
+
+struct GFXSceneDesc
+{
+    const char* name;
+    uint32_t max_renderables = 1024;
+};
+
+struct GFXMeshInstanceDesc
+{
+    GFXMeshID idmesh;
+    GFXMaterialID idmaterial;
+
+};
+
+GFXMeshID CreateMesh( const GFXMeshDesc& desc );
+GFXMaterialID CreateMaterial( const GFXMaterialDesc& desc );
+
+void GFXStartUp( const GFXDesc* desc, BXIAllocator* allocator );
+void GFXShutDown();
+
+GFXSceneID CreateScene( const GFXSceneDesc& desc );
+void DestroyScene( GFXSceneID* idscene );
+
+GFXMeshInstanceID AddMesh( GFXSceneID idscene, const GFXMeshInstanceDesc& desc );
+void RemoveMesh( GFXMeshInstanceID idmeshi );
 
 
 
+struct GFXFrameContext;
+GFXFrameContext* BeginDraw( RDICommandQueue* cmdq );
+void EndDraw( GFXFrameContext** fctx );
+void RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect );
+
+void DrawScene( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
 
 
+//---
 class GFX
 {
 public:
