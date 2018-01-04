@@ -27,6 +27,9 @@ struct RDIXRenderTarget;
 struct RDIXRenderSource;
 struct RDIXCommandBuffer;
 
+struct GFXCameraParams;
+struct GFXCameraMatrices;
+
 struct GFXSceneID        { uint32_t i; };
 struct GFXCameraID       { uint32_t i; };
 struct GFXMeshID         { uint32_t i; };
@@ -50,13 +53,10 @@ namespace GFXERenderMask
     };
 }//
 
-using GFXDrawCallback = void( RDICommandQueue* cmdq, void* userdata );
 struct GFXMeshDesc
 {
     const char* filename = nullptr;
     RDIXRenderSource* rsouce = nullptr;
-    GFXDrawCallback* callback = nullptr;
-    GFXERenderMask::E rmask = GFXERenderMask::COLOR_SHADOW;
 };
 
 struct GFXMaterialDesc
@@ -71,30 +71,36 @@ struct GFXSceneDesc
     uint32_t max_renderables = 1024;
 };
 
+using GFXDrawCallback = void( RDICommandQueue* cmdq, void* userdata );
 struct GFXMeshInstanceDesc
 {
-    GFXMeshID idmesh;
-    GFXMaterialID idmaterial;
+    GFXMeshID idmesh = { 0 };
+    GFXMaterialID idmaterial = { 0 };
 
+    GFXDrawCallback* callback = nullptr;
+    GFXERenderMask::E rmask = GFXERenderMask::COLOR_SHADOW;
 };
 
-GFXMeshID CreateMesh( const GFXMeshDesc& desc );
-GFXMaterialID CreateMaterial( const GFXMaterialDesc& desc );
-
-void GFXStartUp( const GFXDesc* desc, BXIAllocator* allocator );
+void GFXStartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
 void GFXShutDown();
+
+GFXMeshID CreateMesh( const GFXMeshDesc& desc );
+void DestroyMesh( GFXMeshID idmesh );
+
+GFXMaterialID CreateMaterial( const GFXMaterialDesc& desc );
+void DestroyMaterial( GFXMaterialID idmat );
 
 GFXSceneID CreateScene( const GFXSceneDesc& desc );
 void DestroyScene( GFXSceneID* idscene );
 
-GFXMeshInstanceID AddMesh( GFXSceneID idscene, const GFXMeshInstanceDesc& desc );
-void RemoveMesh( GFXMeshInstanceID idmeshi );
+GFXMeshInstanceID AddMeshToScene( GFXSceneID idscene, const GFXMeshInstanceDesc& desc );
+void RemoveMeshFromScene( GFXMeshInstanceID idmeshi );
 
 
 
 struct GFXFrameContext;
-GFXFrameContext* BeginDraw( RDICommandQueue* cmdq );
-void EndDraw( GFXFrameContext** fctx );
+GFXFrameContext* BeginFrame( RDICommandQueue* cmdq );
+void EndFrame( GFXFrameContext** fctx );
 void RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect );
 
 void DrawScene( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
