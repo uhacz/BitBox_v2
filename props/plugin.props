@@ -12,6 +12,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\code\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <ExceptionHandling>Sync</ExceptionHandling>
+      <PreprocessorDefinitions>BX_DLL_$(ProjectName);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <ImportLibrary>$(SolutionDir)\lib\plugin\$(Platform)\$(Configuration)\$(TargetName).lib</ImportLibrary>

@@ -98,12 +98,6 @@
     <ProjectReference Include="..\memory\memory.vcxproj">
       <Project>{9fb86e9a-ae7f-4295-a36b-0ead0df7d749}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\rdix\rdix.vcxproj">
-      <Project>{8ec396c6-9853-45a0-94fe-bcfebfe647d4}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\rdi_backend\rdi_backend.vcxproj">
-      <Project>{f442cd81-4b2a-4ac2-8592-609ce3965b5c}</Project>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

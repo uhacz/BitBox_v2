@@ -1,5 +1,11 @@
 #pragma once
 
+#ifdef _MSC_VER
+#define VEC_ALIGNMENT( alignment )	__declspec(align(alignment))	
+#else
+#define VEC_ALIGNMENT( alignment ) __attribute__ ((aligned(alignment)))
+#endif
+
 struct vec2_t
 {
 	union
@@ -58,7 +64,7 @@ struct vec3_t
 };
 
 
-struct vec4_t
+struct VEC_ALIGNMENT(16) vec4_t
 {
 	union
 	{
@@ -93,7 +99,7 @@ struct vec4_t
 };
 
 struct mat33_t;
-struct quat_t
+struct VEC_ALIGNMENT(16) quat_t
 {
 	union
 	{
@@ -146,7 +152,7 @@ struct quat_t
 
 
 struct mat44_t;
-struct xform_t
+struct VEC_ALIGNMENT(16) xform_t
 {
 	quat_t rot;
 	vec3_t pos;
@@ -197,7 +203,7 @@ struct mat33_t
 };
 
 
-struct mat44_t
+struct VEC_ALIGNMENT(16) mat44_t
 {
 	vec4_t c0;
 	vec4_t c1;

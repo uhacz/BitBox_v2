@@ -164,6 +164,34 @@ template< typename T > T makeInvalidHandle()
     return h;
 }
 
+struct id_allocator_dense_t
+{
+    uint32_t capacity;
+    uint32_t size;
+    uint16_t free_index;
+
+    id_t*     sparse_id;
+    uint16_t* sparse_to_dense_index;
+    uint16_t* dense_to_sparse_index;
+
+    BXIAllocator* allocator;
+
+    struct delete_info_t
+    {
+        // all indices here are dense
+
+        uint16_t copy_data_from_index;
+        union 
+        {
+            uint16_t copy_data_to_index;
+            uint16_t removed_at_index;
+        };
+    };
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 namespace dense_container
 {
     static constexpr uint8_t MAX_STREAMS = 32;
@@ -180,6 +208,11 @@ struct BIT_ALIGNMENT_16 dense_container_t
     uint32_t _names_hash    [dense_container::MAX_STREAMS] = {};
     uint8_t* _streams       [dense_container::MAX_STREAMS] = {};
 
+    static constexpr uint32_t max() { return MAX; }
+
+    uint32_t size() const { return id_table::size( _ids ); }
+    uint32_t data_index( id_t id ) const { return id_array::index( _ids, id ); }
+    
     template< uint32_t STREAM_INDEX, typename T >
     const T& get( id_t id ) const
     {

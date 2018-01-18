@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dll_interface.h"
 #include <foundation/type.h>
 #include <foundation/math/vmath.h>
 #include <foundation/containers.h>
@@ -9,9 +10,11 @@
 
 #include <mutex>
 
+#include "gfx_shader_interop.h"
 namespace gfx_shader
 {
 #include <shaders/hlsl/samplers.h>
+#include <shaders/hlsl/material_data.h>
 }//
 
 struct BXIFilesystem;
@@ -29,6 +32,8 @@ struct RDIXCommandBuffer;
 
 struct GFXCameraParams;
 struct GFXCameraMatrices;
+struct GFXFrameContext;
+struct GFXSystem;
 
 struct GFXSceneID        { uint32_t i; };
 struct GFXCameraID       { uint32_t i; };
@@ -62,12 +67,12 @@ struct GFXMeshDesc
 struct GFXMaterialDesc
 {
     const char* filename = nullptr;
-    const struct Material* data = nullptr;
+    gfx_shader::Material data = {};
 };
 
 struct GFXSceneDesc
 {
-    const char* name;
+    const char* name = "scene";
     uint32_t max_renderables = 1024;
 };
 
@@ -81,128 +86,57 @@ struct GFXMeshInstanceDesc
     GFXERenderMask::E rmask = GFXERenderMask::COLOR_SHADOW;
 };
 
-void GFXStartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
-void GFXShutDown();
-
-GFXMeshID CreateMesh( const GFXMeshDesc& desc );
-void DestroyMesh( GFXMeshID idmesh );
-
-GFXMaterialID CreateMaterial( const GFXMaterialDesc& desc );
-void DestroyMaterial( GFXMaterialID idmat );
-
-GFXSceneID CreateScene( const GFXSceneDesc& desc );
-void DestroyScene( GFXSceneID* idscene );
-
-GFXMeshInstanceID AddMeshToScene( GFXSceneID idscene, const GFXMeshInstanceDesc& desc );
-void RemoveMeshFromScene( GFXMeshInstanceID idmeshi );
-
-
-
-struct GFXFrameContext;
-GFXFrameContext* BeginFrame( RDICommandQueue* cmdq );
-void EndFrame( GFXFrameContext** fctx );
-void RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect );
-
-void DrawScene( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
-
-
-//---
-class GFX
+struct GFXUtilsData;
+struct GFXUtils
 {
-public:
-	static GFXCameraID	 CreateCamera( const char* name );
-	static GFXMeshID	 CreateMesh( const char* name );
-	static GFXMaterialID CreateMaterial( const char* name );
+    void StartUp( RDIDevice* dev, BXIFilesystem* filesystem, BXIAllocator* allocator );
+    void ShutDown( RDIDevice* dev );
+    
+    void CopyTexture( RDICommandQueue* cmdq, RDITextureRW* output, const RDITextureRW& input, float aspect );
 
-	static void DestroyCamera( GFXCameraID* id );
-	static void DestroyMesh( GFXMeshID* id );
-	static void DestroyMaterial( GFXMaterialID* id );
-	
-	GFXMeshInstanceID Add( GFXMeshID idmesh, GFXMaterialID idmat, uint32_t ninstances, uint8_t rendermask = GFXERenderMask::COLOR_SHADOW );
-	void Remove( GFXMeshInstanceID id );
-
-	void SetRenderMask( GFXMeshInstanceID id, uint8_t mask );
-	void SetAABB( GFXMeshInstanceID id );
-	void SetWorldMatrix( GFXMeshInstanceID instanceid, const mat44_t* matrices, uint32_t count, uint32_t startindex = 0 );
-
-	void GenerateCommandBuffer( RDIXCommandBuffer* cmdbuffer, GFXCameraID cameraid );
-
-public:
-    GFX() {}
-	void StartUp( const GFXDesc& desc, RDIDevice* dev, BXIFilesystem* filesystem, BXIAllocator* allocator );
-	void ShutDown();
-
-
-	RDIXRenderTarget* Framebuffer() { return _framebuffer; }
-	RDIXPipeline* MaterialBase() { return _material.base; }
-
-	void BeginFrame( RDICommandQueue* cmdq );
-	void EndFrame( RDICommandQueue* cmdq );
-	void RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect );
-
-public:
-
-private:
-	BXIAllocator* _allocator = nullptr;
-	RDIDevice*	  _rdidev = nullptr;
-
-	RDIXRenderTarget* _framebuffer = nullptr;
-	
-	struct
-	{
-		RDIXPipeline* base = nullptr;
-	}_material;
-	
-	struct MeshMatrix
-	{
-		mat44_t* data = nullptr;
-		uint32_t count = 0;
-	};
-
-	struct Mesh
-	{
-		static constexpr uint32_t MAX_MESH_INSTANCES = 1024;
-		enum EStreams : uint32_t
-        {
-            SINGLE_WORLD_MATRIX = 0,
-            MATRICES,
-            LOCAL_AABB,
-            RENDER_MASK,
-            MESH_ID,
-            MATERIAL_ID,
-            SELF_ID,
-        };
-
-        dense_container_t<MAX_MESH_INSTANCES>* container;
-       
-        id_array_t<MAX_MESH_INSTANCES> id_alloc;
-        std::mutex idlock;
-        //MeshContainer container;
-
-		mat44_t			_single_world_matrix[MAX_MESH_INSTANCES] = {};
-		MeshMatrix		matrices	        [MAX_MESH_INSTANCES] = {};
-		AABB			local_aabb          [MAX_MESH_INSTANCES] = {};
-		uint8_t			render_mask         [MAX_MESH_INSTANCES] = {};
-        GFXMeshID	    mesh_id             [MAX_MESH_INSTANCES] = {};
-        GFXMaterialID   material_id         [MAX_MESH_INSTANCES] = {};
-        GFXMeshInstanceID self_id           [MAX_MESH_INSTANCES] = {};
-
-		BXIAllocator* _matrix_allocator = nullptr;
-        
-        array_t<uint16_t> _todestroy;
-	} _mesh;
-
-	gfx_shader::ShaderSamplers _samplers;
-
-	uint32_t _sync_interval = 0;
-	
+    GFXUtilsData* data = nullptr;
 };
 
-// ---
-namespace GFXUtils
+struct GFX_EXPORT GFX
 {
-	void StartUp( RDIDevice* dev, BXIFilesystem* filesystem, BXIAllocator* allocator );
-	void ShutDown( RDIDevice* dev );
+    static GFX* Allocate( BXIAllocator* allocator );
+    static void Free( GFX** gfx, BXIAllocator* allocator );
 
-	void CopyTexture( RDICommandQueue* cmdq, RDITextureRW* output, const RDITextureRW& input, float aspect );
+    void StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
+    void ShutDown();
+
+    RDIXRenderTarget* Framebuffer();
+    RDIXPipeline*     MaterialBase();
+
+    // --- mesh management
+    GFXMeshID CreateMesh( const GFXMeshDesc& desc );
+    void      DestroyMesh( GFXMeshID idmesh );
+
+    // --- material system
+    GFXMaterialID        CreateMaterial( const char* name, const GFXMaterialDesc& desc );
+    void                 DestroyMaterial( GFXMaterialID idmat );
+    GFXMaterialID        FindMaterial( const char* name );
+    bool                 IsMaterialAlive( GFXMaterialID idmat );
+    RDIXResourceBinding* MaterialBinding( GFXMaterialID idmat );
+
+    // --- scenes
+    GFXSceneID CreateScene( const GFXSceneDesc& desc );
+    void       DestroyScene( GFXSceneID idscene );
+
+    GFXMeshInstanceID AddMeshToScene( GFXSceneID idscene, const GFXMeshInstanceDesc& desc, const mat44_t& pose );
+    void              RemoveMeshFromScene( GFXMeshInstanceID idmeshi );
+
+    // --- frame
+    GFXFrameContext* BeginFrame( RDICommandQueue* cmdq );
+    void             EndFrame( GFXFrameContext* fctx );
+    void             RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect );
+
+    void SetCamera( const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
+    void BindMaterialFrame( GFXFrameContext* fctx );
+    void DrawScene( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
+
+    // --- private data
+    GFXSystem* gfx;
+    GFXUtils* utils;
 };
+

@@ -10,7 +10,7 @@ struct BufferChunker
 	{}
 
 	template< typename T >
-	T* Add( int count = 1, int alignment = 4 )
+	T* Add( int count = 1, int alignment = ALIGNOF( T ) )
 	{
 		unsigned char* result = (unsigned char*)TYPE_ALIGN( current, alignment );
 
@@ -23,6 +23,7 @@ struct BufferChunker
 		unsigned char* result = (unsigned char*)TYPE_ALIGN( current, alignment );
 
 		unsigned char* next = result + size;
+        SYS_ASSERT( next <= end );
 		current = next;
 		return result;
 	}

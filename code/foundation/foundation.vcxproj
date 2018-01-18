@@ -82,10 +82,12 @@
     <ClInclude Include="buffer.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="containers.h" />
+    <ClInclude Include="container_soa.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="dense_container.h" />
     <ClInclude Include="hash.h" />
     <ClInclude Include="hashmap.h" />
+    <ClInclude Include="id_allocator_dense.h" />
     <ClInclude Include="id_array.h" />
     <ClInclude Include="id_table.h" />
     <ClInclude Include="io.h" />
@@ -113,8 +115,10 @@
     <ClInclude Include="type_compound.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="container_soa.cpp" />
     <ClCompile Include="debug.c" />
     <ClCompile Include="hash.cpp" />
+    <ClCompile Include="id_allocator_dense.cpp" />
     <ClCompile Include="io.cpp" />
     <ClCompile Include="math\mat44.cpp" />
     <ClCompile Include="plugin\plugin_load.cpp" />
