@@ -9,7 +9,7 @@
 #include <foundation\memory\memory.h>
 #include <foundation/time.h>
 
-#include <util/par_shapes/par_shapes.h>
+#include <util/poly_shape/poly_shape.h>
 
 #include <rdix/rdix.h>
 #include <rdix/rdix_command_buffer.h>
@@ -36,10 +36,6 @@
 
 namespace
 {
-	// batch
-	static RDIXCommandBuffer* g_cmdbuffer = nullptr;
-	static RDIXTransformBuffer* g_transform_buffer = nullptr;
-	
 	// camera
 	static mat44_t g_camera_world = mat44_t::identity();
 	static GFXCameraParams g_camera_params = {};
@@ -47,80 +43,17 @@ namespace
 
     GFXCameraInputContext g_camera_input_ctx = {};
 
-    constexpr uint32_t MAX_MESHES = 32;
-    dense_container_t<MAX_MESHES>* g_meshes = nullptr;
-    id_t g_idmesh[MAX_MESHES] = {};
-
-    
-
+    constexpr uint32_t MAX_MESHES = 3;
+    constexpr uint32_t MAX_MESH_INSTANCES = 32;
 
     GFXSceneID g_idscene = { 0 };
-
+    GFXMeshID g_idmesh[MAX_MESHES] = {};
+    GFXMeshInstanceID g_meshes[MAX_MESH_INSTANCES] = {};
 }
-
-
-
-struct SomeContainer
-{
-    float* stream0;
-    uint16_t* stream1;
-    mat44_t* stream2;
-    uint32_t** stream3;
-};
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    //container_soa_desc_t desc;
-    //container_soa_add_stream( desc, SomeContainer, stream0 );
-    //container_soa_add_stream( desc, SomeContainer, stream1 );
-    //container_soa_add_stream( desc, SomeContainer, stream2 );
-    //container_soa_add_stream( desc, SomeContainer, stream3 );
-
-    //const uint32_t N = 10;
-
-    //SomeContainer* c = container_soa::create<SomeContainer>( desc, N, allocator );
-
-    //const uint32_t cap = container_soa::capacity( c );
-    //for( uint32_t i = 0; i < N; ++i )
-    //{
-    //    uint32_t index = container_soa::push_back( c );
-    //    
-    //}
-
-    //id_allocator_dense_t* id_alloc = id_allocator::create_dense( N, allocator );
-    //id_t id[N];
-    //for( uint32_t i = 0; i < cap; ++i )
-    //{
-    //    id[i] = id_allocator::alloc( id_alloc );
-    //    uint32_t index = id_allocator::dense_index( id_alloc, id[i] );
-
-    //    c->stream0[index] = (float)index;
-    //    c->stream1[index] = index;
-    //    c->stream2[index] = mat44_t( (float)index );
-    //    c->stream3[index] = (uint32_t*)(cap + index);
-    //}
-
-    //id_allocator_dense_t::delete_info_t di = id_allocator::free( id_alloc, id[5] );
-    //container_soa::remove_packed( c, di.removed_at_index );
-
-    //di = id_allocator::free( id_alloc, id[0] );
-    //container_soa::remove_packed( c, di.removed_at_index );
-
-    //di = id_allocator::free( id_alloc, id[7] );
-    //container_soa::remove_packed( c, di.removed_at_index );
-
-    //id[0] = id_allocator::alloc( id_alloc );
-
-    //container_soa::destroy( &c );
-
-    {
-        dense_container_desc_t desc = {};
-        desc.add_stream<mat44_t>( "world" );
-        desc.add_stream<RDIXRenderSource*>( "rsource" );
-        desc.add_stream<GFXMaterialID>( "mat" );
-        g_meshes = dense_container::create<MAX_MESHES>( desc, allocator );
-    }
-    
+ 
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
 	_filesystem->SetRoot( "x:/dev/assets/" );
 
@@ -135,12 +68,6 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
     g_idscene = _gfx->CreateScene( GFXSceneDesc() );
 	
-	RDIXTransformBufferDesc transform_buffer_desc = {};
-	g_transform_buffer = CreateTransformBuffer( _rdidev, transform_buffer_desc, allocator );
-	g_cmdbuffer = CreateCommandBuffer( allocator );
-
-
-    //g_material_frame_data_gpu = CreateConstantBuffer( _rdidev, sizeof( MaterialFrameData ) );
     { // red
         GFXMaterialDesc mat;
         mat.data.specular_albedo = vec3_t( 1.f, 0.f, 0.f );
@@ -167,35 +94,38 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     }
 
     {
-        par_shapes_mesh* shapes[] =
-        {
-            par_shapes_create_parametric_sphere( 64, 64, FLT_EPSILON ),
-            par_shapes_create_torus( 64, 64, 0.5f ),
-            par_shapes_create_rock( 0xBCAA, 4 ),
-        };
-
-        const char* materials[] =
-        {
-            "red", "green", "blue"
-        };
-
+        poly_shape_t shapes[MAX_MESHES] = {};
+        poly_shape::createShpere( &shapes[0], 8, allocator );
+        poly_shape::createBox( &shapes[1], 4, allocator );
+        poly_shape::createShpere( &shapes[2], 2, allocator );
         const uint32_t n_shapes = (uint32_t)sizeof_array( shapes );
         for( uint32_t i = 0; i < n_shapes; ++i )
         {
-            g_idmesh[i] = dense_container::create( g_meshes );
-            RDIXRenderSource* rsource = CreateRenderSourceFromShape( _rdidev, shapes[i], allocator );
-            g_meshes->set( g_idmesh[i], "rsource", rsource );
-            g_meshes->set( g_idmesh[i], "world", mat44_t( quat_t::identity(), vec3_t( i * 4.f - 1.f, 0.f, 0.f ) ) );
-            GFXMaterialID idmat = _gfx->FindMaterial( materials[i % n_shapes] );
-            g_meshes->set( g_idmesh[i], "mat", idmat );
+            GFXMeshDesc desc;
+            desc.rsouce = CreateRenderSourceFromShape( _rdidev, &shapes[i], allocator );
+            g_idmesh[i] = _gfx->CreateMesh( desc );
         }
-
         for( uint32_t i = 0; i < n_shapes; ++i )
         {
-            par_shapes_free_mesh( shapes[i] );
+            poly_shape::deallocateShape( &shapes[i] );
+        }
+
+
+        const char* materials[] =
+        {
+            "red", "green", "blue",
+        };
+        const uint32_t n_materials = sizeof_array( materials );
+
+        for( uint32_t i = 0; i < 4; ++i )
+        {
+            GFXMeshInstanceDesc desc = {};
+            desc.idmesh = g_idmesh[i % MAX_MESHES];
+            desc.idmaterial = _gfx->FindMaterial( materials[i % n_materials] );
+            g_meshes[i] = _gfx->AddMeshToScene( g_idscene, desc, mat44_t( quat_t::identity(), vec3_t( i * 4.f - 1.f, 0.f, 0.f ) ) );
         }
 	}
-    	
+    
 	g_camera_world = mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) );
 
 
@@ -204,25 +134,19 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    {
-        auto rsource_stream = g_meshes->stream<RDIXRenderSource*>( "rsource" );
-        for( RDIXRenderSource* rsource : rsource_stream )
-        {
-            DestroyRenderSource( _rdidev, &rsource, allocator );
-        }
-    }
+    _gfx->DestroyScene( g_idscene );
 
-    dense_container::destroy( &g_meshes );
+    for( uint32_t i = 0; i < MAX_MESHES; ++i )
+    {
+        _gfx->DestroyMesh( g_idmesh[i] );
+    }
 
     _gfx->DestroyMaterial( _gfx->FindMaterial( "blue" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "green" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "red" ) );
-    _gfx->DestroyScene( g_idscene );
+    
     _gfx->ShutDown();
     GFX::Free( &_gfx, allocator );
-
-	DestroyTransformBuffer( _rdidev, &g_transform_buffer, allocator );
-	DestroyCommandBuffer( &g_cmdbuffer, allocator );
 
 	::Shutdown( &_rdidev, &_rdicmdq, allocator );
     _filesystem = nullptr;
@@ -259,56 +183,20 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
 	ComputeMatrices( &g_camera_matrices, g_camera_params, g_camera_world );
     _gfx->SetCamera( g_camera_params, g_camera_matrices );
 
+    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
+    static bool tmp = false;
+    if( !tmp )
     {
-        ClearTransformBuffer( g_transform_buffer );
-        ClearCommandBuffer( g_cmdbuffer, allocator );
-        BeginCommandBuffer( g_cmdbuffer );
-
-        RDIXTransformBufferBindInfo bind_info;
-        bind_info.instance_offset_slot = TRANSFORM_INSTANCE_DATA_SLOT;
-        bind_info.matrix_start_slot = TRANSFORM_INSTANCE_WORLD_SLOT;
-        bind_info.stage_mask = RDIEPipeline::VERTEX_MASK;
-        
-        const array_span_t<RDIXRenderSource*> rsources = g_meshes->stream< RDIXRenderSource*>( "rsource" );
-        const array_span_t<mat44_t> matrices = g_meshes->stream< mat44_t >( "world" );
-        const array_span_t<GFXMaterialID> materials = g_meshes->stream<GFXMaterialID>( "mat" );
-        
-        for( uint32_t i = 0; i < rsources.size(); ++i )
-        {
-            const uint32_t instance_offset = AppendMatrix( g_transform_buffer, matrices[i] );
-
-            RDIXUpdateConstantBufferCmd* instance_offset_cmd = AllocateCommand<RDIXUpdateConstantBufferCmd>( g_cmdbuffer, sizeof( uint32_t ), nullptr );
-            instance_offset_cmd->cbuffer = GetInstanceOffsetCBuffer( g_transform_buffer );
-            memcpy( instance_offset_cmd->DataPtr(), &instance_offset, 4 );
-
-            RDIXSetPipelineCmd* pipeline_cmd = AllocateCommand<RDIXSetPipelineCmd>( g_cmdbuffer, instance_offset_cmd );
-            pipeline_cmd->pipeline = _gfx->MaterialBase();
-            pipeline_cmd->bindResources = false;
-
-            RDIXSetResourcesCmd* resources_cmd = AllocateCommand<RDIXSetResourcesCmd>( g_cmdbuffer, pipeline_cmd );
-            resources_cmd->rbind = _gfx->MaterialBinding( materials[i] );
-
-            RDIXDrawCmd* draw_cmd = AllocateCommand<RDIXDrawCmd>( g_cmdbuffer, resources_cmd );
-            draw_cmd->rsource = rsources[i];
-            draw_cmd->num_instances = 1;
-
-            SubmitCommand( g_cmdbuffer, instance_offset_cmd, 1 );
-        }
-
-        RDIXTransformBufferCommands transform_buff_cmds = UploadAndSetTransformBuffer( g_cmdbuffer, nullptr, g_transform_buffer, bind_info );
-        SubmitCommand( g_cmdbuffer, transform_buff_cmds.first, 0 );
-
-        EndCommandBuffer( g_cmdbuffer );
+        _gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_camera_params, g_camera_matrices );
+        tmp = true;
     }
 
-    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
-	
     _gfx->BindMaterialFrame( frame_ctx );
 		
     BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
     ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );
 	
-	SubmitCommandBuffer( _rdicmdq, g_cmdbuffer );
+    _gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
 
     _gfx->RasterizeFramebuffer( _rdicmdq, 0, g_camera_params.aspect() );
     _gfx->EndFrame( frame_ctx );

@@ -67,9 +67,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="par_shapes\par_shapes.cpp" />
+    <ClCompile Include="poly_shape\poly_shape.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="bbox.h" />
     <ClInclude Include="par_shapes\par_shapes.h" />
+    <ClInclude Include="poly_shape\poly_shape.h" />
     <ClInclude Include="signal_filter.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

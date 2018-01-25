@@ -10,9 +10,9 @@ inline float length( const vec2_t& v )
     return ::sqrtf( length_sqr(v) );
 }
 
-inline float dot( const vec2_t& v )
+inline float dot( const vec2_t& a, const vec2_t& b )
 {
-    return v.x * v.x + v.y * v.y;
+    return a.x * b.x + a.y * b.y;
 }
 
 inline float normalized( vec2_t* v )

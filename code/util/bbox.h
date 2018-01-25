@@ -4,13 +4,13 @@
 
 struct AABB
 {
-    vec3_t min, max;
+    vec3_t pmin, pmax;
 
 	AABB( const vec3_t& a, const vec3_t& b )
-        : min(a), max(b) {}
+        : pmin(a), pmax(b) {}
 
 	AABB()
-        : min(-0.5f), max(0.5f) {}
+        : pmin(-0.5f), pmax(0.5f) {}
 
     static inline AABB Prepare()
     {
@@ -19,36 +19,36 @@ struct AABB
 
     inline vec3_t Size( const AABB& bbox )
     {
-        return max - min;
+        return pmax - pmin;
     }
 
     inline vec3_t Center( const AABB& bbox )
     {
-        return min + ( max - min ) * 0.5f;
+        return pmin + ( pmax - pmin ) * 0.5f;
     }
 
     static inline AABB Extend( const AABB& bbox, const vec3_t& point )
     {
-        return AABB( min_per_elem( bbox.min, point ), max_per_elem( bbox.max, point ) );
+        return AABB( min_per_elem( bbox.pmin, point ), max_per_elem( bbox.pmax, point ) );
     }
 
     static inline AABB Merge( const AABB& a, const AABB& b )
     {
-        return AABB( min_per_elem( a.min, b.min ), max_per_elem( a.max, b.max ) );
+        return AABB( min_per_elem( a.pmin, b.pmin ), max_per_elem( a.pmax, b.pmax ) );
     }
 
 	static inline AABB Transform( const mat44_t& matrix, const AABB& bbox )
 	{
-		const vec4_t xa = matrix.c0 * bbox.min.x;
-		const vec4_t xb = matrix.c0 * bbox.max.x;
-		const vec4_t ya = matrix.c1 * bbox.min.y;
-		const vec4_t yb = matrix.c1 * bbox.max.y;
-		const vec4_t za = matrix.c2 * bbox.min.z;
-		const vec4_t zb = matrix.c2 * bbox.max.z;
+		const vec4_t xb = matrix.c0 * bbox.pmax.x;
+		const vec4_t ya = matrix.c1 * bbox.pmin.y;
+		const vec4_t yb = matrix.c1 * bbox.pmax.y;
+		const vec4_t za = matrix.c2 * bbox.pmin.z;
+		const vec4_t zb = matrix.c2 * bbox.pmax.z;
+		const vec4_t xa = matrix.c0 * bbox.pmin.x;
 
 		AABB result;
-		result.min = (min_per_elem( xa, xb ) + min_per_elem( ya, yb ) + min_per_elem( za, zb )).xyz() + matrix.translation();
-		result.max = (max_per_elem( xa, xb ) + max_per_elem( ya, yb ) + max_per_elem( za, zb )).xyz() + matrix.translation();
+		result.pmin = (min_per_elem( xa, xb ) + min_per_elem( ya, yb ) + min_per_elem( za, zb )).xyz() + matrix.translation();
+		result.pmax = (max_per_elem( xa, xb ) + max_per_elem( ya, yb ) + max_per_elem( za, zb )).xyz() + matrix.translation();
 
 		return result;
 	}

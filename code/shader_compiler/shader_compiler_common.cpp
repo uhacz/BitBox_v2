@@ -371,7 +371,7 @@ void Release( CompiledShader* fx_binary, BXIAllocator* allocator )
             Release( &fx_binary->passes[ipass].bytecode[j] );
             Release( &fx_binary->passes[ipass].disassembly[j] );
 			
-			DestroyResourceBinding( &fx_binary->passes[ipass].rdesc, allocator );
+			DestroyResourceBinding( &fx_binary->passes[ipass].rdesc );
         }
 
         fx_binary->passes[ipass] = BinaryPass();

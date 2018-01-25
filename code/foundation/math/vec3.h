@@ -27,10 +27,10 @@ inline float normalized( vec3_t* v )
     return m;
 }
 
-inline vec3_t normalize( const vec3_t& v )
+inline vec3_t normalize( const vec3_t& v, float tolerance = FLT_EPSILON )
 {
     const float m = length_sqr( v );
-    return ( m > 0.f ) ? v * recip_sqrt( m ) : vec3_t( 0.f );
+    return ( m >= tolerance) ? v * recip_sqrt( m ) : vec3_t( 0.f );
 }
 
 inline vec3_t mul_per_elem( const vec3_t& a, const vec3_t& b )

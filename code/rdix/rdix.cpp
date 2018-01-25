@@ -74,6 +74,7 @@ struct RDIXPipeline
 	RDIInputLayout input_layout;
 	RDIXResourceBinding* resources = nullptr;
 	RDIETopology::Enum topology = RDIETopology::TRIANGLES;
+    BXIAllocator* allocator = nullptr;
 };
 RDIXPipeline* CreatePipeline( RDIDevice* dev, const RDIXPipelineDesc& desc, BXIAllocator* allocator )
 {
@@ -104,19 +105,22 @@ RDIXPipeline* CreatePipeline( RDIDevice* dev, const RDIXPipelineDesc& desc, BXIA
 		impl->resources = (RDIXResourceBinding*)resource_desc_memory;
 	}
 
+    impl->allocator = allocator;
 	return impl;
 }
-void DestroyPipeline( RDIDevice* dev, RDIXPipeline** pipeline, BXIAllocator* allocator )
+void DestroyPipeline( RDIDevice* dev, RDIXPipeline** pipeline )
 {
 	if( !pipeline[0] )
 		return;
+
+    BXIAllocator* allocator = pipeline[0]->allocator;
 
 	RDIXPipeline* pipe = pipeline[0];
 	BX_FREE0( allocator, pipe->resources );
 	Destroy( &pipe->hardware_state );
 	Destroy( &pipe->input_layout );
 	Destroy( &pipe->pass );
-
+        
 	BX_DELETE0( allocator, pipeline[0] );
 }
 void BindPipeline( RDICommandQueue* cmdq, RDIXPipeline* pipeline, bool bindResources )
@@ -159,9 +163,11 @@ struct RDIXResourceBinding
 	const Binding* Bindings() const { return (Binding*)(HashedNames() + count); }
 	uint8_t* Data() { return (uint8_t*)(Bindings() + count); }
 	
+    BXIAllocator* allocator = nullptr;
 	uint16_t count = 0;
 	uint16_t data_size = 0;
 };
+
 namespace
 {
 	static const uint32_t _resource_size[RDIXResourceSlot::_COUNT_] =
@@ -255,12 +261,16 @@ RDIXResourceBinding* CreateResourceBinding( const RDIXResourceLayout& layout, BX
 		}
 	}
 #endif
-
+    impl->allocator = allocator;
 	return impl;
 }
 
-void DestroyResourceBinding( RDIXResourceBinding** binding, BXIAllocator* allocator )
+void DestroyResourceBinding( RDIXResourceBinding** binding )
 {
+    if( !binding[0] )
+        return;
+
+    BXIAllocator* allocator = binding[0]->allocator;
 	BX_FREE0( allocator, binding[0] );
 }
 
@@ -272,6 +282,7 @@ RDIXResourceBinding* CloneResourceBinding( const RDIXResourceBinding* binding, B
 
 	RDIXResourceBinding* cloned = (RDIXResourceBinding*)BX_MALLOC( allocator, mem_size, 8 );
 	memcpy( cloned, binding, mem_size );
+    cloned->allocator = allocator;
 	return cloned;
 }
 
@@ -423,6 +434,7 @@ struct RDIXRenderTarget
 	RDITextureRW color_textures[cRDI_MAX_RENDER_TARGETS] = {};
 	RDITextureDepth depth_texture;
 	uint32_t num_color_textures = 0;
+    BXIAllocator* allocator = nullptr;
 };
 RDIXRenderTarget* CreateRenderTarget( RDIDevice* dev, const RDIXRenderTargetDesc& desc, BXIAllocator* allocator )
 {
@@ -437,10 +449,10 @@ RDIXRenderTarget* CreateRenderTarget( RDIDevice* dev, const RDIXRenderTargetDesc
 	{
 		impl->depth_texture = CreateTexture2Ddepth( dev, desc.width, desc.height, desc.mips, desc.depth_texture_type );
 	}
-
+    impl->allocator = allocator;
 	return impl;
 }
-void DestroyRenderTarget( RDIDevice* dev, RDIXRenderTarget** renderTarget, BXIAllocator* allocator )
+void DestroyRenderTarget( RDIDevice* dev, RDIXRenderTarget** renderTarget )
 {
 	if( renderTarget[0] == nullptr )
 		return;
@@ -457,6 +469,7 @@ void DestroyRenderTarget( RDIDevice* dev, RDIXRenderTarget** renderTarget, BXIAl
 		Destroy( &impl->color_textures[i] );
 	}
 
+    BXIAllocator* allocator = impl->allocator;
 	BX_DELETE0( allocator, renderTarget[0] );
 }
 
@@ -526,6 +539,8 @@ struct RDIXRenderSource
 	RDIIndexBuffer index_buffer;
 	RDIVertexBuffer* vertex_buffers = nullptr;
 	RDIXRenderSourceRange* draw_ranges = nullptr;
+
+    BXIAllocator* allocator = nullptr;
 };
 RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc& desc, BXIAllocator* allocator )
 {
@@ -577,6 +592,8 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
 		impl->draw_ranges[i] = desc.draw_ranges[i - 1];
 	}
 
+    impl->allocator = allocator;
+
 	return impl;
 }
 
@@ -592,7 +609,19 @@ RDIXRenderSource * CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes
 	return CreateRenderSource( dev, desc, allocator );
 }
 
-void DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource, BXIAllocator* allocator )
+RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_t* shape, BXIAllocator* allocator )
+{
+    RDIXRenderSourceDesc desc = {};
+    desc.Count( shape->num_vertices, shape->num_indices );
+    desc.VertexBuffer( RDIVertexBufferDesc::POS(), shape->positions );
+    desc.VertexBuffer( RDIVertexBufferDesc::NRM(), shape->normals );
+    desc.VertexBuffer( RDIVertexBufferDesc::UV0(), shape->texcoords );
+    desc.IndexBuffer( RDIEType::UINT, shape->indices );
+
+    return CreateRenderSource( dev, desc, allocator );
+}
+
+void DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource )
 {
 	if( !rsource[0] )
 		return;
@@ -608,6 +637,7 @@ void DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource, BXIAllocat
 		Destroy( &impl->vertex_buffers[i] );
 	}
 
+    BXIAllocator* allocator = impl->allocator;
 	BX_FREE0( allocator, rsource[0] );
 }
 

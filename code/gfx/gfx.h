@@ -39,7 +39,7 @@ struct GFXSceneID        { uint32_t i; };
 struct GFXCameraID       { uint32_t i; };
 struct GFXMeshID         { uint32_t i; };
 struct GFXMaterialID     { uint32_t i; };
-struct GFXMeshInstanceID { uint32_t i; };
+struct GFXMeshInstanceID { uint64_t i; };
 
 struct GFXDesc
 {
@@ -110,7 +110,8 @@ struct GFX_EXPORT GFX
 
     // --- mesh management
     GFXMeshID CreateMesh( const GFXMeshDesc& desc );
-    void      DestroyMesh( GFXMeshID idmesh );
+    void      DestroyMesh( GFXMeshID idmesh, bool destroy_resource = true );
+    RDIXRenderSource* RenderSource( GFXMeshID idmesh );
 
     // --- material system
     GFXMaterialID        CreateMaterial( const char* name, const GFXMaterialDesc& desc );
@@ -133,7 +134,8 @@ struct GFX_EXPORT GFX
 
     void SetCamera( const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
     void BindMaterialFrame( GFXFrameContext* fctx );
-    void DrawScene( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
+    void GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
+    void SubmitCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene );
 
     // --- private data
     GFXSystem* gfx;

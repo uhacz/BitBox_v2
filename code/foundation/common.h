@@ -82,10 +82,13 @@ inline float smootherstep( float edge0, float edge1, float x )
     return x*x*x*(x*(x*6.f - 15.f) + 10.f);
 }
 
-inline float lerp( float t, float a, float b )
+template< typename T >
+inline T lerp( float t, const T& a, const T& b )
 {
-    return a + t*( b - a );
+    return a + ( b - a ) * t;
 }
+
+
 
 inline float cubicpulse( float c, float w, float x )
 {

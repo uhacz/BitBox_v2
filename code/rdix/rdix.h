@@ -5,6 +5,7 @@
 
 #include "rdix_type.h"
 #include <util/par_shapes/par_shapes.h>
+#include <util/poly_shape/poly_shape.h>
 
 struct RDICommandQueue;
 struct RDIDevice;
@@ -24,14 +25,14 @@ uint32_t		FindShaderPass( RDIXShaderFile* shaderfile, const char* passname );
 
 // --- Pipeline
 RDIXPipeline*		 CreatePipeline ( RDIDevice* dev, const RDIXPipelineDesc& desc, BXIAllocator* allocator );
-void				 DestroyPipeline( RDIDevice* dev, RDIXPipeline** pipeline, BXIAllocator* allocator );
+void				 DestroyPipeline( RDIDevice* dev, RDIXPipeline** pipeline );
 void				 BindPipeline( RDICommandQueue* cmdq, RDIXPipeline* pipeline, bool bindResources );
 RDIXResourceBinding* ResourceBinding( const RDIXPipeline* p );
 
 
 // --- Resources
 RDIXResourceBinding* CreateResourceBinding ( const RDIXResourceLayout& layout, BXIAllocator* allocator );
-void				 DestroyResourceBinding( RDIXResourceBinding** binding, BXIAllocator* allocator );
+void				 DestroyResourceBinding( RDIXResourceBinding** binding );
 RDIXResourceBinding* CloneResourceBinding( const RDIXResourceBinding* binding, BXIAllocator* allocator );
 bool				 ClearResource( RDICommandQueue* cmdq, RDIXResourceBinding* binding, const char* name );
 void				 BindResources( RDICommandQueue* cmdq, RDIXResourceBinding* binding );
@@ -52,7 +53,7 @@ RDIXResourceBindingMemoryRequirments CalculateResourceBindingMemoryRequirments( 
 
 // --- RenderTarget
 RDIXRenderTarget* CreateRenderTarget ( RDIDevice* dev, const RDIXRenderTargetDesc& desc, BXIAllocator* allocator );
-void			  DestroyRenderTarget( RDIDevice* dev, RDIXRenderTarget** renderTarget, BXIAllocator* allocator );
+void			  DestroyRenderTarget( RDIDevice* dev, RDIXRenderTarget** renderTarget );
 void			  ClearRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float rgbad[5] );
 void			  ClearRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float r, float g, float b, float a, float d );
 void			  ClearRenderTargetDepth( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float d );
@@ -64,7 +65,8 @@ RDITextureDepth   TextureDepth( RDIXRenderTarget* rtarget );
 // --- RenderSource
 RDIXRenderSource* CreateRenderSource ( RDIDevice* dev, const RDIXRenderSourceDesc& desc, BXIAllocator* allocator );
 RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes_mesh* shape, BXIAllocator* allocator );
-void			  DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource, BXIAllocator* allocator );
+RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_t* shape, BXIAllocator* allocator );
+void			  DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource );
 void			  BindRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource );
 void			  SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t rangeIndex = 0 );
 void			  SubmitRenderSourceInstanced( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t numInstances, uint32_t rangeIndex = 0 );
