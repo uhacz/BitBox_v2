@@ -4,6 +4,13 @@
     depth_write="1"
 />
 </pass>
+<pass name = "base_with_skybox" vertex = "vs_base" pixel = "ps_base">
+<hwstate
+    depth_test = "1"
+    depth_write = "1"
+    />
+<define USE_SKYBOX="1"/>
+</pass>
 #~header
 
 struct IN_VS
@@ -27,10 +34,10 @@ struct OUT_PS
 	float4 rgba : SV_Target0;
 };
 
-#define BSLOT( n ) b##n
-#define TSLOT( n ) t##n
 
 #define SHADER_IMPLEMENTATION
+
+#include "common.h"
 
 // --- tansform buffer
 #include "transform_instance_data.h"
@@ -38,7 +45,8 @@ struct OUT_PS
 #include "material_frame_data.h"
 // --- material
 #include "material_data.h"
-
+// --- samplers
+#include "samplers.h"
 
 IN_PS vs_base( IN_VS input )
 {
@@ -102,11 +110,12 @@ float GGX_V1( in float m2, in float nDotX )
 // Rough Surfaces" [Walter 07]. m is roughness, n is the surface normal, h is the half vector,
 // l is the direction to the light source, and specAlbedo is the RGB specular albedo
 // ===============================================================================================
-float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3 l, in float w )
+float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3 l )
 {
 	float nDotH = saturate( dot( n, h ) );
-	float nDotL = WrappedNdotL( n, l, w );
-	float nDotV = saturate( dot( n, v ) );
+	//float nDotL = WrappedNdotL( n, l, w );
+    float nDotL = saturate( dot( n, l ) );
+    float nDotV = saturate( dot( n, v ) );
 
 	float nDotH2 = nDotH * nDotH;
 	float m2 = m * m;
@@ -122,24 +131,31 @@ float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3
 	return d * vis;
 }
 
-
-
-float3 CalcDirectionalLighting( in float3 N, in float3 L, in float3 lightColor, in float3 diffuseAlbedo, in float3 specularAlbedo, in float roughness, in float3 posWS, in float w )
+struct LitData
 {
+    float3 diffuse;
+    float3 specular;
+};
+
+LitData CalcDirectionalLighting( in float3 N, in float3 L, in float3 lightColor, in float3 diffuseAlbedo, in float3 specularAlbedo, in float roughness, in float3 posWS )
+{
+    LitData lit_data = (LitData)0;
+
 	float3 lighting = 0.0f;
-	float nDotL = WrappedNdotL( N, L, w );
-	//float nDotL = saturate( dot( N, L) );
+	//float nDotL = WrappedNdotL( N, L, w );
+	float nDotL = saturate( dot( N, L) );
 	if( nDotL > 0.0f )
 	{
 		float3 V = normalize( _fdata.camera_eye.xyz - posWS );
 		float3 H = normalize( V + L );
-		float specular = GGX_Specular( roughness, N, H, V, L, w );
+		float specular = GGX_Specular( roughness, N, H, V, L );
 		float3 fresnel = Fresnel( specularAlbedo, H, L );
 
-		lighting = (diffuseAlbedo * PI_RCP + specular * fresnel) * nDotL * lightColor;
+        lit_data.diffuse = max( 0, diffuseAlbedo * PI_RCP * nDotL * lightColor );
+        lit_data.specular = max( 0, specular * fresnel * nDotL * lightColor );
 	}
 
-	return max( lighting, 0.0f );
+    return lit_data;
 }
 
 OUT_PS ps_base( IN_PS input )
@@ -149,16 +165,34 @@ OUT_PS ps_base( IN_PS input )
 	const float3 L = normalize( light_pos - input.pos_ws );
 	const float3 N = normalize( input.nrm_ws );
 	
-	
 	float w = 0.1f;
-	float3 color = CalcDirectionalLighting( N, L, light_color, _material.diffuse_albedo, _material.specular_albedo, _material.roughness, input.pos_ws, w );
+    LitData lit_data = CalcDirectionalLighting( N, L, light_color, _material.diffuse_albedo, _material.specular_albedo, _material.roughness, input.pos_ws );
     
-	float alpha = WrappedNdotL( N, L, 1.1f );
-	float3 indirect = 0.1f * _material.diffuse_albedo * (alpha) * PI_RCP;
+    float3 color = lit_data.diffuse + lit_data.specular;
+
+#if USE_SKYBOX
+    float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
+    const float3 R = 2.0*dot(N,V)*N - V;
+    float a2 = _material.roughness * _material.roughness;
+    float specPower = (1.0 / a2 - 1.0) * 2.0;
+
+    float MIPlevel = log2( _ldata.environment_map_width * sqrt( 3 ) ) - 0.5 * log2( specPower + 1 );
+    float3 diffuse_env = _skybox.SampleLevel( _samp_bilinear, N, _ldata.environment_map_max_mip ).rgb;
+    float3 specular_env = _skybox.SampleLevel( _samp_bilinear, R, MIPlevel ).rgb;
+
+    float3 color_from_sky_diff = (lit_data.diffuse * diffuse_env);
+    float3 color_from_sky_spec = (specular_env * Fresnel( _material.specular_albedo, N, V ));
+    
+    float3 color_from_sky = (color_from_sky_diff + color_from_sky_spec) * _ldata.sky_intensity * PI_RCP;
+    color += color_from_sky;
+#else
+    float alpha = WrappedNdotL( N, L, 1.1f );
+    float3 indirect = 0.1f * _material.diffuse_albedo * (alpha)* PI_RCP;
 
     color = max( color, indirect );
-	color += indirect;
-
+    color += indirect;
+#endif
+    
 	OUT_PS output;
 	output.rgba = float4(color, 1);
 	return output;

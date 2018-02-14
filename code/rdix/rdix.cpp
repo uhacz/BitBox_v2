@@ -513,10 +513,31 @@ void BindRenderTarget( RDICommandQueue * cmdq, RDIXRenderTarget * renderTarget, 
 	ChangeRenderTargets( cmdq, color, (uint32_t)colorTextureIndices.size(), depth );
 }
 
+void BindRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* renderTarget, uint8_t color_texture_mask, bool use_depth )
+{
+    RDITextureRW color[cRDI_MAX_RENDER_TARGETS] = {};
+    uint8_t 
+    uint8_t color_array_index = 0;
+    for( uint8_t i : colorTextureIndices )
+    {
+        SYS_ASSERT( i < renderTarget->num_color_textures );
+        color[color_array_index++] = renderTarget->color_textures[i];
+    }
+
+    RDITextureDepth depth = {};
+    if( useDepth )
+    {
+        depth = renderTarget->depth_texture;
+    }
+
+    ChangeRenderTargets( cmdq, color, (uint32_t)colorTextureIndices.size(), depth );
+}
+
 void BindRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* renderTarget )
 {
 	ChangeRenderTargets( cmdq, renderTarget->color_textures, renderTarget->num_color_textures, renderTarget->depth_texture );
 }
+
 
 RDITextureRW Texture( RDIXRenderTarget * rtarget, uint32_t index )
 {

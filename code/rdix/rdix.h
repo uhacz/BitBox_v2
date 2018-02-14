@@ -58,6 +58,7 @@ void			  ClearRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, fl
 void			  ClearRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float r, float g, float b, float a, float d );
 void			  ClearRenderTargetDepth( RDICommandQueue* cmdq, RDIXRenderTarget* rtarget, float d );
 void			  BindRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* renderTarget, const std::initializer_list<uint8_t>& colorTextureIndices, bool useDepth );
+void			  BindRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* renderTarget, uint8_t color_texture_mask, bool use_depth );
 void			  BindRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* renderTarget );
 RDITextureRW	  Texture( RDIXRenderTarget* rtarget, uint32_t index );
 RDITextureDepth   TextureDepth( RDIXRenderTarget* rtarget );

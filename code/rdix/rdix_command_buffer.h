@@ -19,16 +19,45 @@ struct RDIXCommand
 	DispatchFunction _dispatch_ptr = nullptr;
 	RDIXCommand* _next = nullptr;
 };
+
+struct RDIXSetRenderTargetCmd : RDIXCommand
+{
+    static const DispatchFunction DISPATCH_FUNCTION;
+    RDIXRenderTarget* rtarget = nullptr;
+    uint8_t color_textures_mask = 0;
+    uint8_t depth = 0;
+
+    RDIXSetRenderTargetCmd() = default;
+    RDIXSetRenderTargetCmd( RDIXRenderTarget* rt )
+        : rtarget( rt ), color_textures_mask( 0xFF ), depth( 1 )
+    {}
+    RDIXSetRenderTargetCmd( RDIXRenderTarget* rt, const std::initializer_list<uint8_t>& color_textures_indices, bool usedepth )
+        : rtarget( rt )
+        , depth( usedepth )
+    {
+        for( uint8_t i : color_textures_indices )
+        {
+            color_textures_mask |= 1 << i;
+        }
+    }
+};
+
 struct RDIXSetPipelineCmd : RDIXCommand
 {
 	static const DispatchFunction DISPATCH_FUNCTION;
 	RDIXPipeline* pipeline = nullptr;
 	uint8_t bindResources = 0;
+
+    RDIXSetPipelineCmd( RDIXPipeline* p, uint8_t br )
+        : pipeline( p ), bindResources( br ) {}
 };
 struct RDIXSetResourcesCmd : RDIXCommand
 {
 	static const DispatchFunction DISPATCH_FUNCTION;
 	RDIXResourceBinding* rbind = nullptr;
+
+    RDIXSetResourcesCmd( RDIXResourceBinding* rb )
+        : rbind( rb ) {}
 };
 
 struct RDIXSetResourceROCmd : RDIXCommand
@@ -37,6 +66,11 @@ struct RDIXSetResourceROCmd : RDIXCommand
 	RDIResourceRO resource;
 	uint8_t slot = 0;
 	uint8_t stage_mask = 0;
+
+    RDIXSetResourceROCmd() = default;
+    RDIXSetResourceROCmd( const RDIResourceRO& rs, uint8_t s, uint8_t sm )
+        : resource( rs ), slot( s ), stage_mask( sm ) {}
+
 };
 struct RDIXSetConstantBufferCmd : RDIXCommand
 {
@@ -44,12 +78,18 @@ struct RDIXSetConstantBufferCmd : RDIXCommand
     RDIConstantBuffer resource;
     uint8_t slot = 0;
     uint8_t stage_mask = 0;
+
+    RDIXSetConstantBufferCmd() = default;
+    RDIXSetConstantBufferCmd( const RDIConstantBuffer& cb, uint8_t s, uint8_t sm )
+        : resource( cb ), slot( s ), stage_mask( sm ) {}
 };
 
 struct RDIXSetRenderSourceCmd : RDIXCommand
 {
 	static const DispatchFunction DISPATCH_FUNCTION;
 	RDIXRenderSource* rsource = nullptr;
+
+    RDIXSetRenderSourceCmd( RDIXRenderSource* rs ) : rsource( rs ) {}
 };
 
 struct RDIXDrawCmd : RDIXCommand
@@ -71,6 +111,10 @@ struct RDIXUpdateConstantBufferCmd : RDIXCommand
 	static const DispatchFunction DISPATCH_FUNCTION;
 	RDIConstantBuffer cbuffer = {};
 	uint8_t* DataPtr() { return (uint8_t*)(this + 1); }
+
+    RDIXUpdateConstantBufferCmd() = default;
+    RDIXUpdateConstantBufferCmd( const RDIConstantBuffer& cb, const void* data );
+
 };
 struct RDIXUpdateBufferCmd : RDIXCommand
 {
@@ -78,6 +122,9 @@ struct RDIXUpdateBufferCmd : RDIXCommand
 	RDIResource resource = {};
 	uint32_t size = 0;
 	uint8_t* DataPtr() { return (uint8_t*)(this + 1); }
+
+    RDIXUpdateBufferCmd() = default;
+    RDIXUpdateBufferCmd( const RDIResource& rs, const void* data, uint32_t datasize );
 };
 
 using RDIXDrawCallback = void( *)( RDICommandQueue* cmdq, uint32_t flags, void* userData);
@@ -100,15 +147,15 @@ bool SubmitCommand       ( RDIXCommandBuffer* cmdbuff, RDIXCommand* cmdPtr, uint
 void* _AllocateCommand   ( RDIXCommandBuffer* cmdbuff, uint32_t cmdSize );
 void SubmitCommandBuffer ( RDICommandQueue* cmdq, RDIXCommandBuffer* cmdBuff );
 
-template< typename T >
-T* AllocateCommand( RDIXCommandBuffer* cmdbuff, uint32_t dataSize, RDIXCommand* parent_cmd )
+template< typename T, class ...CmdArgs >
+T* AllocateCommand( RDIXCommandBuffer* cmdbuff, uint32_t dataSize, RDIXCommand* parent_cmd, CmdArgs&&... cmdargs )
 {
 	uint32_t mem_size = sizeof( T ) + dataSize;
 	void* mem = _AllocateCommand( cmdbuff, mem_size );
 	if( !mem )
 		return nullptr;
 
-	T* cmd = new(mem) T();
+    T* cmd = new(mem) T( std::forward<CmdArgs>( cmdargs )... );
 	cmd->_dispatch_ptr = T::DISPATCH_FUNCTION;
 	if( parent_cmd )
 	{
@@ -118,8 +165,46 @@ T* AllocateCommand( RDIXCommandBuffer* cmdbuff, uint32_t dataSize, RDIXCommand* 
 	return cmd;
 }
 
-template< typename T >
-inline T* AllocateCommand( RDIXCommandBuffer* cmdbuff, RDIXCommand* parent_cmd )
+template< typename T, class ...CmdArgs >
+inline T* AllocateCommand( RDIXCommandBuffer* cmdbuff, RDIXCommand* parent_cmd, CmdArgs&&... cmdargs )
 {
-	return AllocateCommand<T>( cmdbuff, 0, parent_cmd );
+	return AllocateCommand<T>( cmdbuff, 0, parent_cmd, std::forward<CmdArgs>( cmdargs )... );
 }
+
+// --- helper
+struct RDIXCommandChain
+{
+    RDIXCommandChain( RDIXCommandBuffer* cmdbuff, RDIXCommand* parent_cmd )
+        : _cmdbuff( cmdbuff ), _head_cmd( parent_cmd ), _tail_cmd( parent_cmd )
+    {}
+
+    template< typename T, class ...CmdArgs >
+    T* AppendCmd( CmdArgs&&... cmdargs )
+    {
+        T* cmd = AllocateCommand<T>( _cmdbuff, _tail_cmd, std::forward<CmdArgs>( cmdargs )... );
+        _tail_cmd = cmd;
+        if( !_head_cmd )
+            _head_cmd = cmd;
+        return cmd;
+    }
+
+    template< typename T, class ...CmdArgs >
+    T* AppendCmdWithData( uint32_t data_size, CmdArgs&&... cmdargs )
+    {
+        T* cmd = AllocateCommand<T>( _cmdbuff, data_size, _tail_cmd, std::forward<CmdArgs>( cmdargs )... );
+        _tail_cmd = cmd;
+        if( !_head_cmd )
+            _head_cmd = cmd;
+        return cmd;
+    }
+
+    void Submit( uint64_t sort_key )
+    {
+        SubmitCommand( _cmdbuff, _head_cmd, sort_key );
+    }
+
+
+    RDIXCommandBuffer* _cmdbuff = nullptr;
+    RDIXCommand* _head_cmd = nullptr;
+    RDIXCommand* _tail_cmd = nullptr;
+};

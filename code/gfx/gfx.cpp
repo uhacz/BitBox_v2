@@ -101,8 +101,16 @@ using IDArray = array_t<id_t>;
 
 struct GFXMaterialContainer
 {
-    RDIXPipeline* base = nullptr;
+    struct  
+    {
+        RDIXPipeline* base = nullptr;
+        RDIXPipeline* base_with_skybox = nullptr;
+        RDIXPipeline* skybox = nullptr;
+    } pipeline;
+    
+
     RDIConstantBuffer frame_data_gpu = {};
+    RDIConstantBuffer lighting_data_gpu = {};
 
     mutex_t                   lock;
     id_table_t<MAX_MATERIALS> idtable;
@@ -152,6 +160,15 @@ struct GFXSceneContainer
         id_t idscene;
         id_t idinst;
     };
+    struct SkyData
+    {
+        RDITextureRO sky_texture = {};
+        GFXSkyParams params = {};
+
+        uint32_t flag_enabled = 0;
+    };
+
+
     using MeshIDAllocator = id_allocator_dense_t;
 
     mutex_t lock;
@@ -170,10 +187,17 @@ struct GFXSceneContainer
     MeshIDAllocator* mesh_idalloc   [MAX_SCENES] = {};
     mutex_t          mesh_lock      [MAX_SCENES] = {};
 
+    SkyData          sky_data       [MAX_SCENES] = {};
+
     bool IsSceneAlive( id_t id ) const { return id_table::has( idtable, id ); }
     bool IsMeshAlive( id_t idscene, id_t id ) const
     {
         return ( IsSceneAlive( idscene ) && id_allocator::has( mesh_idalloc[idscene.index], id ) );
+    }
+
+    uint32_t SceneIndexSafe( id_t id )
+    {
+        return IsSceneAlive( id ) ? id.index : UINT32_MAX;
     }
 };
 
@@ -194,6 +218,7 @@ struct GFXSystem
     GFXMeshID     _fallback_idmesh;
 
     gfx_shader::ShaderSamplers _samplers;
+    gfx_shader::MaterialFrameData _material_fdata;
 
     GFXFrameContext _frame_ctx = {};
 };
@@ -250,6 +275,7 @@ namespace gfx_internal
                     ReleaseMeshInstance( &sc, id, idinst );
                 }
 
+                Destroy( &sc.sky_data[id.index].sky_texture );
 
                 DestroyCommandBuffer( &sc.command_buffer[id.index], gfx->_allocator );
                 DestroyTransformBuffer( gfx->_rdidev, &sc.transform_buffer[id.index], gfx->_allocator );
@@ -388,15 +414,32 @@ void GFX::StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesyste
     {// --- material
         GFXMaterialContainer& materials = gfx->_material;
 
-        RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/material.shader", filesystem, allocator );
+        {
+            RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/material.shader", filesystem, allocator );
 
-        RDIXPipelineDesc pipeline_desc = {};
-        pipeline_desc.Shader( shader_file, "base" );
-        materials.base = CreatePipeline( dev, pipeline_desc, allocator );
+            RDIXPipelineDesc pipeline_desc = {};
+            pipeline_desc.Shader( shader_file, "base" );
+            materials.pipeline.base = CreatePipeline( dev, pipeline_desc, allocator );
 
-        UnloadShaderFile( &shader_file, allocator );
+            pipeline_desc.Shader( shader_file, "base_with_skybox" );
+            materials.pipeline.base_with_skybox = CreatePipeline( dev, pipeline_desc, allocator );
+
+            UnloadShaderFile( &shader_file, allocator );
+        }
+        {
+            RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/skybox.shader", filesystem, allocator );
+
+            RDIXPipelineDesc pipeline_desc = {};
+            pipeline_desc.Shader( shader_file, "skybox" );
+            materials.pipeline.skybox = CreatePipeline( dev, pipeline_desc, allocator );
+
+            UnloadShaderFile( &shader_file, allocator );
+        }
 
         materials.frame_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::MaterialFrameData ) );
+        materials.lighting_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::LightningFrameData ) );
+
+
     }
 
     {// --- samplers
@@ -456,9 +499,11 @@ void GFX::ShutDown()
     }
 
     {// --- material
-
+        ::Destroy( &gfx->_material.lighting_data_gpu );
         ::Destroy( &gfx->_material.frame_data_gpu );
-        DestroyPipeline( dev, &gfx->_material.base );
+        DestroyPipeline( dev, &gfx->_material.pipeline.base );
+        DestroyPipeline( dev, &gfx->_material.pipeline.base_with_skybox );
+        DestroyPipeline( dev, &gfx->_material.pipeline.skybox );
     }
 
     DestroyRenderTarget( dev, &gfx->_framebuffer );
@@ -473,7 +518,7 @@ RDIXRenderTarget* GFX::Framebuffer()
 
 RDIXPipeline* GFX::MaterialBase()
 {
-    return gfx->_material.base;
+    return gfx->_material.pipeline.base;
 }
 
 GFXMeshID GFX::CreateMesh( const GFXMeshDesc& desc )
@@ -539,7 +584,7 @@ GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc
     mc.data_gpu[id.index] = CreateConstantBuffer( dev, sizeof( gfx_shader::Material ) );
 
     RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
-    RDIXResourceBinding* binding = CloneResourceBinding( ResourceBinding( mc.base ), allocator );
+    RDIXResourceBinding* binding = CloneResourceBinding( ResourceBinding( mc.pipeline.base ), allocator );
 
     UpdateCBuffer( GetImmediateCommandQueue( dev ), *cbuffer, &desc.data );
     SetConstantBuffer( binding, "MaterialData", cbuffer );
@@ -710,6 +755,55 @@ void GFX::RemoveMeshFromScene( GFXMeshInstanceID idmeshi )
     sc.mesh_to_remove_lock.unlock();
 }
 
+void GFX::EnableSky( GFXSceneID idscene, bool value )
+{
+    GFXSceneContainer& sc = gfx->_scene;
+    const uint32_t index = sc.SceneIndexSafe( { idscene.i } );
+    if( index != UINT32_MAX )
+    {
+        sc.sky_data[index].flag_enabled = value;
+    }
+}
+
+bool GFX::SetSkyTextureDDS( GFXSceneID idscene, const void* data, uint32_t size )
+{
+    GFXSceneContainer& sc = gfx->_scene;
+    const uint32_t index = sc.SceneIndexSafe( { idscene.i } );
+    if( index == UINT32_MAX )
+        return false;
+
+    RDITextureRO texture = CreateTextureFromDDS( gfx->_rdidev, data, size );
+    if( !texture.id )
+        return false;
+
+    if( sc.sky_data[index].sky_texture.id )
+    {
+        Destroy( &sc.sky_data[index].sky_texture );
+    }
+
+    sc.sky_data[index].sky_texture = texture;
+    return true;
+}
+
+void GFX::SetSkyParams( GFXSceneID idscene, const GFXSkyParams& params )
+{
+    GFXSceneContainer& sc = gfx->_scene;
+    const uint32_t index = sc.SceneIndexSafe( { idscene.i } );
+    if( index == UINT32_MAX )
+        return;
+
+    sc.sky_data[index].params = params;
+}
+
+const GFXSkyParams& GFX::SkyParams( GFXSceneID idscene ) const
+{
+    GFXSceneContainer& sc = gfx->_scene;
+    const uint32_t index = sc.SceneIndexSafe( { idscene.i } );
+    SYS_ASSERT( index != UINT32_MAX );
+
+    return sc.sky_data[index].params;
+}
+
 GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq )
 {
     gfx_internal::RemovePendingObjects( gfx );
@@ -736,19 +830,17 @@ void GFX::RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, f
 
 void GFX::SetCamera( const GFXCameraParams& camerap, const GFXCameraMatrices& cameram )
 {
-    {
-        gfx_shader::MaterialFrameData fdata;
-        fdata.camera_world = cameram.world;
-        fdata.camera_view = cameram.view;
-        fdata.camera_view_proj = cameram.view_proj;
-        fdata.camera_eye = vec4_t( cameram.eye(), 1.f );
-        fdata.camera_dir = vec4_t( cameram.dir(), 0.f );
-        UpdateCBuffer( GetImmediateCommandQueue( gfx->_rdidev ), gfx->_material.frame_data_gpu, &fdata );
-    };
+    gfx_shader::MaterialFrameData& fdata = gfx->_material_fdata;
+    fdata.camera_world = cameram.world;
+    fdata.camera_view = cameram.view;
+    fdata.camera_view_proj = cameram.view_proj;
+    fdata.camera_eye = vec4_t( cameram.eye(), 1.f );
+    fdata.camera_dir = vec4_t( cameram.dir(), 0.f );
 }
 
 void GFX::BindMaterialFrame( GFXFrameContext* fctx )
 {
+    UpdateCBuffer( fctx->cmdq, gfx->_material.frame_data_gpu, &gfx->_material_fdata );
     SetCbuffers( fctx->cmdq, &gfx->_material.frame_data_gpu, MATERIAL_FRAME_DATA_SLOT, 1, RDIEPipeline::ALL_STAGES_MASK );
 }
 
@@ -759,6 +851,12 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
     if( !sc.IsSceneAlive( { idscene.i } ) )
         return;
     
+    static constexpr uint32_t UPLOAD_SKYBOX_DATA = 0;
+    static constexpr uint32_t DRAW_SKYBOX_SORT = 1;
+    static constexpr uint32_t UPLOAD_TRANSFORM_BUFFER = 10;
+    static constexpr uint32_t DRAW_ELEMENTS = 20;
+
+
     const uint32_t scene_index = make_id( idscene.i ).index;
 
     RDIXTransformBuffer* transform_buffer = sc.transform_buffer[scene_index];
@@ -777,6 +875,9 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
     const array_span_t<GFXMeshID> idmesh_array( sc.mesh_data[scene_index]->idmesh, num_meshes );
     const array_span_t<GFXMaterialID> idmat_array( sc.mesh_data[scene_index]->idmat, num_meshes );
     const array_span_t<mat44_t> matrix_array( sc.mesh_data[scene_index]->world_matrix, num_meshes );
+    
+    const bool skybox_enabled = sc.sky_data[scene_index].flag_enabled;
+    RDIXPipeline* pipeline = (skybox_enabled) ? gfx->_material.pipeline.base_with_skybox : gfx->_material.pipeline.base;
 
     array_span_t<uint32_t> instance_buffer_index_array( sc.mesh_data[scene_index]->transform_buffer_instance_index, num_meshes );
 
@@ -785,26 +886,46 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
         const uint32_t instance_offset = AppendMatrix( transform_buffer, matrix_array[i] );
         instance_buffer_index_array[i] = instance_offset;
 
-        RDIXUpdateConstantBufferCmd* instance_offset_cmd = AllocateCommand<RDIXUpdateConstantBufferCmd>( cmdbuffer, sizeof( uint32_t ), nullptr );
-        instance_offset_cmd->cbuffer = GetInstanceOffsetCBuffer( transform_buffer );
-        memcpy( instance_offset_cmd->DataPtr(), &instance_offset, 4 );
+        RDIXCommandChain chain( cmdbuffer, nullptr );
 
-        RDIXSetPipelineCmd* pipeline_cmd = AllocateCommand<RDIXSetPipelineCmd>( cmdbuffer, instance_offset_cmd );
-        pipeline_cmd->pipeline = MaterialBase();
-        pipeline_cmd->bindResources = false;
-
-        RDIXSetResourcesCmd* resources_cmd = AllocateCommand<RDIXSetResourcesCmd>( cmdbuffer, pipeline_cmd );
-        resources_cmd->rbind = MaterialBinding( idmat_array[i] );
-
-        RDIXDrawCmd* draw_cmd = AllocateCommand<RDIXDrawCmd>( cmdbuffer, resources_cmd );
+        chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( sizeof( uint32_t ), GetInstanceOffsetCBuffer( transform_buffer ), &instance_offset );
+        chain.AppendCmd<RDIXSetPipelineCmd>( pipeline, false );
+        chain.AppendCmd<RDIXSetResourcesCmd>( MaterialBinding( idmat_array[i] ) );
+        
+        RDIXDrawCmd* draw_cmd = chain.AppendCmd<RDIXDrawCmd>();
         draw_cmd->rsource = RenderSource( idmesh_array[i] );
         draw_cmd->num_instances = 1;
 
-        SubmitCommand( cmdbuffer, instance_offset_cmd, 1 );
+        chain.Submit( DRAW_ELEMENTS );
     }
 
     RDIXTransformBufferCommands transform_buff_cmds = UploadAndSetTransformBuffer( cmdbuffer, nullptr, transform_buffer, bind_info );
-    SubmitCommand( cmdbuffer, transform_buff_cmds.first, 0 );
+    SubmitCommand( cmdbuffer, transform_buff_cmds.first, UPLOAD_TRANSFORM_BUFFER );
+
+    if( sc.sky_data[scene_index].flag_enabled )
+    { 
+        const GFXSceneContainer::SkyData& sky = sc.sky_data[scene_index];
+        gfx_shader::LightningFrameData ldata;
+        ldata.sun_L = -vec4_t( sky.params.sun_dir, 0.f );
+        ldata.sun_color = vec4_t( 1.f, 1.f, 1.f, 1.f );
+        ldata.sun_intensity = sky.params.sun_intensity;
+        ldata.sky_intensity = sky.params.sky_intensity;
+        ldata.environment_map_width = sky.sky_texture.info.width;
+        ldata.environment_map_max_mip = sky.sky_texture.info.mips - 1;
+
+        RDIXCommandChain chain( cmdbuffer, nullptr );
+        chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( sizeof( ldata ), gfx->_material.lighting_data_gpu, &ldata );
+        chain.AppendCmd<RDIXSetConstantBufferCmd>( gfx->_material.lighting_data_gpu, LIGHTING_FRAME_DATA_SLOT, RDIEPipeline::PIXEL_MASK );
+        chain.AppendCmd<RDIXSetResourceROCmd>( sky.sky_texture, LIGHTING_SKY_CUBEMAP_SLOT, RDIEPipeline::PIXEL_MASK );
+        chain.Submit( UPLOAD_SKYBOX_DATA );
+
+        {
+            //bind render target
+            //
+            //draw full screen quad with skybox shader
+        }
+
+    }
 
     EndCommandBuffer( cmdbuffer );
 

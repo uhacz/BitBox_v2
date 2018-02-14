@@ -49,6 +49,7 @@ namespace
     GFXSceneID g_idscene = { 0 };
     GFXMeshID g_idmesh[MAX_MESHES] = {};
     GFXMeshInstanceID g_meshes[MAX_MESH_INSTANCES] = {};
+    GFXMeshInstanceID g_ground_mesh = {};
 }
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
@@ -92,6 +93,14 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
         mat.data.roughness = 0.25f;
         _gfx->CreateMaterial( "blue", mat );
     }
+    {
+        GFXMaterialDesc mat;
+        mat.data.specular_albedo = vec3_t( 0.5f, 0.5f, 0.5f );
+        mat.data.diffuse_albedo = vec3_t( 0.5f, 0.5f, 0.5f );
+        mat.data.metal = 0.f;
+        mat.data.roughness = 0.99f;
+        _gfx->CreateMaterial( "rough", mat );
+    }
 
     {
         poly_shape_t shapes[MAX_MESHES] = {};
@@ -124,8 +133,31 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
             desc.idmaterial = _gfx->FindMaterial( materials[i % n_materials] );
             g_meshes[i] = _gfx->AddMeshToScene( g_idscene, desc, mat44_t( quat_t::identity(), vec3_t( i * 4.f - 1.f, 0.f, 0.f ) ) );
         }
+
+        {
+            GFXMeshInstanceDesc desc = {};
+            desc.idmaterial = _gfx->FindMaterial( "rough" );
+            desc.idmesh = g_idmesh[1];
+            mat44_t pose = mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) );
+            pose = append_scale( pose, vec3_t( 100.f, 0.5f, 100.f ) );
+
+            g_ground_mesh = _gfx->AddMeshToScene( g_idscene, desc, pose );
+        }
 	}
     
+    {// sky
+        BXFileWaitResult filewait = _filesystem->LoadFileSync( _filesystem, "texture/sky_cubemap.dds", BXIFilesystem::FILE_MODE_BIN, allocator );
+        if( filewait.file.pointer )
+        {
+            if( _gfx->SetSkyTextureDDS( g_idscene, filewait.file.pointer, filewait.file.size ) )
+            {
+                _gfx->EnableSky( g_idscene, true );
+            }
+        }
+        _filesystem->CloseFile( filewait.handle );
+
+    }
+
 	g_camera_world = mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) );
 
 
@@ -141,6 +173,7 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
         _gfx->DestroyMesh( g_idmesh[i] );
     }
 
+    _gfx->DestroyMaterial( _gfx->FindMaterial( "rough" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "blue" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "green" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "red" ) );
@@ -191,11 +224,12 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         tmp = true;
     }
 
-    _gfx->BindMaterialFrame( frame_ctx );
+    
 		
     BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
     ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );
 	
+    _gfx->BindMaterialFrame( frame_ctx );
     _gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
 
     _gfx->RasterizeFramebuffer( _rdicmdq, 0, g_camera_params.aspect() );

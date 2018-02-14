@@ -8,79 +8,57 @@
 #include <string.h>
 #include <algorithm>
 
-void SetPipelineCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
-{
-	RDIXSetPipelineCmd* cmd = (RDIXSetPipelineCmd*)cmdAddr;
-	BindPipeline( cmdq, cmd->pipeline, cmd->bindResources ? true : false );
-}
-void SetResourcesCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
-{
-	RDIXSetResourcesCmd* cmd = (RDIXSetResourcesCmd*)cmdAddr;
-	BindResources( cmdq, cmd->rbind );
-}
+#define RDIX_DEFINE_COMMAND( name, block )\
+void Dispatch_##name( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )\
+{\
+    name* cmd = (name*)cmdAddr;\
+    block\
+}\
+const DispatchFunction name::DISPATCH_FUNCTION = Dispatch_##name
 
-void SetResourceROCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
+RDIX_DEFINE_COMMAND( RDIXSetRenderTargetCmd,
 {
-	auto* cmd = (RDIXSetResourceROCmd*)cmdAddr;
-	SetResourcesRO( cmdq, &cmd->resource, cmd->slot, 1, cmd->stage_mask );
-}
+    
+} );
 
-void SetConstantBufferCmdDispatch( RDICommandQueue * cmdq, RDIXCommand * cmdAddr )
-{
-    auto* cmd = (RDIXSetConstantBufferCmd*)cmdAddr;
-    SetCbuffers( cmdq, &cmd->resource, cmd->slot, 1, cmd->stage_mask );
-}
+RDIX_DEFINE_COMMAND( RDIXSetPipelineCmd, 
+{ BindPipeline( cmdq, cmd->pipeline, cmd->bindResources ? true : false ); } );
 
-void SetRenderSourceCmdDispatch( RDICommandQueue * cmdq, RDIXCommand * cmdAddr )
-{
-	RDIXSetRenderSourceCmd* cmd = (RDIXSetRenderSourceCmd*)cmdAddr;
-	BindRenderSource( cmdq, cmd->rsource );
-}
+RDIX_DEFINE_COMMAND( RDIXSetResourcesCmd,
+{ BindResources( cmdq, cmd->rbind ); } );
 
-void DrawCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
-{
-	RDIXDrawCmd* cmd = (RDIXDrawCmd*)cmdAddr;
-	BindRenderSource( cmdq, cmd->rsource );
-	SubmitRenderSourceInstanced( cmdq, cmd->rsource, cmd->num_instances, cmd->rsouce_range );
-}
+RDIX_DEFINE_COMMAND( RDIXSetResourceROCmd,
+{ SetResourcesRO( cmdq, &cmd->resource, cmd->slot, 1, cmd->stage_mask ); } );
 
-void RawDrawCallCmdDispatch( RDICommandQueue * cmdq, RDIXCommand * cmdAddr )
-{
-	RDIXRawDrawCallCmd* cmd = (RDIXRawDrawCallCmd*)cmdAddr;
-	DrawInstanced( cmdq, cmd->num_vertices, cmd->start_index, cmd->num_instances );
-}
+RDIX_DEFINE_COMMAND( RDIXSetConstantBufferCmd,
+{ SetCbuffers( cmdq, &cmd->resource, cmd->slot, 1, cmd->stage_mask ); } );
 
-void UpdateConstantBufferCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
-{
-	RDIXUpdateConstantBufferCmd* cmd = (RDIXUpdateConstantBufferCmd*)cmdAddr;
-	UpdateCBuffer( cmdq, cmd->cbuffer, cmd->DataPtr() );
-}
+RDIX_DEFINE_COMMAND( RDIXSetRenderSourceCmd, 
+{ BindRenderSource( cmdq, cmd->rsource ); } );
 
-void UpdateBufferCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
+RDIX_DEFINE_COMMAND( RDIXDrawCmd,
 {
-	RDIXUpdateBufferCmd* cmd = (RDIXUpdateBufferCmd*)cmdAddr;
-	uint8_t* mapped_ptr = Map( cmdq, cmd->resource, 0, RDIEMapType::WRITE );
-	memcpy( mapped_ptr, cmd->DataPtr(), cmd->size );
-	Unmap( cmdq, cmd->resource );
-}
+    BindRenderSource( cmdq, cmd->rsource );
+    SubmitRenderSourceInstanced( cmdq, cmd->rsource, cmd->num_instances, cmd->rsouce_range );
+} );
 
-void DrawCallbackCmdDispatch( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )
+RDIX_DEFINE_COMMAND( RDIXRawDrawCallCmd,
+{ DrawInstanced( cmdq, cmd->num_vertices, cmd->start_index, cmd->num_instances ); } );
+
+RDIX_DEFINE_COMMAND( RDIXUpdateConstantBufferCmd,
+{ UpdateCBuffer( cmdq, cmd->cbuffer, cmd->DataPtr() ); } );
+
+RDIX_DEFINE_COMMAND( RDIXUpdateBufferCmd,
 {
-	RDIXDrawCallbackCmd* cmd = (RDIXDrawCallbackCmd*)cmdAddr;
-	(*cmd->ptr)(cmdq, cmd->flags, cmd->user_data);
-}
+    uint8_t* mapped_ptr = Map( cmdq, cmd->resource, 0, RDIEMapType::WRITE );
+    memcpy( mapped_ptr, cmd->DataPtr(), cmd->size );
+    Unmap( cmdq, cmd->resource );
+} );
+
+RDIX_DEFINE_COMMAND( RDIXDrawCallbackCmd,
+{ (*cmd->ptr)(cmdq, cmd->flags, cmd->user_data); } );
+
 // ---
-const DispatchFunction RDIXDrawCmd::DISPATCH_FUNCTION                 = DrawCmdDispatch;
-const DispatchFunction RDIXUpdateConstantBufferCmd::DISPATCH_FUNCTION = UpdateConstantBufferCmdDispatch;
-const DispatchFunction RDIXSetPipelineCmd::DISPATCH_FUNCTION          = SetPipelineCmdDispatch;
-const DispatchFunction RDIXSetResourcesCmd::DISPATCH_FUNCTION         = SetResourcesCmdDispatch;
-const DispatchFunction RDIXSetResourceROCmd::DISPATCH_FUNCTION		  = SetResourceROCmdDispatch;
-const DispatchFunction RDIXSetConstantBufferCmd::DISPATCH_FUNCTION    = SetConstantBufferCmdDispatch;
-const DispatchFunction RDIXSetRenderSourceCmd::DISPATCH_FUNCTION      = SetRenderSourceCmdDispatch;
-const DispatchFunction RDIXRawDrawCallCmd::DISPATCH_FUNCTION          = RawDrawCallCmdDispatch;
-const DispatchFunction RDIXUpdateBufferCmd::DISPATCH_FUNCTION         = UpdateBufferCmdDispatch;
-const DispatchFunction RDIXDrawCallbackCmd::DISPATCH_FUNCTION         = DrawCallbackCmdDispatch;
-// --- 
 struct RDIXCommandBuffer
 {
 	struct CmdInternal
@@ -236,4 +214,14 @@ void* _AllocateCommand( RDIXCommandBuffer* cmdbuff, uint32_t cmdSize )
 	data.data_size += cmdSize;
 
 	return ptr;
+}
+
+RDIXUpdateConstantBufferCmd::RDIXUpdateConstantBufferCmd( const RDIConstantBuffer& cb, const void* data ) : cbuffer( cb )
+{
+    memcpy( DataPtr(), data, cbuffer.size_in_bytes );
+}
+
+RDIXUpdateBufferCmd::RDIXUpdateBufferCmd( const RDIResource& rs, const void* data, uint32_t datasize ) : resource( rs ), size( datasize )
+{
+    memcpy( DataPtr(), data, datasize );
 }

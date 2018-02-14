@@ -218,14 +218,30 @@ struct VEC_ALIGNMENT(16) mat44_t
 	inline mat44_t( const quat_t& rot, const vec3_t& pos );
 
     explicit inline mat44_t( const vec4_t& v ) : c0( v ), c1( v ), c2( v ), c3( v ) {}
-	explicit		mat44_t( const quat_t& q );
-    explicit		mat44_t( const xform_t& xf );
+	explicit inline mat44_t( const quat_t& q );
+    explicit inline mat44_t( const xform_t& xf );
     explicit inline mat44_t( const mat33_t& m ) : c0( vec4_t(m.c0, 0.f) ), c1( vec4_t( m.c1, 0.f ) ), c2( vec4_t( m.c2, 0.f ) ), c3( 0.f, 0.f, 0.f, 1.f ) {}
 
-    static mat44_t identity() { return mat44_t( vec4_t::ax(), vec4_t::ay(), vec4_t::az(), vec4_t::aw() ); }
+    static inline mat44_t identity() { return mat44_t( vec4_t::ax(), vec4_t::ay(), vec4_t::az(), vec4_t::aw() ); }
+    static inline mat44_t translation( const vec3_t& v );
+    static inline mat44_t rotationx( float rad );
+    static inline mat44_t rotationy( float rad );
+    static inline mat44_t rotationz( float rad );
+    static inline mat44_t rotationzyx( const vec3_t& radxyz );
+    static inline mat44_t rotation( float rad, const vec3_t& axis );
+    static inline mat44_t scale( const vec3_t& v );
 
     mat33_t upper3x3   () const { return mat33_t( c0.xyz(), c1.xyz(), c2.xyz() ); }
     vec3_t  translation() const { return c3.xyz(); }
+
+    void set_translation( const vec3_t& v ) { c3 = vec4_t( v, 1.0f ); }
+    void set_rotation( const mat33_t& v ) 
+    {
+        c0 = vec4_t( v.c0, 0.f );
+        c1 = vec4_t( v.c1, 0.f );
+        c2 = vec4_t( v.c2, 0.f );
+    }
+    
 
     //! Unary minus
     inline const mat44_t operator-() const

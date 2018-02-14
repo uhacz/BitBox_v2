@@ -70,6 +70,13 @@ struct GFXMaterialDesc
     gfx_shader::Material data = {};
 };
 
+struct GFXSkyParams
+{
+    vec3_t sun_dir = vec3_t( 0.f, -1.f, 0.f );
+    float sun_intensity = 1.f;
+    float sky_intensity = 1.f;
+};
+
 struct GFXSceneDesc
 {
     const char* name = "scene";
@@ -126,6 +133,12 @@ struct GFX_EXPORT GFX
 
     GFXMeshInstanceID AddMeshToScene( GFXSceneID idscene, const GFXMeshInstanceDesc& desc, const mat44_t& pose );
     void              RemoveMeshFromScene( GFXMeshInstanceID idmeshi );
+
+    // --- sky
+    void EnableSky( GFXSceneID idscene, bool value );
+    bool SetSkyTextureDDS( GFXSceneID idscene, const void* data, uint32_t size );
+    void SetSkyParams( GFXSceneID idscene, const GFXSkyParams& params );
+    const GFXSkyParams& SkyParams( GFXSceneID idscene ) const;
 
     // --- frame
     GFXFrameContext* BeginFrame( RDICommandQueue* cmdq );
