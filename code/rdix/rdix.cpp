@@ -438,12 +438,27 @@ struct RDIXRenderTarget
 };
 RDIXRenderTarget* CreateRenderTarget( RDIDevice* dev, const RDIXRenderTargetDesc& desc, BXIAllocator* allocator )
 {
-	RDIXRenderTarget* impl = BX_NEW( allocator, RDIXRenderTarget );
-	for( uint32_t i = 0; i < desc.num_color_textures; ++i )
+    RDIXRenderTarget* impl = BX_NEW( allocator, RDIXRenderTarget );
+
+    uint32_t num_color_textures = 0;
+    if( !desc.num_color_textures )
+    {
+        for( ; num_color_textures < cRDI_MAX_RENDER_TARGETS; ++num_color_textures )
+        {
+            if( desc.color_texture_formats[num_color_textures].type == RDIEType::UNKNOWN )
+                break;
+        }
+    }
+    else
+    {
+        num_color_textures = desc.num_color_textures;
+    }
+    
+    for( uint32_t i = 0; i < num_color_textures; ++i )
 	{
 		impl->color_textures[i] = CreateTexture2D( dev, desc.width, desc.height, desc.mips, desc.color_texture_formats[i], RDIEBind::RENDER_TARGET | RDIEBind::SHADER_RESOURCE, 0, nullptr );
 	}
-	impl->num_color_textures = desc.num_color_textures;
+	impl->num_color_textures = num_color_textures;
 
 	if( desc.depth_texture_type != RDIEType::UNKNOWN )
 	{
@@ -516,21 +531,26 @@ void BindRenderTarget( RDICommandQueue * cmdq, RDIXRenderTarget * renderTarget, 
 void BindRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* renderTarget, uint8_t color_texture_mask, bool use_depth )
 {
     RDITextureRW color[cRDI_MAX_RENDER_TARGETS] = {};
-    uint8_t 
-    uint8_t color_array_index = 0;
-    for( uint8_t i : colorTextureIndices )
+
+    uint32_t num_color_textures = 0;
+    for( uint8_t i = 0; color_texture_mask; ++i )
     {
-        SYS_ASSERT( i < renderTarget->num_color_textures );
-        color[color_array_index++] = renderTarget->color_textures[i];
+        if( num_color_textures >= renderTarget->num_color_textures )
+            break;
+
+        if( color_texture_mask & 0x1 )
+            color[num_color_textures++] = renderTarget->color_textures[i];
+        
+        color_texture_mask = color_texture_mask >> 1;
     }
 
     RDITextureDepth depth = {};
-    if( useDepth )
+    if( use_depth )
     {
         depth = renderTarget->depth_texture;
     }
 
-    ChangeRenderTargets( cmdq, color, (uint32_t)colorTextureIndices.size(), depth );
+    ChangeRenderTargets( cmdq, color, num_color_textures, depth );
 }
 
 void BindRenderTarget( RDICommandQueue* cmdq, RDIXRenderTarget* renderTarget )

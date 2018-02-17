@@ -1233,7 +1233,7 @@ void ChangeToMainFramebuffer( RDICommandQueue* cmdq )
 void ChangeRenderTargets( RDICommandQueue* cmdq, RDITextureRW* colorTex, unsigned nColor, RDITextureDepth depthTex, bool changeViewport )
 {
     const int SLOT_COUNT = cRDI_MAX_RENDER_TARGETS;
-    SYS_ASSERT( nColor < SLOT_COUNT );
+    SYS_ASSERT( nColor <= SLOT_COUNT );
 
     ID3D11RenderTargetView *rtv[SLOT_COUNT] = {};
     ID3D11DepthStencilView *dsv = depthTex.viewDS;

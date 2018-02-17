@@ -17,9 +17,16 @@ void Dispatch_##name( RDICommandQueue* cmdq, RDIXCommand* cmdAddr )\
 const DispatchFunction name::DISPATCH_FUNCTION = Dispatch_##name
 
 RDIX_DEFINE_COMMAND( RDIXSetRenderTargetCmd,
+{ BindRenderTarget( cmdq, cmd->rtarget, cmd->color_textures_mask, cmd->depth ? true : false ); } );
+
+RDIX_DEFINE_COMMAND( RDIXClearRenderTargetCmd,
 {
-    
+    if( cmd->r >= 0.f )
+        ClearRenderTarget( cmdq, cmd->rtarget, cmd->rgbad );
+    else
+        ClearRenderTargetDepth( cmdq, cmd->rtarget, cmd->d );
 } );
+
 
 RDIX_DEFINE_COMMAND( RDIXSetPipelineCmd, 
 { BindPipeline( cmdq, cmd->pipeline, cmd->bindResources ? true : false ); } );
@@ -36,13 +43,16 @@ RDIX_DEFINE_COMMAND( RDIXSetConstantBufferCmd,
 RDIX_DEFINE_COMMAND( RDIXSetRenderSourceCmd, 
 { BindRenderSource( cmdq, cmd->rsource ); } );
 
-RDIX_DEFINE_COMMAND( RDIXDrawCmd,
+RDIX_DEFINE_COMMAND( RDIXDrawRenderSourceCmd,
 {
     BindRenderSource( cmdq, cmd->rsource );
     SubmitRenderSourceInstanced( cmdq, cmd->rsource, cmd->num_instances, cmd->rsouce_range );
 } );
 
-RDIX_DEFINE_COMMAND( RDIXRawDrawCallCmd,
+RDIX_DEFINE_COMMAND( RDIXDrawCmd,
+{ Draw( cmdq, cmd->num_vertices, cmd->start_index ); } );
+
+RDIX_DEFINE_COMMAND( RDIXDrawInstancedCmd,
 { DrawInstanced( cmdq, cmd->num_vertices, cmd->start_index, cmd->num_instances ); } );
 
 RDIX_DEFINE_COMMAND( RDIXUpdateConstantBufferCmd,
@@ -132,7 +142,7 @@ RDIXCommandBuffer* CreateCommandBuffer( BXIAllocator* allocator, uint32_t maxCom
 {
 	RDIXCommandBuffer* impl = BX_NEW( allocator, RDIXCommandBuffer );
 
-	dataCapacity += maxCommands * sizeof( RDIXDrawCmd );
+	dataCapacity += maxCommands * sizeof( RDIXDrawRenderSourceCmd );
 	impl->AllocateData( maxCommands, dataCapacity, allocator );
 	return impl;
 }

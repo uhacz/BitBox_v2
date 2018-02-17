@@ -11,6 +11,7 @@ struct MaterialFrameData
 	float4x4 camera_world;
 	float4x4 camera_view;
 	float4x4 camera_view_proj;
+    float4x4 camera_view_proj_inv;
 	float4   camera_eye;
 	float4   camera_dir;
 

@@ -232,7 +232,9 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     _gfx->BindMaterialFrame( frame_ctx );
     _gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
 
-    _gfx->RasterizeFramebuffer( _rdicmdq, 0, g_camera_params.aspect() );
+    _gfx->PostProcess( frame_ctx, g_camera_params, g_camera_matrices );
+
+    _gfx->RasterizeFramebuffer( _rdicmdq, 1, g_camera_params.aspect() );
     _gfx->EndFrame( frame_ctx );
 
     return true;

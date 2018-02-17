@@ -23,7 +23,9 @@ struct GFX_EXPORT GFXCameraMatrices
     mat44_t world;
     mat44_t view;
     mat44_t proj;
-    mat44_t view_proj;
+    mat44_t proj_api;
+
+    //mat44_t view_proj;
 
     vec3_t eye() const { return world.translation(); }
     vec3_t dir() const { return -world.c2.xyz(); }

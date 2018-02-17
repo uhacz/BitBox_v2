@@ -70,12 +70,21 @@ mat44_t PerspectiveMatrix( float fov, float aspect, float znear, float zfar )
     );
 }
 
+mat44_t ProjectionDx11( const mat44_t & proj )
+{
+    const mat44_t sc = mat44_t::scale( vec3_t( 1, 1, 0.5f ) );
+    const mat44_t tr = mat44_t::translation( vec3_t( 0, 0, 1 ) );
+    return sc * tr * proj;
+}
+
 void ComputeMatrices( GFXCameraMatrices* out, const GFXCameraParams& params, const mat44_t& world )
 {
     out->world = world;
     out->view = inverse( world );
     out->proj = PerspectiveMatrix( params.fov(), params.aspect(), params.znear, params.zfar );
-    out->view_proj = out->proj * out->view;
+    out->proj_api = ProjectionDx11( out->proj );
+    
+    //out->view_proj = out->proj * out->view;
 }
 
 void GFXCameraInputContext::UpdateInput( int mouseL, int mouseM, int mouseR, int mouseDx, int mouseDy, float mouseSensitivityInPix, float dt )

@@ -2,6 +2,7 @@
 
 #include <foundation/type.h>
 #include <rdi_backend/rdi_backend_type.h>
+#include <initializer_list>
 
 struct BXIAllocator;
 struct RDICommandQueue;
@@ -14,15 +15,19 @@ struct RDIXRenderSource;
 struct RDIXCommand;
 typedef void( *DispatchFunction )(RDICommandQueue* cmdq, RDIXCommand* cmdAddr);
 
+
 struct RDIXCommand
 {
 	DispatchFunction _dispatch_ptr = nullptr;
 	RDIXCommand* _next = nullptr;
 };
 
+#define RDIX_DECLARE_COMMAND static const DispatchFunction DISPATCH_FUNCTION
+
+
 struct RDIXSetRenderTargetCmd : RDIXCommand
 {
-    static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
     RDIXRenderTarget* rtarget = nullptr;
     uint8_t color_textures_mask = 0;
     uint8_t depth = 0;
@@ -42,10 +47,32 @@ struct RDIXSetRenderTargetCmd : RDIXCommand
     }
 };
 
+struct RDIXClearRenderTargetCmd : RDIXCommand
+{
+    RDIX_DECLARE_COMMAND;
+    RDIXRenderTarget* rtarget = nullptr;
+    union 
+    {
+        float rgbad[5];
+        struct { float r, g, b, a, d; };
+    };
+    
+    uint8_t clear_color;
+    uint8_t clear_depth;
+    uint8_t __padding[2];
+
+    RDIXClearRenderTargetCmd( RDIXRenderTarget* rt, float r01, float g01, float b01, float a01, float d01 )
+        : rtarget( rt ), r( r01 ), g(g01), b(b01), a(a01), d(d01)
+    {}
+    RDIXClearRenderTargetCmd( RDIXRenderTarget* rt, float d01 )
+        : rtarget( rt ), r( -1 ), g( -1 ), b( -1 ), a( -1 ), d( d01 )
+    {}
+};
+
 struct RDIXSetPipelineCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
-	RDIXPipeline* pipeline = nullptr;
+    RDIX_DECLARE_COMMAND;
+    RDIXPipeline* pipeline = nullptr;
 	uint8_t bindResources = 0;
 
     RDIXSetPipelineCmd( RDIXPipeline* p, uint8_t br )
@@ -53,7 +80,7 @@ struct RDIXSetPipelineCmd : RDIXCommand
 };
 struct RDIXSetResourcesCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
 	RDIXResourceBinding* rbind = nullptr;
 
     RDIXSetResourcesCmd( RDIXResourceBinding* rb )
@@ -62,7 +89,7 @@ struct RDIXSetResourcesCmd : RDIXCommand
 
 struct RDIXSetResourceROCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
 	RDIResourceRO resource;
 	uint8_t slot = 0;
 	uint8_t stage_mask = 0;
@@ -74,7 +101,7 @@ struct RDIXSetResourceROCmd : RDIXCommand
 };
 struct RDIXSetConstantBufferCmd : RDIXCommand
 {
-    static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
     RDIConstantBuffer resource;
     uint8_t slot = 0;
     uint8_t stage_mask = 0;
@@ -86,29 +113,47 @@ struct RDIXSetConstantBufferCmd : RDIXCommand
 
 struct RDIXSetRenderSourceCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
 	RDIXRenderSource* rsource = nullptr;
 
     RDIXSetRenderSourceCmd( RDIXRenderSource* rs ) : rsource( rs ) {}
 };
 
-struct RDIXDrawCmd : RDIXCommand
+struct RDIXDrawRenderSourceCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
 	RDIXRenderSource* rsource = nullptr;
 	uint16_t rsouce_range = 0;
 	uint16_t num_instances = 0;
 };
-struct RDIXRawDrawCallCmd : RDIXCommand
+
+struct RDIXDrawCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
+    uint32_t num_vertices = 0;
+    uint32_t start_index = 0;
+
+    RDIXDrawCmd() = default;
+    RDIXDrawCmd( uint32_t numv, uint32_t starti )
+        : num_vertices( numv ), start_index( starti ) {}
+
+};
+
+struct RDIXDrawInstancedCmd : RDIXCommand
+{
+    RDIX_DECLARE_COMMAND;
 	uint32_t num_vertices = 0;
 	uint32_t start_index = 0;
 	uint32_t num_instances = 0;
+    
+    RDIXDrawInstancedCmd() = default;
+    RDIXDrawInstancedCmd( uint32_t numv, uint32_t starti, uint32_t numinst )
+        : num_vertices( numv ), start_index( starti ), num_instances( numinst ) {}
+
 };
 struct RDIXUpdateConstantBufferCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
 	RDIConstantBuffer cbuffer = {};
 	uint8_t* DataPtr() { return (uint8_t*)(this + 1); }
 
@@ -118,7 +163,7 @@ struct RDIXUpdateConstantBufferCmd : RDIXCommand
 };
 struct RDIXUpdateBufferCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
 	RDIResource resource = {};
 	uint32_t size = 0;
 	uint8_t* DataPtr() { return (uint8_t*)(this + 1); }
@@ -130,7 +175,7 @@ struct RDIXUpdateBufferCmd : RDIXCommand
 using RDIXDrawCallback = void( *)( RDICommandQueue* cmdq, uint32_t flags, void* userData);
 struct RDIXDrawCallbackCmd : RDIXCommand
 {
-	static const DispatchFunction DISPATCH_FUNCTION;
+    RDIX_DECLARE_COMMAND;
 	RDIXDrawCallback ptr;
 	void* user_data;
 	uint32_t flags;

@@ -20,6 +20,7 @@ namespace gfx_shader
 {
 #include <shaders/hlsl/material_frame_data.h>
 #include <shaders/hlsl/transform_instance_data.h>
+#include <shaders/hlsl/shadow_data.h>
 
 }//
 
@@ -27,6 +28,19 @@ static constexpr uint32_t MAX_SCENES = 4;
 static constexpr uint32_t MAX_MESHES = 128;
 static constexpr uint32_t MAX_MESH_INSTANCES = 1024;
 static constexpr uint32_t MAX_MATERIALS = 64;
+
+namespace GFXEFramebuffer
+{
+    enum E : uint8_t
+    {
+        COLOR = 0,
+        SHADOW,
+        DEPTH,
+
+        _COUNT_,
+    };
+}//
+
 
 struct GFXFrameContext
 {
@@ -98,6 +112,45 @@ void GFXUtils::CopyTexture( RDICommandQueue * cmdq, RDITextureRW * output, const
 //////////////////////////////////////////////////////////////////////////
 using IDArray = array_t<id_t>;
 
+
+struct GFXShaderLoadHelper
+{
+    GFXShaderLoadHelper( RDIDevice* dev, BXIFilesystem* filesystem, BXIAllocator* allocator )
+        : _dev( dev ), _filesystem( filesystem ), _allocator( allocator ) {}
+
+    ~GFXShaderLoadHelper()
+    {
+        UnloadShaderFile( &_shader_file, _allocator );
+    }
+
+    RDIDevice* _dev;
+    BXIFilesystem* _filesystem;
+    BXIAllocator* _allocator;
+
+    const char* _shader_filename = nullptr;
+    RDIXShaderFile* _shader_file = nullptr;
+
+    RDIXPipeline* CreatePipeline( const char* shader_filename, const char* pass_name )
+    {
+        if( _shader_filename && string::equal( shader_filename, _shader_filename ) == false )
+        {
+            UnloadShaderFile( &_shader_file, _allocator );
+            _shader_filename = nullptr;
+        }
+        if( !_shader_file )
+        {
+            _shader_file = LoadShaderFile( shader_filename, _filesystem, _allocator );
+            _shader_filename = shader_filename;
+        }
+        if( _shader_file )
+        {
+            RDIXPipelineDesc pipeline_desc = {};
+            pipeline_desc.Shader( _shader_file, pass_name );
+            return ::CreatePipeline( _dev, pipeline_desc, _allocator );
+        }
+        return nullptr;
+    }
+};
 
 struct GFXMaterialContainer
 {
@@ -201,6 +254,16 @@ struct GFXSceneContainer
     }
 };
 
+struct GFXPostProcess
+{
+    struct
+    {
+        RDIXPipeline* pipeline_ss = nullptr;
+        RDIConstantBuffer cbuffer_fdata;
+
+    }shadow;
+};
+
 struct GFXSystem
 {
     BXIAllocator* _allocator = nullptr;
@@ -213,6 +276,8 @@ struct GFXSystem
     GFXMeshContainer     _mesh;
     GFXSceneContainer    _scene;
     GFXSceneID           _scene_lookup[MAX_SCENES][MAX_MESH_INSTANCES] = {};
+    GFXPostProcess       _postprocess;
+
 
     GFXMaterialID _fallback_idmaterial;
     GFXMeshID     _fallback_idmesh;
@@ -406,40 +471,27 @@ void GFX::StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesyste
 
     {// --- framebuffer
         RDIXRenderTargetDesc render_target_desc( desc.framebuffer_width, desc.framebuffer_height );
-        render_target_desc.Texture( RDIFormat::Float4() );
+        render_target_desc.Texture( GFXEFramebuffer::COLOR, RDIFormat::Float4() );
+        render_target_desc.Texture( GFXEFramebuffer::SHADOW, RDIFormat::Float4() ); // shadows
         render_target_desc.Depth( RDIEType::DEPTH32F );
         gfx->_framebuffer = CreateRenderTarget( dev, render_target_desc, allocator );
     }
 
+    GFXShaderLoadHelper helper( dev, filesystem, allocator );
     {// --- material
         GFXMaterialContainer& materials = gfx->_material;
-
-        {
-            RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/material.shader", filesystem, allocator );
-
-            RDIXPipelineDesc pipeline_desc = {};
-            pipeline_desc.Shader( shader_file, "base" );
-            materials.pipeline.base = CreatePipeline( dev, pipeline_desc, allocator );
-
-            pipeline_desc.Shader( shader_file, "base_with_skybox" );
-            materials.pipeline.base_with_skybox = CreatePipeline( dev, pipeline_desc, allocator );
-
-            UnloadShaderFile( &shader_file, allocator );
-        }
-        {
-            RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/skybox.shader", filesystem, allocator );
-
-            RDIXPipelineDesc pipeline_desc = {};
-            pipeline_desc.Shader( shader_file, "skybox" );
-            materials.pipeline.skybox = CreatePipeline( dev, pipeline_desc, allocator );
-
-            UnloadShaderFile( &shader_file, allocator );
-        }
+        materials.pipeline.base             = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "base" );
+        materials.pipeline.base_with_skybox = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "base_with_skybox" );
+        materials.pipeline.skybox           = helper.CreatePipeline( "shader/hlsl/bin/skybox.shader", "skybox" );
 
         materials.frame_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::MaterialFrameData ) );
         materials.lighting_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::LightningFrameData ) );
+    }
 
-
+    { // --- post process
+        GFXPostProcess& pp = gfx->_postprocess;
+        pp.shadow.pipeline_ss = helper.CreatePipeline( "shader/hlsl/bin/shadow.shader", "shadow_ss" );
+        pp.shadow.cbuffer_fdata = CreateConstantBuffer( dev, sizeof( gfx_shader::ShadowData ) );
     }
 
     {// --- samplers
@@ -496,6 +548,12 @@ void GFX::ShutDown()
         ::Destroy( &gfx->_samplers._bilinear );
         ::Destroy( &gfx->_samplers._linear );
         ::Destroy( &gfx->_samplers._point );
+    }
+
+    {// --- postprocess
+        DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_ss );
+        ::Destroy( &gfx->_postprocess.shadow.cbuffer_fdata );
+
     }
 
     {// --- material
@@ -825,7 +883,7 @@ void GFX::EndFrame( GFXFrameContext* fctx )
 }
 void GFX::RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect )
 {
-    utils->CopyTexture( cmdq, nullptr, Texture( gfx->_framebuffer, 0 ), aspect );
+    utils->CopyTexture( cmdq, nullptr, Texture( gfx->_framebuffer, texture_index), aspect );
 }
 
 void GFX::SetCamera( const GFXCameraParams& camerap, const GFXCameraMatrices& cameram )
@@ -833,9 +891,14 @@ void GFX::SetCamera( const GFXCameraParams& camerap, const GFXCameraMatrices& ca
     gfx_shader::MaterialFrameData& fdata = gfx->_material_fdata;
     fdata.camera_world = cameram.world;
     fdata.camera_view = cameram.view;
-    fdata.camera_view_proj = cameram.view_proj;
+    fdata.camera_view_proj = cameram.proj_api * cameram.view;
+    fdata.camera_view_proj_inv = inverse( fdata.camera_view_proj );
     fdata.camera_eye = vec4_t( cameram.eye(), 1.f );
     fdata.camera_dir = vec4_t( cameram.dir(), 0.f );
+
+    RDITextureInfo tex_info = Texture( gfx->_framebuffer, 0 ).info;
+    fdata.rtarget_size = vec2_t( (float)tex_info.width, (float)tex_info.height );
+    fdata.rtarget_size_rcp = vec2_t( 1.f / fdata.rtarget_size.x, 1.f / fdata.rtarget_size.y );
 }
 
 void GFX::BindMaterialFrame( GFXFrameContext* fctx )
@@ -851,8 +914,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
     if( !sc.IsSceneAlive( { idscene.i } ) )
         return;
     
-    static constexpr uint32_t UPLOAD_SKYBOX_DATA = 0;
-    static constexpr uint32_t DRAW_SKYBOX_SORT = 1;
+    static constexpr uint32_t DRAW_SKYBOX = 0;
     static constexpr uint32_t UPLOAD_TRANSFORM_BUFFER = 10;
     static constexpr uint32_t DRAW_ELEMENTS = 20;
 
@@ -892,7 +954,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
         chain.AppendCmd<RDIXSetPipelineCmd>( pipeline, false );
         chain.AppendCmd<RDIXSetResourcesCmd>( MaterialBinding( idmat_array[i] ) );
         
-        RDIXDrawCmd* draw_cmd = chain.AppendCmd<RDIXDrawCmd>();
+        RDIXDrawRenderSourceCmd* draw_cmd = chain.AppendCmd<RDIXDrawRenderSourceCmd>();
         draw_cmd->rsource = RenderSource( idmesh_array[i] );
         draw_cmd->num_instances = 1;
 
@@ -913,16 +975,16 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
         ldata.environment_map_width = sky.sky_texture.info.width;
         ldata.environment_map_max_mip = sky.sky_texture.info.mips - 1;
 
-        RDIXCommandChain chain( cmdbuffer, nullptr );
-        chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( sizeof( ldata ), gfx->_material.lighting_data_gpu, &ldata );
-        chain.AppendCmd<RDIXSetConstantBufferCmd>( gfx->_material.lighting_data_gpu, LIGHTING_FRAME_DATA_SLOT, RDIEPipeline::PIXEL_MASK );
-        chain.AppendCmd<RDIXSetResourceROCmd>( sky.sky_texture, LIGHTING_SKY_CUBEMAP_SLOT, RDIEPipeline::PIXEL_MASK );
-        chain.Submit( UPLOAD_SKYBOX_DATA );
-
         {
-            //bind render target
-            //
-            //draw full screen quad with skybox shader
+            RDIXCommandChain chain( cmdbuffer, nullptr );
+            chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( sizeof( ldata ), gfx->_material.lighting_data_gpu, &ldata );
+            chain.AppendCmd<RDIXSetConstantBufferCmd>( gfx->_material.lighting_data_gpu, LIGHTING_FRAME_DATA_SLOT, RDIEPipeline::PIXEL_MASK );
+            chain.AppendCmd<RDIXSetResourceROCmd>( sky.sky_texture, LIGHTING_SKY_CUBEMAP_SLOT, RDIEPipeline::PIXEL_MASK );
+            chain.AppendCmd<RDIXSetRenderTargetCmd>( gfx->_framebuffer );
+            chain.AppendCmd<RDIXClearRenderTargetCmd>( gfx->_framebuffer, 0.f, 0.f, 0.f, 1.f, -1.f );
+            chain.AppendCmd<RDIXSetPipelineCmd>( gfx->_material.pipeline.skybox, false );
+            chain.AppendCmd<RDIXDrawCmd>( 6, 0 );
+            chain.Submit( DRAW_SKYBOX );
         }
 
     }
@@ -941,4 +1003,32 @@ void GFX::SubmitCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene )
 
     RDIXCommandBuffer* cmdbuffer = sc.command_buffer[scene_index];
     ::SubmitCommandBuffer( fctx->cmdq, cmdbuffer );
+}
+
+void GFX::PostProcess( GFXFrameContext* fctx, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram )
+{
+    GFXPostProcess& pp = gfx->_postprocess;
+    {// shadows
+        gfx_shader::ShadowData sdata;
+        sdata.camera_world = cameram.world;
+        sdata.camera_view_proj = cameram.proj_api * cameram.view;
+        sdata.camera_view_proj_inv = inverse( sdata.camera_view_proj );
+
+        RDITextureInfo tex_info = Texture( gfx->_framebuffer, 0 ).info;
+        sdata.rtarget_size = vec2_t( (float)tex_info.width, (float)tex_info.height );
+        sdata.rtarget_size_rcp = vec2_t( 1.f / sdata.rtarget_size.x, 1.f / sdata.rtarget_size.y );
+
+        sdata.light_pos_ws ??
+
+        RDITextureDepth depth_tex = TextureDepth( gfx->_framebuffer );
+
+        UpdateCBuffer( fctx->cmdq, pp.shadow.cbuffer_fdata, &sdata );
+        SetCbuffers( fctx->cmdq, &pp.shadow.cbuffer_fdata, SHADOW_DATA_SLOT, 1, RDIEPipeline::PIXEL_MASK );
+
+        BindRenderTarget( fctx->cmdq, gfx->_framebuffer, { GFXEFramebuffer::SHADOW }, false );
+        SetResourcesRO( fctx->cmdq, &depth_tex, 0, 1, RDIEPipeline::PIXEL_MASK );
+        BindPipeline( fctx->cmdq, pp.shadow.pipeline_ss, false );
+        
+        Draw( fctx->cmdq, 6, 0 );
+    }
 }

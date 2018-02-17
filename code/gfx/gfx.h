@@ -150,6 +150,8 @@ struct GFX_EXPORT GFX
     void GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
     void SubmitCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene );
 
+    void PostProcess( GFXFrameContext* fctx, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
+
     // --- private data
     GFXSystem* gfx;
     GFXUtils* utils;

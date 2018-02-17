@@ -113,6 +113,13 @@ struct RDIXRenderTargetDesc
 		color_texture_formats[num_color_textures++] = format;
 		return *this;
 	}
+    RDIXRenderTargetDesc& Texture( uint32_t index, RDIFormat format )
+    {
+        SYS_ASSERT( num_color_textures == 0 );
+        SYS_ASSERT( index < cRDI_MAX_RENDER_TARGETS );
+        color_texture_formats[index] = format;
+        return *this;
+    }
 	RDIXRenderTargetDesc& Depth( RDIEType::Enum dataType )
 	{ 
 		depth_texture_type = dataType; return *this; 
