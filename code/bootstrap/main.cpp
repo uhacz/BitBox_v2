@@ -15,6 +15,7 @@
 #include <window/window.h>
 
 #include <filesystem/filesystem_plugin.h>
+#include <rtti/rtti.h>
 
 #include <application/application_plugin.h>
 
@@ -31,7 +32,8 @@ int main( int argc, const char** argv )
     BXPluginRegistry* plug_reg = nullptr;
     BXPluginRegistryStartup( &plug_reg, default_allocator );
 
-	BXPluginLoad( plug_reg, BX_FILESYSTEM_PLUGIN_NAME, default_allocator );
+    BXPluginLoad( plug_reg, BX_RTTI_PLUGIN_NAME, default_allocator );
+    BXPluginLoad( plug_reg, BX_FILESYSTEM_PLUGIN_NAME, default_allocator );
 
     BXIWindow* window_plug = (BXIWindow*)BXPluginLoad( plug_reg, BX_WINDOW_PLUGIN_NAME, default_allocator );
     BXWindow* window = window_plug->Create( "BitBox", 1600, 900, false, default_allocator );
@@ -86,6 +88,7 @@ int main( int argc, const char** argv )
     BXPluginUnload( plug_reg, app_plug_name, default_allocator );
     BXPluginUnload( plug_reg, BX_WINDOW_PLUGIN_NAME, default_allocator );
 	BXPluginUnload( plug_reg, BX_FILESYSTEM_PLUGIN_NAME, default_allocator );
+    BXPluginUnload( plug_reg, BX_RTTI_PLUGIN_NAME, default_allocator );
 
     BXPluginRegistryShutdown( &plug_reg, default_allocator );
     BXMemoryShutDown();

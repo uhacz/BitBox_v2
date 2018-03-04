@@ -12,20 +12,6 @@ static uint64_t CreatePluginNameHash( const char* name )
     const uint32_t hi = murmur3_hash32( name, len, lo );
 
     return uint64_t( hi ) << 32 | uint64_t( lo );
-
-    //
-    //SYS_ASSERT( len <= 8 );
-    //
-    //union
-    //{
-    //    uint64_t tag64;
-    //    uint8_t tag8[8];
-    //};
-    //memcpy( tag8, name, len );
-    //for( size_t i = len; i < 8; ++i )
-    //    tag8[i] = 0;
-    //
-    //return tag64;
 }
 
 struct BXPluginRegistry

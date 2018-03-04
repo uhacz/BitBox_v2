@@ -34,6 +34,7 @@ namespace GFXEFramebuffer
     enum E : uint8_t
     {
         COLOR = 0,
+        COLOR_SWAP,
         SHADOW,
         DEPTH,
 
@@ -259,8 +260,8 @@ struct GFXPostProcess
     struct
     {
         RDIXPipeline* pipeline_ss = nullptr;
+        RDIXPipeline* pipeline_combine = nullptr;
         RDIConstantBuffer cbuffer_fdata;
-
     }shadow;
 };
 
@@ -472,7 +473,8 @@ void GFX::StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesyste
     {// --- framebuffer
         RDIXRenderTargetDesc render_target_desc( desc.framebuffer_width, desc.framebuffer_height );
         render_target_desc.Texture( GFXEFramebuffer::COLOR, RDIFormat::Float4() );
-        render_target_desc.Texture( GFXEFramebuffer::SHADOW, RDIFormat::Float4() ); // shadows
+        render_target_desc.Texture( GFXEFramebuffer::COLOR_SWAP, RDIFormat::Float4() );
+        render_target_desc.Texture( GFXEFramebuffer::SHADOW, RDIFormat::Float() ); // shadows
         render_target_desc.Depth( RDIEType::DEPTH32F );
         gfx->_framebuffer = CreateRenderTarget( dev, render_target_desc, allocator );
     }
@@ -491,6 +493,7 @@ void GFX::StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesyste
     { // --- post process
         GFXPostProcess& pp = gfx->_postprocess;
         pp.shadow.pipeline_ss = helper.CreatePipeline( "shader/hlsl/bin/shadow.shader", "shadow_ss" );
+        pp.shadow.pipeline_combine = helper.CreatePipeline( "shader/hlsl/bin/shadow.shader", "shadow_combine" );
         pp.shadow.cbuffer_fdata = CreateConstantBuffer( dev, sizeof( gfx_shader::ShadowData ) );
     }
 
@@ -552,6 +555,7 @@ void GFX::ShutDown()
 
     {// --- postprocess
         DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_ss );
+        DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_combine );
         ::Destroy( &gfx->_postprocess.shadow.cbuffer_fdata );
 
     }
@@ -745,7 +749,7 @@ namespace
 {
     static inline GFXMeshInstanceID EncodeMeshInstanceID( id_t idscene, id_t idmesh )
     {
-        return { (uint64_t)(idscene.hash << 32) | (uint64_t)idmesh.hash };
+        return { ((uint64_t)idscene.hash << 32ull) | (uint64_t)idmesh.hash };
     }
     static inline id_t DecodeSceneID( GFXMeshInstanceID idmesh )
     {
@@ -938,7 +942,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
     const array_span_t<GFXMaterialID> idmat_array( sc.mesh_data[scene_index]->idmat, num_meshes );
     const array_span_t<mat44_t> matrix_array( sc.mesh_data[scene_index]->world_matrix, num_meshes );
     
-    const bool skybox_enabled = sc.sky_data[scene_index].flag_enabled;
+    const bool skybox_enabled = sc.sky_data[scene_index].flag_enabled != 0;
     RDIXPipeline* pipeline = (skybox_enabled) ? gfx->_material.pipeline.base_with_skybox : gfx->_material.pipeline.base;
 
     array_span_t<uint32_t> instance_buffer_index_array( sc.mesh_data[scene_index]->transform_buffer_instance_index, num_meshes );
@@ -1010,7 +1014,7 @@ void GFX::PostProcess( GFXFrameContext* fctx, const GFXCameraParams& camerap, co
     GFXPostProcess& pp = gfx->_postprocess;
     {// shadows
         gfx_shader::ShadowData sdata;
-        sdata.camera_world = cameram.world;
+        sdata.camera_world = cameram.world; 
         sdata.camera_view_proj = cameram.proj_api * cameram.view;
         sdata.camera_view_proj_inv = inverse( sdata.camera_view_proj );
 
@@ -1018,9 +1022,10 @@ void GFX::PostProcess( GFXFrameContext* fctx, const GFXCameraParams& camerap, co
         sdata.rtarget_size = vec2_t( (float)tex_info.width, (float)tex_info.height );
         sdata.rtarget_size_rcp = vec2_t( 1.f / sdata.rtarget_size.x, 1.f / sdata.rtarget_size.y );
 
-        sdata.light_pos_ws ??
+        sdata.light_pos_ws = vec4_t( -gfx->_scene.sky_data[0].params.sun_dir * 10.f, 1.0f );
 
         RDITextureDepth depth_tex = TextureDepth( gfx->_framebuffer );
+       
 
         UpdateCBuffer( fctx->cmdq, pp.shadow.cbuffer_fdata, &sdata );
         SetCbuffers( fctx->cmdq, &pp.shadow.cbuffer_fdata, SHADOW_DATA_SLOT, 1, RDIEPipeline::PIXEL_MASK );
@@ -1030,5 +1035,17 @@ void GFX::PostProcess( GFXFrameContext* fctx, const GFXCameraParams& camerap, co
         BindPipeline( fctx->cmdq, pp.shadow.pipeline_ss, false );
         
         Draw( fctx->cmdq, 6, 0 );
+
+
+        RDITextureRW color_tex = Texture( gfx->_framebuffer, GFXEFramebuffer::COLOR );
+        RDITextureRW shadow_tex = Texture( gfx->_framebuffer, GFXEFramebuffer::SHADOW );
+
+        BindRenderTarget( fctx->cmdq, gfx->_framebuffer, { GFXEFramebuffer::COLOR_SWAP }, false );
+        SetResourcesRO( fctx->cmdq, &shadow_tex, 0, 1, RDIEPipeline::PIXEL_MASK );
+        SetResourcesRO( fctx->cmdq, &color_tex, 1, 1, RDIEPipeline::PIXEL_MASK );
+        BindPipeline( fctx->cmdq, pp.shadow.pipeline_combine, false );
+
+        Draw( fctx->cmdq, 6, 0 );
+
     }
 }

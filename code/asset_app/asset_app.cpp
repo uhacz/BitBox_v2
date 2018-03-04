@@ -33,6 +33,8 @@
 #include "foundation\buffer.h"
 #include "foundation\id_allocator_dense.h"
 #include "foundation\container_soa.h"
+#include "rtti\rtti.h"
+#include "util\guid.h"
 
 namespace
 {
@@ -52,17 +54,69 @@ namespace
     GFXMeshInstanceID g_ground_mesh = {};
 }
 
+
+#define RTTI_DECLARE_TYPE( name ) \
+    static const char* TypeName() { return #name; };\
+    static const RTTIAttr* __attributes[];\
+    static const uint32_t __nb_attributes
+//
+#define RTTI_DEFINE_TYPE( name, ... )\
+const RTTIAttr* name::__attributes[] = __VA_ARGS__;\
+const uint32_t name::__nb_attributes = (uint32_t)sizeof_array( name::__attributes )
+
+
+
+struct SomeStruct
+{
+    const char* str = "some string";
+    uint32_t uint32 = 10;
+    float flt = -99.f;
+    GFXSceneID sceneid = { 11 };
+    vec3_t vec = vec3_t( 1.f, 2.f, 3.f );
+
+    RTTI_DECLARE_TYPE( SomeStruct );
+};
+
+RTTI_DEFINE_TYPE( SomeStruct, {
+    RTTI::Create( &SomeStruct::str, "string" )->SetDefault( "<empty string>" ),
+    RTTI::Create( &SomeStruct::uint32, "unsigned int" )->SetDefault( 666u ),
+    RTTI::Create( &SomeStruct::flt, "floating point" )->SetDefault( 999.f )->SetMin( -10.f )->SetMax( 11000.f ),
+    RTTI::Create( &SomeStruct::vec, "vector" )->SetDefault( vec3_t( 0.f, 6.f, 9.f ) ),
+    RTTI::Create( &SomeStruct::sceneid, "sceneId" ),
+} );
+
+
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
- 
+    SomeStruct sstr;
+    //RTTIAttr* attr = RTTI::Create( &SomeStruct::vec, "Vector3", vec3_t( 1.f, 2.f, 3.f ) );
+    //vec3_t v = RTTI::GetValue<vec3_t>( &sstr, attr );
+    //const char* vname = RTTI::AttrName( attr );
+
+    GFXSceneID sceneid = { 10 };
+    bool res = RTTI::Value( &sceneid, sstr, "sceneId" );
+
+    guid_t guID = GenerateGUID();
+
+    const char* defstr = nullptr;
+    RTTI::Value( &defstr, sstr, "string" );
+
+
+    float f;
+    res = RTTI::Value( &f, sstr, "floating point" );
+    const RTTIAttr* attr = RTTI::Find<SomeStruct>( "floating point" );
+    const float minv = attr->Min<float>();
+    const float maxv = attr->Max<float>();
+    const float defv = attr->Default<float>();
+    f = attr->Value<float>( &sstr );
+
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
 	_filesystem->SetRoot( "x:/dev/assets/" );
 
 	BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
 	const BXWindow* window = win_plugin->GetWindow();
 	::Startup( &_rdidev, &_rdicmdq, window->GetSystemHandle( window ), window->width, window->height, 0, allocator );
-
-
+    
     GFXDesc gfxdesc = {};
     _gfx = GFX::Allocate( allocator );
     _gfx->StartUp( _rdidev, gfxdesc, _filesystem, allocator );
@@ -98,7 +152,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
         mat.data.specular_albedo = vec3_t( 0.5f, 0.5f, 0.5f );
         mat.data.diffuse_albedo = vec3_t( 0.5f, 0.5f, 0.5f );
         mat.data.metal = 0.f;
-        mat.data.roughness = 0.99f;
+        mat.data.roughness = 0.5f;
         _gfx->CreateMaterial( "rough", mat );
     }
 
@@ -124,7 +178,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
         {
             "red", "green", "blue",
         };
-        const uint32_t n_materials = sizeof_array( materials );
+        const uint32_t n_materials = (uint32_t)sizeof_array( materials );
 
         for( uint32_t i = 0; i < 4; ++i )
         {

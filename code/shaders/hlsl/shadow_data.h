@@ -8,11 +8,9 @@ struct ShadowData
     float4x4 camera_world;
     float4x4 camera_view_proj;
     float4x4 camera_view_proj_inv;
-
+    float4 light_pos_ws;
     float2 rtarget_size;
     float2 rtarget_size_rcp;
-
-    float4 light_pos_ws;
 };
 
 #endif
