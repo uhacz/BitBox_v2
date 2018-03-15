@@ -100,12 +100,7 @@
     <ClInclude Include="math\vec4.h" />
     <ClInclude Include="math\vmath.h" />
     <ClInclude Include="math\xform.h" />
-    <ClInclude Include="memory\allocator.h" />
-    <ClInclude Include="memory\memory.h" />
     <ClInclude Include="thread\mutex.h" />
-    <ClInclude Include="plugin\plugin_interface.h" />
-    <ClInclude Include="plugin\plugin_load.h" />
-    <ClInclude Include="plugin\plugin_registry.h" />
     <ClInclude Include="queue.h" />
     <ClInclude Include="tag.h" />
     <ClInclude Include="thread\semaphore.h" />
@@ -121,8 +116,6 @@
     <ClCompile Include="id_allocator_dense.cpp" />
     <ClCompile Include="io.cpp" />
     <ClCompile Include="math\mat44.cpp" />
-    <ClCompile Include="plugin\plugin_load.cpp" />
-    <ClCompile Include="plugin\plugin_registry.cpp" />
     <ClCompile Include="tag.cpp" />
     <ClCompile Include="thread\semaphore.cpp" />
     <ClCompile Include="string_util.cpp" />

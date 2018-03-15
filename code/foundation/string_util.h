@@ -23,9 +23,13 @@ struct string_t
     BXIAllocator* _allocator = nullptr;
     union 
     {
-        char* _dynamic = nullptr;
-        char _static[MAX_STATIC_SIZE];
+        char _static[MAX_STATIC_SIZE] = {};
+        char* _dynamic;
+        
     };
+
+    string_t() {}
+    string_t( const char* str );
 
           char* c_str()       { return (_allocator) ? _dynamic : _static; }
     const char* c_str() const { return (_allocator) ? _dynamic : _static; }

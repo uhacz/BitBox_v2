@@ -2,6 +2,7 @@
 
 #include "type.h"
 #include "debug.h"
+#include <memory\memory.h>
 
 struct BufferChunker
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <foundation/plugin/plugin_interface.h>
+#include <plugin/plugin_interface.h>
 
 extern "C" {          // we need to export the C interface
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <foundation/plugin/plugin_interface.h>
+#include <plugin/plugin_interface.h>
 
 #define BX_APPLICATION_PLUGIN_DECLARE( name )\
 constexpr const char* BX_APPLICATION_PLUGIN_NAME_##name() { return #name; }\

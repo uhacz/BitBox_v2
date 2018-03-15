@@ -10,8 +10,8 @@
 #include <windows.h>
 #include <stdio.h>
 
-#include "../debug.h"
-#include "../memory/memory.h"
+#include <foundation/debug.h>
+#include <memory/memory.h>
 #include "plugin_interface.h"
 #include "plugin_registry.h"
 

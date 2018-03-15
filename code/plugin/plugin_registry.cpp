@@ -1,8 +1,8 @@
 #include "plugin_registry.h"
-#include "../memory/memory.h"
-#include "../hashmap.h"
-#include "../hash.h"
-#include "../debug.h"
+#include <memory/memory.h>
+#include <foundation/hashmap.h>
+#include <foundation/hash.h>
+#include <foundation/debug.h>
 #include <string.h>
 
 static uint64_t CreatePluginNameHash( const char* name )

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <foundation/plugin/plugin_interface.h>
+#include <plugin/plugin_interface.h>
 #include <stdint.h>
 
 #define BX_FILESYSTEM_PLUGIN_NAME "filesystem"

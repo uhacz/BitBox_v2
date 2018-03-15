@@ -4,6 +4,7 @@
 #include <foundation/hash.h>
 #include <string.h>
 
+#if 0
 namespace dense_container
 {
     template< typename T >
@@ -135,3 +136,4 @@ namespace dense_container
     //    swap_helper<Cnt, cnt.NUM_STREAMS - 1>::swap( cnt, copy_info.copy_data_to_index, copy_info.copy_data_from_index );
     //}
 }
+#endif

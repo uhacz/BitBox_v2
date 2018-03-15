@@ -1,13 +1,6 @@
 #pragma once
+
 #include "allocator.h"
-
-//////////////////////////////////////////////////////////////////////////
-//void BXMemoryStartUp( BXIAllocator** defaultAllocator );
-//void BXMemoryShutDown( BXIAllocator** defaultAllocator );
-//
-//void BXDLLSetMemoryHook( BXIAllocator* allocator );
-
-//////////////////////////////////////////////////////////////////////////
 
 #ifndef alignof
 #define ALIGNOF(x) __alignof(x)
@@ -31,3 +24,11 @@ void BX_DELETE( BXIAllocator* alloc, T* ptr )
     }
 }
 #define BX_DELETE0( a, ptr ) { BX_DELETE( a, ptr ); ptr = 0; }
+
+#include "dll_interface.h"
+
+
+extern "C"{
+
+    MEMORY_PLUGIN_EXPORT BXIAllocator* BXDefaultAllocator();
+}

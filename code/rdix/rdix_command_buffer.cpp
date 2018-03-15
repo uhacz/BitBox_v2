@@ -2,7 +2,7 @@
 #include "rdix.h"
 #include <rdi_backend/rdi_backend.h>
 
-#include <foundation/memory/memory.h>
+#include <memory/memory.h>
 #include <foundation/buffer.h>
 
 #include <string.h>

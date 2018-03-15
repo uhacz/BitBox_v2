@@ -1,7 +1,7 @@
 #define PAR_SHAPES_IMPLEMENTATION
 
 #include "poly_shape.h"
-#include <foundation/memory/memory.h>
+#include <memory/memory.h>
 #include <foundation/debug.h>
 #include <foundation/common.h>
 

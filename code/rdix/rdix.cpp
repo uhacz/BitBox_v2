@@ -3,7 +3,7 @@
 #include "rdix_command_buffer.h"
 
 #include <filesystem/filesystem_plugin.h>
-#include <foundation/memory/memory.h>
+#include <memory/memory.h>
 #include <foundation/math/vmath.h>
 #include <foundation/hash.h>
 #include <foundation/common.h>

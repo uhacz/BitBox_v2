@@ -1,11 +1,9 @@
 #include "memory_plugin.h"
 #include "dlmalloc.h"
-#include <foundation/memory/allocator.h>
-
-#include <foundation/type.h>
-#include <foundation/debug.h>
+#include "allocator.h"
 
 #include <stdlib.h>
+#include <assert.h>
 
 namespace bx
 {
@@ -30,12 +28,12 @@ namespace bx
         dlfree( ptr );
 
         AllocatorDlmalloc* alloc = (AllocatorDlmalloc*)_this;
-        SYS_ASSERT( alloc->allocated_size >= usable_size );
+        assert( alloc->allocated_size >= usable_size );
         alloc->allocated_size -= usable_size;
     }
 }
 
-static BIT_ALIGNMENT(sizeof(void*)) bx::AllocatorDlmalloc __default_allocator;
+static __declspec(align( sizeof(void*))) bx::AllocatorDlmalloc __default_allocator;
 
 extern "C"
 {

@@ -1,5 +1,6 @@
 #include "filesystem_windows.h"
 
+#include <memory/memory.h>
 #include <foundation/debug.h>
 #include <foundation/queue.h>
 #include <foundation/io.h>

@@ -74,7 +74,7 @@ unsigned string::count( const char* str, const char c )
 }
 unsigned string::length( const char* str )
 {
-    return (unsigned)strlen( str );
+    return ( str ) ? (unsigned)strlen( str ) : 0;
 }
 bool string::equal( const char* str0, const char* str1 )
 {
@@ -121,6 +121,13 @@ char* string::find( const char* str, const char* to_find, char** next /*= 0 */ )
     return result;
 }
 
+string_t::string_t( const char* str )
+{
+    SYS_ASSERT( string::length( str ) <= MAX_STATIC_LENGTH );
+    string::create( this, str, nullptr );
+}
+
+
 namespace string
 {
     void string::create( string_t* s, const char* data, BXIAllocator* allocator )
@@ -153,3 +160,4 @@ namespace string
 
 
 }
+

@@ -2,7 +2,7 @@
 #include "rdi_shader_reflection.h"
 #include "DirectXTex/DirectXTex.h"
 
-#include <foundation/memory/memory.h>
+#include <memory/memory.h>
 #include <foundation/hash.h>
 #include <foundation/common.h>
 

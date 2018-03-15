@@ -1,6 +1,6 @@
 #include "window_internal.h"
 #include <foundation/debug.h>
-#include <foundation/memory/memory.h>
+#include <memory/memory.h>
 #include "foundation/string_util.h"
 
 namespace bx

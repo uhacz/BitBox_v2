@@ -1,9 +1,9 @@
 #include "test_app.h"
 #include <window\window.h>
-#include <foundation\memory\memory.h>
-#include <foundation/plugin/plugin_load.h>
+#include <memory\memory.h>
+#include <plugin/plugin_load.h>
 
-#include <foundation/plugin/plugin_registry.h>
+#include <plugin/plugin_registry.h>
 #include <filesystem/filesystem_plugin.h>
 
 #include <window/window.h>

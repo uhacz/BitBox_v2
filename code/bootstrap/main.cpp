@@ -8,8 +8,9 @@
 #include <windows.h>
 
 #include <memory/memory_plugin.h>
-#include <foundation/plugin/plugin_registry.h>
-#include <foundation/plugin/plugin_load.h>
+#include <memory/memory.h>
+#include <plugin/plugin_registry.h>
+#include <plugin/plugin_load.h>
 
 #include <window/window_interface.h>
 #include <window/window.h>

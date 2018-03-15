@@ -1,6 +1,7 @@
 #include "id_allocator_dense.h"
 #include "buffer.h"
 #include <string.h>
+#include <memory/memory.h>
 
 namespace id_allocator
 {

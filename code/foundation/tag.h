@@ -1,7 +1,7 @@
 #pragma once
 #include "type.h"
 
-#define BX_UTIL_TAG32( a,b,c,d ) u32( a << 0 | b << 8| c << 16 | d << 24 )
+#define BX_UTIL_TAG32( a,b,c,d ) uint32_t( a << 0 | b << 8| c << 16 | d << 24 )
 #define BX_UTIL_MAKE_VERSION( major, minor, patch ) uint32_t( ('V' << 24) | (major << 16) | (minor << 8) | (patch) )
 
 struct tag32_t

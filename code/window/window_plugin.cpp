@@ -2,7 +2,7 @@
 #include "window_internal.h"
 #include "window_interface.h"
 
-#include <foundation/memory/memory.h>
+#include <memory/memory.h>
 
 PLUGIN_EXPORT void* BXLoad_window( BXIAllocator* allocator )
 {

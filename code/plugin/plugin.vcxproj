@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -11,19 +11,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{3E76CDE2-37E8-4E04-94C2-19EEFED7F69F}</ProjectGuid>
-    <RootNamespace>asset_app</RootNamespace>
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{1ADA1DD9-68BB-4E31-BDE3-DE1208F0D537}</ProjectGuid>
+    <RootNamespace>plugin</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -36,15 +37,13 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\props\plugin.props" />
     <Import Project="..\..\props\memory.props" />
-    <Import Project="..\..\props\dx11.props" />
+    <Import Project="..\..\props\static_lib.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\props\plugin.props" />
     <Import Project="..\..\props\memory.props" />
-    <Import Project="..\..\props\dx11.props" />
+    <Import Project="..\..\props\static_lib.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
@@ -54,9 +53,6 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
-    <Link>
-      <AdditionalDependencies>gfx.lib;rtti.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -69,46 +65,16 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>gfx.lib;rtti.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="asset_app.h" />
+    <ClInclude Include="plugin_interface.h" />
+    <ClInclude Include="plugin_load.h" />
+    <ClInclude Include="plugin_registry.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="asset_app.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\filesystem\filesystem.vcxproj">
-      <Project>{6eca4fda-9944-488c-ab29-a0045344878e}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\foundation\foundation.vcxproj">
-      <Project>{81e2ec47-feda-4c4d-a6f7-493c4b92d2ff}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\gfx\gfx.vcxproj">
-      <Project>{8333f018-a7d7-4ba7-8e2c-44655620860f}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\input\input.vcxproj">
-      <Project>{15dae8e3-4c6a-4bd3-895f-546150f7f91e}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\plugin\plugin.vcxproj">
-      <Project>{1ada1dd9-68bb-4e31-bde3-de1208f0d537}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\rdix\rdix.vcxproj">
-      <Project>{8ec396c6-9853-45a0-94fe-bcfebfe647d4}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\rdi_backend\rdi_backend.vcxproj">
-      <Project>{f442cd81-4b2a-4ac2-8592-609ce3965b5c}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\rtti\rtti.vcxproj">
-      <Project>{f5dfb9db-ab8b-4ac3-9f7b-23a891df2f1a}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\util\util.vcxproj">
-      <Project>{dad0a7d3-3c93-4a28-abb9-cee0e38f18bf}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\window\window.vcxproj">
-      <Project>{95b68f9d-6106-44ac-a567-c84925abf249}</Project>
-    </ProjectReference>
+    <ClCompile Include="plugin_load.cpp" />
+    <ClCompile Include="plugin_registry.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

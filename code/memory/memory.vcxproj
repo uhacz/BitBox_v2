@@ -68,17 +68,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="allocator.h" />
+    <ClInclude Include="dll_interface.h" />
     <ClInclude Include="dlmalloc.h" />
+    <ClInclude Include="memory.h" />
     <ClInclude Include="memory_plugin.h" />
+    <ClInclude Include="tlsf.h" />
+    <ClInclude Include="tlsf_allocator.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dlmalloc.c" />
     <ClCompile Include="memory_plugin.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\foundation\foundation.vcxproj">
-      <Project>{81e2ec47-feda-4c4d-a6f7-493c4b92d2ff}</Project>
-    </ProjectReference>
+    <ClCompile Include="tlsf.c" />
+    <ClCompile Include="tlsf_allocator.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

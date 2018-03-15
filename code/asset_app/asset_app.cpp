@@ -5,8 +5,9 @@
 
 #include <filesystem\filesystem_plugin.h>
 
-#include <foundation\plugin\plugin_registry.h>
-#include <foundation\memory\memory.h>
+#include <plugin\plugin_registry.h>
+#include <plugin\plugin_load.h>
+#include <memory\memory.h>
 #include <foundation/time.h>
 
 #include <util/poly_shape/poly_shape.h>
@@ -29,7 +30,7 @@
 #include <foundation/id_table.h>
 #include <foundation/dense_container.h>
 #include <foundation/string_util.h>
-#include "foundation\plugin\plugin_load.h"
+
 #include "foundation\buffer.h"
 #include "foundation\id_allocator_dense.h"
 #include "foundation\container_soa.h"
@@ -54,21 +55,9 @@ namespace
     GFXMeshInstanceID g_ground_mesh = {};
 }
 
-
-#define RTTI_DECLARE_TYPE( name ) \
-    static const char* TypeName() { return #name; };\
-    static const RTTIAttr* __attributes[];\
-    static const uint32_t __nb_attributes
-//
-#define RTTI_DEFINE_TYPE( name, ... )\
-const RTTIAttr* name::__attributes[] = __VA_ARGS__;\
-const uint32_t name::__nb_attributes = (uint32_t)sizeof_array( name::__attributes )
-
-
-
 struct SomeStruct
 {
-    const char* str = "some string";
+    string_t str { "some string" };
     uint32_t uint32 = 10;
     float flt = -99.f;
     GFXSceneID sceneid = { 11 };
@@ -77,29 +66,30 @@ struct SomeStruct
     RTTI_DECLARE_TYPE( SomeStruct );
 };
 
+#define RTTI_ATTR( type, field, name ) RTTI::Create( &type::field, name )
+
 RTTI_DEFINE_TYPE( SomeStruct, {
-    RTTI::Create( &SomeStruct::str, "string" )->SetDefault( "<empty string>" ),
-    RTTI::Create( &SomeStruct::uint32, "unsigned int" )->SetDefault( 666u ),
-    RTTI::Create( &SomeStruct::flt, "floating point" )->SetDefault( 999.f )->SetMin( -10.f )->SetMax( 11000.f ),
-    RTTI::Create( &SomeStruct::vec, "vector" )->SetDefault( vec3_t( 0.f, 6.f, 9.f ) ),
-    RTTI::Create( &SomeStruct::sceneid, "sceneId" ),
+    RTTI_ATTR( SomeStruct, str, "string" )->SetDefault( "<empty stringa>" ),
+    RTTI_ATTR( SomeStruct, uint32, "unsigned int" )->SetDefault( 666u ),
+    RTTI_ATTR( SomeStruct, flt, "floating point" )->SetDefault( 999.f )->SetMin( -10.f )->SetMax( 11000.f ),
+    RTTI_ATTR( SomeStruct, vec, "vector" )->SetDefault( vec3_t( 0.f, 6.f, 9.f ) ),
+    RTTI_ATTR( SomeStruct, sceneid, "sceneId" ),
 } );
 
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
     SomeStruct sstr;
-    //RTTIAttr* attr = RTTI::Create( &SomeStruct::vec, "Vector3", vec3_t( 1.f, 2.f, 3.f ) );
-    //vec3_t v = RTTI::GetValue<vec3_t>( &sstr, attr );
-    //const char* vname = RTTI::AttrName( attr );
 
     GFXSceneID sceneid = { 10 };
     bool res = RTTI::Value( &sceneid, sstr, "sceneId" );
 
     guid_t guID = GenerateGUID();
 
-    const char* defstr = nullptr;
-    RTTI::Value( &defstr, sstr, "string" );
+    string_t strval;
+    RTTI::Value( &strval, sstr, "string" );
+
+    const char* defstr = RTTI::Find<SomeStruct>( "string" )->Default<const char*>();
 
 
     float f;
@@ -109,6 +99,23 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     const float maxv = attr->Max<float>();
     const float defv = attr->Default<float>();
     f = attr->Value<float>( &sstr );
+
+    const uint32_t BUFFER_SIZE = 1024 * 64;
+    uint8_t serialize_buffer[BUFFER_SIZE] = {};
+    
+    uint32_t bytes_written = RTTI::Serialize( serialize_buffer, BUFFER_SIZE, sstr );
+
+
+    SomeStruct sstr1;
+    memset( &sstr1, 0x00, sizeof( sstr1 ) );
+    string::create( &sstr1.str, "lorem ipsum bla bla bla bla bla", allocator );
+    uint32_t nb_unserialized = RTTI::Unserialize( &sstr1, serialize_buffer, bytes_written, allocator );
+
+
+    const RTTITypeInfo* type_inf = RTTI::FindType( "SomeStruct" );
+
+    SomeStruct* new_sstr = (SomeStruct*)(*type_inf->creator)(allocator);
+
 
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
 	_filesystem->SetRoot( "x:/dev/assets/" );
