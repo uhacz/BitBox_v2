@@ -20,3 +20,5 @@ struct scope_lock_t
 
     T& _lock;
 };
+
+using scope_mutex_t = scope_lock_t<mutex_t>;

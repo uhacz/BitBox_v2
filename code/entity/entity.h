@@ -3,15 +3,18 @@
 #include <foundation/type.h>
 #include "dll_interface.h"
 
+struct BXIAllocator;
+
 struct ENTEntityID    { uint32_t i; };
 struct ENTComponentID { uint32_t i; };
 
 
 
-namespace ent_ext_comp
+namespace ENTCComponent
 {
     using ID = uint32_t;
     using TYPE = uint16_t;
+    static constexpr TYPE RESERVED   = 0xFFFF;
     static constexpr TYPE GFX_CAMERA = 1;
     static constexpr TYPE GFX_MESH   = 2;
     static constexpr TYPE PHX        = 100;
@@ -36,7 +39,7 @@ namespace ENTEStepPhase
     };
 }//
 
-struct ENTComponent
+struct ENT_EXPORT ENTComponent
 {
     virtual ~ENTComponent();
 
@@ -52,17 +55,18 @@ struct ENTComponent
 struct ENT_EXPORT ENT
 {
     ENTEntityID CreateEntity();
-    void        DestroyEntity();
+    void        DestroyEntity( ENTEntityID entity_id );
 
-    ENTComponentID CreateComponent( ENTEntityID eid, ent_ext_comp::TYPE type, uint32_t cid );
+    ENTComponentID CreateComponent( ENTEntityID eid, ENTCComponent::TYPE type, uint32_t cid );
     ENTComponentID CreateComponent( ENTEntityID eid, const char* type_name );
     void           DestroyComponent( ENTEntityID eid, ENTComponentID cid );
 
     void Step( ENTEStepPhase::E phase, uint64_t dt_us );
     
-    static ENT* StartUp();
+    static ENT* StartUp( BXIAllocator* allocator );
     static void ShutDown( ENT** ent );
 
-    typedef struct ENTSystem* _ent;
+    struct ENTSystem;
+    ENTSystem* _ent;
 };
 

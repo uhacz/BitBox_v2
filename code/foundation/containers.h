@@ -272,7 +272,7 @@ private:
             if( hashed_name == _names_hash[i] )
                 return i;
         }
-        return TYPE_NOT_FOUND<uint32_t>();
+        return UINT32_MAX;
     }
 };
 

@@ -6,6 +6,7 @@
 #include <rdix/rdix.h>
 
 struct GFX;
+struct ENT;
 struct BXIFilesystem;
 struct BXAssetApp : BXIApplication
 {
@@ -20,6 +21,7 @@ private:
     RDICommandQueue* _rdicmdq = nullptr;
 
     GFX* _gfx = nullptr;
+    ENT* _ent = nullptr;
 };
 
 BX_APPLICATION_PLUGIN_DECLARE( asset_app )

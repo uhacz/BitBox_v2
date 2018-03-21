@@ -97,6 +97,8 @@ namespace array
         arr.size = newSize;
     }
 
+    static constexpr uint32_t npos = UINT32_MAX;
+
     template< typename T > uint32_t find( const array_t<T>& arr, const T& to_find, uint32_t start_index = 0 )
     {
         for( uint32_t i = start_index; i < arr.size; ++i )
@@ -105,7 +107,7 @@ namespace array
                 return i;
         }
 
-        return TYPE_NOT_FOUND<uint32_t>();
+        return npos;
     }
 
     template< typename T > uint32_t find( const T* begin, uint32_t count, const T& to_find, uint32_t start_index = 0 )
@@ -116,7 +118,7 @@ namespace array
                 return i;
         }
 
-        return TYPE_NOT_FOUND<uint32_t>();
+        return npos;
     }
 }///
 

@@ -17,6 +17,8 @@
 #include <gfx/gfx.h>
 #include <gfx/gfx_camera.h>
 
+#include <entity/entity.h>
+
 #include <string.h>
 
 #include <gfx/gfx_shader_interop.h>
@@ -127,6 +129,9 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     GFXDesc gfxdesc = {};
     _gfx = GFX::Allocate( allocator );
     _gfx->StartUp( _rdidev, gfxdesc, _filesystem, allocator );
+
+    _ent = ENT::StartUp( allocator );
+
 
     g_idscene = _gfx->CreateScene( GFXSceneDesc() );
 	
@@ -239,6 +244,9 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     _gfx->DestroyMaterial( _gfx->FindMaterial( "green" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "red" ) );
     
+
+    ENT::ShutDown( &_ent );
+
     _gfx->ShutDown();
     GFX::Free( &_gfx, allocator );
 

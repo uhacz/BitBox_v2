@@ -73,8 +73,3 @@ inline bool is_pow2( int n )
 {
     return ( n&( n - 1 ) ) == 0;
 }
-template< typename T >
-inline T TYPE_NOT_FOUND()
-{
-    return std::numeric_limits<T>::max();
-}
