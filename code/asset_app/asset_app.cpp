@@ -55,69 +55,98 @@ namespace
     GFXMeshID g_idmesh[MAX_MESHES] = {};
     GFXMeshInstanceID g_meshes[MAX_MESH_INSTANCES] = {};
     GFXMeshInstanceID g_ground_mesh = {};
+
+    ENTEntityID entity;
+    
+
 }
 
-struct SomeStruct
+struct TestComponent : ENTIComponent
 {
-    string_t str { "some string" };
-    uint32_t uint32 = 10;
-    float flt = -99.f;
-    GFXSceneID sceneid = { 11 };
-    vec3_t vec = vec3_t( 1.f, 2.f, 3.f );
+    RTTI_DECLARE_TYPE( TestComponent );
 
-    RTTI_DECLARE_TYPE( SomeStruct );
+    virtual ~TestComponent() {}
+
+    virtual void ParallelStep( ENTSystemInfo*, uint64_t dt_us )
+    {
+        _test++;
+    }
+    virtual void SerialStep( ENTSystemInfo*, ENTIComponent* parent, uint64_t dt_us )
+    {
+        _test1++;
+    }
+
+    uint32_t _test = 0;
+    uint64_t _test1 = 0;
 };
 
-#define RTTI_ATTR( type, field, name ) RTTI::Create( &type::field, name )
-
-RTTI_DEFINE_TYPE( SomeStruct, {
-    RTTI_ATTR( SomeStruct, str, "string" )->SetDefault( "<empty stringa>" ),
-    RTTI_ATTR( SomeStruct, uint32, "unsigned int" )->SetDefault( 666u ),
-    RTTI_ATTR( SomeStruct, flt, "floating point" )->SetDefault( 999.f )->SetMin( -10.f )->SetMax( 11000.f ),
-    RTTI_ATTR( SomeStruct, vec, "vector" )->SetDefault( vec3_t( 0.f, 6.f, 9.f ) ),
-    RTTI_ATTR( SomeStruct, sceneid, "sceneId" ),
+RTTI_DEFINE_TYPE( TestComponent, {
+    RTTI_ATTR( TestComponent, _test, "test" ),
+    RTTI_ATTR( TestComponent, _test1, "test1" ),
 } );
+
+//struct SomeStruct
+//{
+//    string_t str { "some string" };
+//    uint32_t uint32 = 10;
+//    float flt = -99.f;
+//    GFXSceneID sceneid = { 11 };
+//    vec3_t vec = vec3_t( 1.f, 2.f, 3.f );
+//
+//    RTTI_DECLARE_TYPE( SomeStruct );
+//};
+//
+//#define RTTI_ATTR( type, field, name ) RTTI::Create( &type::field, name )
+//
+//RTTI_DEFINE_TYPE( SomeStruct, {
+//    RTTI_ATTR( SomeStruct, str, "string" )->SetDefault( "<empty stringa>" ),
+//    RTTI_ATTR( SomeStruct, uint32, "unsigned int" )->SetDefault( 666u ),
+//    RTTI_ATTR( SomeStruct, flt, "floating point" )->SetDefault( 999.f )->SetMin( -10.f )->SetMax( 11000.f ),
+//    RTTI_ATTR( SomeStruct, vec, "vector" )->SetDefault( vec3_t( 0.f, 6.f, 9.f ) ),
+//    RTTI_ATTR( SomeStruct, sceneid, "sceneId" ),
+//} );
 
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    SomeStruct sstr;
+    //SomeStruct sstr;
 
-    GFXSceneID sceneid = { 10 };
-    bool res = RTTI::Value( &sceneid, sstr, "sceneId" );
+    //GFXSceneID sceneid = { 10 };
+    //bool res = RTTI::Value( &sceneid, sstr, "sceneId" );
 
-    guid_t guID = GenerateGUID();
+    //guid_t guID = GenerateGUID();
 
-    string_t strval;
-    RTTI::Value( &strval, sstr, "string" );
+    //string_t strval;
+    //RTTI::Value( &strval, sstr, "string" );
 
-    const char* defstr = RTTI::Find<SomeStruct>( "string" )->Default<const char*>();
+    //const char* defstr = RTTI::Find<SomeStruct>( "string" )->Default<const char*>();
 
 
-    float f;
-    res = RTTI::Value( &f, sstr, "floating point" );
-    const RTTIAttr* attr = RTTI::Find<SomeStruct>( "floating point" );
-    const float minv = attr->Min<float>();
-    const float maxv = attr->Max<float>();
-    const float defv = attr->Default<float>();
-    f = attr->Value<float>( &sstr );
+    //float f;
+    //res = RTTI::Value( &f, sstr, "floating point" );
+    //const RTTIAttr* attr = RTTI::Find<SomeStruct>( "floating point" );
+    //const float minv = attr->Min<float>();
+    //const float maxv = attr->Max<float>();
+    //const float defv = attr->Default<float>();
+    //f = attr->Value<float>( &sstr );
 
-    const uint32_t BUFFER_SIZE = 1024 * 64;
-    uint8_t serialize_buffer[BUFFER_SIZE] = {};
+    //const uint32_t BUFFER_SIZE = 1024 * 64;
+    //uint8_t serialize_buffer[BUFFER_SIZE] = {};
+    //
+    //uint32_t bytes_written = RTTI::Serialize( serialize_buffer, BUFFER_SIZE, sstr );
+
+
+    //SomeStruct sstr1;
+    //memset( &sstr1, 0x00, sizeof( sstr1 ) );
+    //string::create( &sstr1.str, "lorem ipsum bla bla bla bla bla", allocator );
+    //uint32_t nb_unserialized = RTTI::Unserialize( &sstr1, serialize_buffer, bytes_written, allocator );
+
+
+    //const RTTITypeInfo* type_inf = RTTI::FindType( "SomeStruct" );
+
+    //SomeStruct* new_sstr = (SomeStruct*)(*type_inf->creator)(allocator);
+
     
-    uint32_t bytes_written = RTTI::Serialize( serialize_buffer, BUFFER_SIZE, sstr );
-
-
-    SomeStruct sstr1;
-    memset( &sstr1, 0x00, sizeof( sstr1 ) );
-    string::create( &sstr1.str, "lorem ipsum bla bla bla bla bla", allocator );
-    uint32_t nb_unserialized = RTTI::Unserialize( &sstr1, serialize_buffer, bytes_written, allocator );
-
-
-    const RTTITypeInfo* type_inf = RTTI::FindType( "SomeStruct" );
-
-    SomeStruct* new_sstr = (SomeStruct*)(*type_inf->creator)(allocator);
-
 
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
 	_filesystem->SetRoot( "x:/dev/assets/" );
@@ -131,6 +160,8 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     _gfx->StartUp( _rdidev, gfxdesc, _filesystem, allocator );
 
     _ent = ENT::StartUp( allocator );
+
+    
 
 
     g_idscene = _gfx->CreateScene( GFXSceneDesc() );
@@ -209,6 +240,9 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
             g_ground_mesh = _gfx->AddMeshToScene( g_idscene, desc, pose );
         }
+
+        entity = _ent->CreateEntity();
+        _ent->CreateComponent( entity, "TestComponent" );
 	}
     
     {// sky
@@ -245,7 +279,13 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     _gfx->DestroyMaterial( _gfx->FindMaterial( "red" ) );
     
 
-    ENT::ShutDown( &_ent );
+    _ent->DestroyEntity( entity );
+    {
+        ENTSystemInfo ent_sys_info = {};
+        ent_sys_info.ent = _ent;
+        ent_sys_info.gfx = _gfx;
+        ENT::ShutDown( &_ent, &ent_sys_info );
+    }
 
     _gfx->ShutDown();
     GFX::Free( &_gfx, allocator );
@@ -284,6 +324,14 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
 
 	ComputeMatrices( &g_camera_matrices, g_camera_params, g_camera_world );
     _gfx->SetCamera( g_camera_params, g_camera_matrices );
+
+    {
+        ENTSystemInfo ent_sys_info = {};
+        ent_sys_info.ent = _ent;
+        ent_sys_info.gfx = _gfx;
+        _ent->Step( &ent_sys_info, deltaTimeUS );
+    }
+
 
     GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
     static bool tmp = false;

@@ -21,34 +21,29 @@ namespace ENTCComponent
     static constexpr TYPE ANIM       = 200;
 };
 
+struct ENT;
+struct GFX;
+
 struct ENTSystemInfo
-{};
+{
+    ENT* ent = nullptr;
+    GFX* gfx = nullptr;
+};
 
 struct ENTSerializeInfo
 {
 };
 
-namespace ENTEStepPhase
+struct ENT_EXPORT ENTIComponent
 {
-    enum E : uint8_t
-    {
-        PRE_STEP = 0,
-        STEP,
-        POST_STEP,
-        _COUNT_,
-    };
-}//
-
-struct ENT_EXPORT ENTComponent
-{
-    virtual ~ENTComponent();
+    virtual ~ENTIComponent();
 
     virtual void Initialize( ENTSystemInfo* );
     virtual void Deinitialize( ENTSystemInfo* );
     virtual void Attach( ENTSystemInfo* );
     virtual void Detach( ENTSystemInfo* );
     virtual void ParallelStep( ENTSystemInfo* , uint64_t dt_us );
-    virtual void SerialStep( ENTSystemInfo*, ENTComponent* parent, uint64_t dt_us );
+    virtual void SerialStep( ENTSystemInfo*, ENTIComponent* parent, uint64_t dt_us );
     virtual int32_t Serialize( ENTSerializeInfo* info );
 };
 
@@ -61,10 +56,10 @@ struct ENT_EXPORT ENT
     ENTComponentID CreateComponent( ENTEntityID eid, const char* type_name );
     void           DestroyComponent( ENTEntityID eid, ENTComponentID cid );
 
-    void Step( ENTEStepPhase::E phase, uint64_t dt_us );
+    void Step( ENTSystemInfo* system_info, uint64_t dt_us );
     
     static ENT* StartUp( BXIAllocator* allocator );
-    static void ShutDown( ENT** ent );
+    static void ShutDown( ENT** ent, ENTSystemInfo* system_info );
 
     struct ENTSystem;
     ENTSystem* _ent;

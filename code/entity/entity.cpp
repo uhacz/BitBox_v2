@@ -6,6 +6,7 @@
 #include <foundation/buffer.h>
 #include "memory/tlsf_allocator.h"
 #include "foundation/container_soa.h"
+#include "rtti/rtti.h"
 
 static constexpr uint32_t MAX_ENTITIES = 64;
 static constexpr uint32_t MAX_COMPONENTS = 2048;
@@ -17,7 +18,7 @@ static constexpr ENTCComponent::TYPE COMP_TYPE_CUSTOM = ENTCComponent::RESERVED;
 
 union ENTComponentData
 {
-    ENTComponent* custom_impl;
+    ENTIComponent* custom_impl;
     ENTCComponent::ID system_id;
 };
 struct ENTComponentStorage
@@ -89,7 +90,6 @@ struct ENTPendingComponent
 {
     ENTEntityID entity_id;
     ENTComponentID comp_id;
-    ENTCComponent::TYPE comp_type;
     union 
     {
         uint16_t flags;
@@ -102,10 +102,10 @@ struct ENTPendingComponent
 
 struct ENT::ENTSystem
 {
-    
     using EntityIDAllocator = id_array_t<MAX_ENTITIES>;
     using ComponentIDAllocator = id_table_t<MAX_COMPONENTS>;
     using PendingComponents = array_t<ENTPendingComponent>;
+    using ComponentIDArray = array_t<ENTComponentID>;
 
     mutex_t           entity_lock;
     EntityIDAllocator entity_id_alloc;
@@ -117,13 +117,50 @@ struct ENT::ENTSystem
         
     mutex_t pending_lock;
     PendingComponents pending_components;
+    ComponentIDArray new_components;
 
-    TLSFAllocator entity_storate_allocator;
+    void* entity_storage_memory;
+    TLSFAllocator entity_storage_allocator;
     BXIAllocator* main_allocator;
 };
 namespace
 {
-    void ProcessPendingComponents( ENT::ENTSystem* ent )
+    ENTIComponent* AllocateComponent( ENT::ENTSystem* sys, const RTTITypeInfo* type_inf )
+    {
+        ENTIComponent* new_comp = (ENTIComponent*)(*type_inf->creator)( sys->main_allocator );
+        return new_comp;
+    }
+    void FreeComponent( ENT::ENTSystem* sys, ENTIComponent* comp )
+    {
+        BX_DELETE( sys->main_allocator, comp );
+    }
+    
+    ENTIComponent* GetCustomComponent( ENT::ENTSystem* sys, ENTComponentID id )
+    {
+        const id_t iid = { id.i };
+        SYS_ASSERT( id_table::has( sys->comp_id_alloc, iid ) );
+        SYS_ASSERT( sys->comp_storage.type[iid.index] == COMP_TYPE_CUSTOM );
+
+        return sys->comp_storage.data[iid.index].custom_impl;
+    }
+    ENTCComponent::ID GetSystemComponent( ENT::ENTSystem* sys, ENTComponentID id )
+    {
+        const id_t iid = { id.i };
+        SYS_ASSERT( id_table::has( sys->comp_id_alloc, iid ) );
+        SYS_ASSERT( sys->comp_storage.type[iid.index] != COMP_TYPE_CUSTOM );
+
+        return sys->comp_storage.data[iid.index].system_id;
+    }
+
+    void DeinitializeAndDestroyComponent( ENT::ENTSystem* ent, ENTComponentID comp_id, ENTSystemInfo* system_info )
+    {
+        ENTIComponent* impl = GetCustomComponent( ent, comp_id );
+        impl->Detach( system_info );
+        impl->Deinitialize( system_info );
+        FreeComponent( ent, impl );
+    }
+
+    void ProcessPendingComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
     {
         scope_mutex_t guard( ent->pending_lock );
 
@@ -137,22 +174,77 @@ namespace
         
             if( entity_valid && component_valid )
             {
+                const id_t eid = { pending.entity_id.i };
+                const id_t cid = { pending.comp_id.i };
+                
+                const ENTCComponent::TYPE comp_type = ent->comp_storage.type[cid.index];
+                ENTEntityStorage& storage = ent->entity_storage[eid.index];
+
+
                 if( pending.to_add )
                 {
-                    
+                    EntityComponentAdd( &storage, pending.comp_id, comp_type, &ent->entity_storage_allocator );
+                    if( comp_type == COMP_TYPE_CUSTOM )
+                    {
+                        array::push_back( ent->new_components, pending.comp_id );
+                    }
+                }
+                else
+                {
+                    if( comp_type == COMP_TYPE_CUSTOM )
+                    {
+                        DeinitializeAndDestroyComponent( ent, pending.comp_id, system_info );
+                    }
+                    EntityComponentRemove( &storage, pending.comp_id, comp_type );
                 }
             }
             else if( entity_valid )
             {
+                SYS_ASSERT( pending.to_add == 0 );
+                
+                const id_t eid = { pending.entity_id.i };
+                ENTEntityStorage& storage = ent->entity_storage[eid.index];
 
+                ENTComponentStorage& comp_storage = ent->comp_storage;
+
+                for( uint32_t i = 0; i < storage.custom.size; ++i )
+                {
+                    DeinitializeAndDestroyComponent( ent, storage.custom[i], system_info );
+                }
+
+                array::destroy( storage.custom );
+                array::destroy( storage.system );
+
+                const id_array_destroy_info_t destroy_info = id_array::destroy( ent->entity_id_alloc, eid );
+                ent->entity_storage[destroy_info.copy_data_to_index] = ent->entity_storage[destroy_info.copy_data_from_index];
             }
             else
             {
                 SYS_ASSERT( false );
             }
         }
-
     }
+
+    void InitializeComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
+    {
+        for( uint32_t i = 0; i < ent->new_components.size; ++i )
+        {
+            ENTComponentID comp_id = ent->new_components[i];
+            ENTIComponent* impl = GetCustomComponent( ent, comp_id );
+            impl->Initialize( system_info );
+        }
+    }
+
+    void AttachComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
+    {
+        for( uint32_t i = 0; i < ent->new_components.size; ++i )
+        {
+            ENTComponentID comp_id = ent->new_components[i];
+            ENTIComponent* impl = GetCustomComponent( ent, comp_id );
+            impl->Attach( system_info );
+        }
+    }
+
 }
 // ---
 
@@ -188,9 +280,115 @@ void ENT::DestroyEntity( ENTEntityID entity_id )
     }
 }
 
-void ENT::Step( ENTEStepPhase::E phase, uint64_t dt_us )
+namespace
+{
+    void AddPendingComponent( ENT::ENTSystem* sys, const ENTPendingComponent& pending )
+    {
+        scope_mutex_t guard( sys->pending_lock );
+        array::push_back( sys->pending_components, pending );
+    }
+}
+
+ENTComponentID ENT::CreateComponent( ENTEntityID eid, ENTCComponent::TYPE type, uint32_t cid )
+{
+    id_t id = {};
+    {
+        scope_mutex_t guard( _ent->component_lock );
+        id = id_table::create( _ent->comp_id_alloc );
+    }
+
+    ENTComponentStorage& cstorage = _ent->comp_storage;
+    cstorage.component_id[id.index].i = id.hash;
+    cstorage.data[id.index].system_id = cid;
+    cstorage.type[id.index] = type;
+    cstorage.entity_id[id.index] = eid;
+
+    ENTPendingComponent pending = {};
+    pending.entity_id = eid;
+    pending.comp_id.i = id.hash;
+    pending.to_add = 1;
+
+    AddPendingComponent( _ent, pending );
+
+    return { id.hash };
+}
+
+ENTComponentID ENT::CreateComponent( ENTEntityID eid, const char* type_name )
+{
+    const RTTITypeInfo* type_info = RTTI::FindType( type_name );
+    if( !type_info )
+        return { 0 };
+
+    ENTIComponent* impl = AllocateComponent( _ent, type_info );
+    if( !impl )
+        return { 0 };
+
+    id_t id = {};
+    {
+        scope_mutex_t guard( _ent->component_lock );
+        id = id_table::create( _ent->comp_id_alloc );
+    }
+
+    ENTComponentStorage& cstorage = _ent->comp_storage;
+    cstorage.component_id[id.index].i = id.hash;
+    cstorage.data[id.index].custom_impl = impl;
+    cstorage.type[id.index] = COMP_TYPE_CUSTOM;
+    cstorage.entity_id[id.index] = eid;
+
+    ENTPendingComponent pending = {};
+    pending.entity_id = eid;
+    pending.comp_id.i = id.hash;
+    pending.to_add = 1;
+
+    AddPendingComponent( _ent, pending );
+
+    return { id.hash };
+}
+
+void ENT::DestroyComponent( ENTEntityID eid, ENTComponentID cid )
+{
+    ENTPendingComponent pending = {};
+    pending.entity_id = eid;
+    pending.comp_id  = cid;
+    pending.to_add = 0;
+
+    AddPendingComponent( _ent, pending );
+}
+
+void ENT::Step( ENTSystemInfo* system_info, uint64_t dt_us )
 {
 
+    ProcessPendingComponents( _ent, system_info );
+    InitializeComponents( _ent, system_info );
+    AttachComponents( _ent, system_info );
+    array::clear( _ent->new_components );
+
+
+    const uint32_t nb_entities = id_array::size( _ent->entity_id_alloc );
+    {// parallel step
+        for( uint32_t ie = 0; ie < nb_entities; ++ie )
+        {
+            ENTEntityStorage& estorage = _ent->entity_storage[ie];
+            for( uint32_t ic = 0; ic < estorage.custom.size; ++ic )
+            {
+                ENTIComponent* impl = GetCustomComponent( _ent, estorage.custom[ic] );
+                impl->ParallelStep( system_info, dt_us );
+            }
+        }
+    }
+
+    {// serial step
+        for( uint32_t ie = 0; ie < nb_entities; ++ie )
+        {
+            ENTEntityStorage& estorage = _ent->entity_storage[ie];
+            for( uint32_t ic = 0; ic < estorage.custom.size; ++ic )
+            {
+                ENTIComponent* parent = nullptr;
+                ENTIComponent* impl = GetCustomComponent( _ent, estorage.custom[ic] );
+                impl->SerialStep( system_info, parent, dt_us );
+            }
+        }
+    }
 }
 
 
@@ -203,8 +401,8 @@ ENT* ENT::StartUp( BXIAllocator* allocator )
     ent->_ent = new (ent + 1) ENTSystem();
 
     {
-        void* entity_storage_memory = BX_MALLOC( allocator, ENTITY_STORAGE_MEMORY_BUDGET, 8 );
-        TLSFAllocator::Create( &ent->_ent->entity_storate_allocator, entity_storage_memory, ENTITY_STORAGE_MEMORY_BUDGET );
+        ent->_ent->entity_storage_memory = BX_MALLOC( allocator, ENTITY_STORAGE_MEMORY_BUDGET, 8 );
+        TLSFAllocator::Create( &ent->_ent->entity_storage_allocator, ent->_ent->entity_storage_memory, ENTITY_STORAGE_MEMORY_BUDGET );
     }
 
     ent->_ent->main_allocator = allocator;
@@ -212,42 +410,45 @@ ENT* ENT::StartUp( BXIAllocator* allocator )
     return ent;
 }
 
-void ENT::ShutDown( ENT** ent )
+void ENT::ShutDown( ENT** ent, ENTSystemInfo* system_info )
 {
     ENT* impl = ent[0];
     if( !impl )
         return;
 
-    BXIAllocator* main_alloc = impl->_ent->main_allocator;
-    TLSFAllocator::Destroy( &impl->_ent->entity_storate_allocator );
+    ProcessPendingComponents( impl->_ent, system_info );
 
+    BXIAllocator* main_alloc = impl->_ent->main_allocator;
+    TLSFAllocator::Destroy( &impl->_ent->entity_storage_allocator );
+    BX_FREE0( main_alloc, impl->_ent->entity_storage_memory );
+    
     impl->_ent->~ENTSystem();
     BX_DELETE0( main_alloc, ent[0] );
 }
 
 // ---
-ENTComponent::~ENTComponent()
+ENTIComponent::~ENTIComponent()
 {}
 
-void ENTComponent::Initialize( ENTSystemInfo* )
+void ENTIComponent::Initialize( ENTSystemInfo* )
 {}
 
-void ENTComponent::Deinitialize( ENTSystemInfo* )
+void ENTIComponent::Deinitialize( ENTSystemInfo* )
 {}
 
-void ENTComponent::Attach( ENTSystemInfo* )
+void ENTIComponent::Attach( ENTSystemInfo* )
 {}
 
-void ENTComponent::Detach( ENTSystemInfo* )
+void ENTIComponent::Detach( ENTSystemInfo* )
 {}
 
-void ENTComponent::ParallelStep( ENTSystemInfo*, uint64_t dt_us )
+void ENTIComponent::ParallelStep( ENTSystemInfo*, uint64_t dt_us )
 {}
 
-void ENTComponent::SerialStep( ENTSystemInfo*, ENTComponent* parent, uint64_t dt_us )
+void ENTIComponent::SerialStep( ENTSystemInfo*, ENTIComponent* parent, uint64_t dt_us )
 {}
 
-int32_t ENTComponent::Serialize( ENTSerializeInfo* info )
+int32_t ENTIComponent::Serialize( ENTSerializeInfo* info )
 {
     return 0;
 }

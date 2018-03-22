@@ -37,6 +37,7 @@ namespace array
     template< typename T > T&       back    ( array_t<T>& arr )       { return arr.data[arr.size-1]; }
     template< typename T > const T& back    ( const array_t<T>& arr ) { return arr.data[arr.size-1]; }
     template< typename T > void     clear   ( array_t<T>& arr )       { arr.size = 0; }
+    template< typename T > void     destroy ( array_t<T>& arr )       { arr.size = 0; array_internal::_Grow( arr, 0 ); }
 }///
 
 namespace array
@@ -45,7 +46,8 @@ namespace array
     {
         if( arr.size + 1 > arr.capacity )
         {
-            array_internal::_Grow( arr, arr.capacity * 2 + 8 );
+            const uint32_t new_capacity = (arr.capacity) ? arr.capacity * 2 : 8;
+            array_internal::_Grow( arr, new_capacity );
         }
 
         arr.data[arr.size] = value;
