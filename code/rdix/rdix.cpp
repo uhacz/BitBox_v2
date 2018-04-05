@@ -826,7 +826,7 @@ uint32_t AppendMatrix( RDIXTransformBuffer* buffer, const mat44_t& matrix )
 	dst->row1 = tmp.c1;
 	dst->row2 = tmp.c2;
 
-	tmp = inverse( tmp );
+	tmp = inverse( matrix );
 	rdix::MatrixIT* dst_it = buffer->MatrixIT( index );
 	dst_it->row0 = tmp.c0.xyz();
 	dst_it->row1 = tmp.c1.xyz();

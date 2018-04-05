@@ -57,8 +57,6 @@ namespace
     GFXMeshInstanceID g_ground_mesh = {};
 
     ENTEntityID entity;
-    
-
 }
 
 struct TestComponent : ENTIComponent
@@ -67,87 +65,68 @@ struct TestComponent : ENTIComponent
 
     virtual ~TestComponent() {}
 
-    virtual void ParallelStep( ENTSystemInfo*, uint64_t dt_us )
+    virtual void Initialize( ENTSystemInfo* sys ) override
     {
-        _test++;
+        poly_shape_t shape = {};
+        if( _shape_type == 0 )
+        {
+            poly_shape::createShpere( &shape, 8, sys->scratch_allocator );
+        }
+        else if( _shape_type == 1 )
+        {
+            poly_shape::createBox( &shape, 4, sys->scratch_allocator );
+        }
+        
+        if( shape.num_vertices )
+        {
+            GFXMeshDesc mesh_desc = {};
+            mesh_desc.rsouce = CreateRenderSourceFromShape( sys->gfx->Device(), &shape, sys->default_allocator );
+
+            GFXMeshID mesh_id = sys->gfx->CreateMesh( mesh_desc );
+
+            const char* mat_name = (strlen( _material_name.c_str() )) ? _material_name.c_str() : "red";
+            GFXMeshInstanceDesc meshi_desc = {};
+            meshi_desc.idmesh = mesh_id;
+            meshi_desc.idmaterial = sys->gfx->FindMaterial( mat_name );
+            _mesh_instance_id = sys->gfx->AddMeshToScene( sys->gfx_scene_id, meshi_desc, _mesh_pose );
+        }
+
+        poly_shape::deallocateShape( &shape );
+    }
+    virtual void Deinitialize( ENTSystemInfo* sys ) override
+    {
+        GFXMeshID meshid = sys->gfx->Mesh( _mesh_instance_id );
+        sys->gfx->RemoveMeshFromScene( _mesh_instance_id );
+        sys->gfx->DestroyMesh( meshid );
+    }
+
+    virtual void ParallelStep( ENTSystemInfo* sys, uint64_t dt_us )
+    {
+        const float dt_s = BXTime::Micro_2_Sec( dt_us );
+        _mesh_pose = _mesh_pose * mat44_t::rotationx( dt_s );
+        _mesh_pose = _mesh_pose * mat44_t::rotationy( dt_s * 0.5f );
+        _mesh_pose = _mesh_pose * mat44_t::rotationz( dt_s * 0.25f );
+        sys->gfx->SetWorldPose( _mesh_instance_id, _mesh_pose );
     }
     virtual void SerialStep( ENTSystemInfo*, ENTIComponent* parent, uint64_t dt_us )
     {
-        _test1++;
     }
 
-    uint32_t _test = 0;
-    uint64_t _test1 = 0;
+    mat44_t _mesh_pose = mat44_t::identity();
+    GFXMeshInstanceID _mesh_instance_id = { 0 };
+    uint32_t _shape_type = 1;
+    string_t _material_name;
+
 };
 
 RTTI_DEFINE_TYPE( TestComponent, {
-    RTTI_ATTR( TestComponent, _test, "test" ),
-    RTTI_ATTR( TestComponent, _test1, "test1" ),
+    RTTI_ATTR( TestComponent, _mesh_pose, "MeshPose" )->SetDefault( mat44_t::identity() ),
+    RTTI_ATTR( TestComponent, _shape_type, "ShapeType" )->SetDefault( 0u ),
+    RTTI_ATTR( TestComponent, _material_name, "MaterialName" )->SetDefault( "red" ),
 } );
-
-//struct SomeStruct
-//{
-//    string_t str { "some string" };
-//    uint32_t uint32 = 10;
-//    float flt = -99.f;
-//    GFXSceneID sceneid = { 11 };
-//    vec3_t vec = vec3_t( 1.f, 2.f, 3.f );
-//
-//    RTTI_DECLARE_TYPE( SomeStruct );
-//};
-//
-//#define RTTI_ATTR( type, field, name ) RTTI::Create( &type::field, name )
-//
-//RTTI_DEFINE_TYPE( SomeStruct, {
-//    RTTI_ATTR( SomeStruct, str, "string" )->SetDefault( "<empty stringa>" ),
-//    RTTI_ATTR( SomeStruct, uint32, "unsigned int" )->SetDefault( 666u ),
-//    RTTI_ATTR( SomeStruct, flt, "floating point" )->SetDefault( 999.f )->SetMin( -10.f )->SetMax( 11000.f ),
-//    RTTI_ATTR( SomeStruct, vec, "vector" )->SetDefault( vec3_t( 0.f, 6.f, 9.f ) ),
-//    RTTI_ATTR( SomeStruct, sceneid, "sceneId" ),
-//} );
-
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    //SomeStruct sstr;
-
-    //GFXSceneID sceneid = { 10 };
-    //bool res = RTTI::Value( &sceneid, sstr, "sceneId" );
-
-    //guid_t guID = GenerateGUID();
-
-    //string_t strval;
-    //RTTI::Value( &strval, sstr, "string" );
-
-    //const char* defstr = RTTI::Find<SomeStruct>( "string" )->Default<const char*>();
-
-
-    //float f;
-    //res = RTTI::Value( &f, sstr, "floating point" );
-    //const RTTIAttr* attr = RTTI::Find<SomeStruct>( "floating point" );
-    //const float minv = attr->Min<float>();
-    //const float maxv = attr->Max<float>();
-    //const float defv = attr->Default<float>();
-    //f = attr->Value<float>( &sstr );
-
-    //const uint32_t BUFFER_SIZE = 1024 * 64;
-    //uint8_t serialize_buffer[BUFFER_SIZE] = {};
-    //
-    //uint32_t bytes_written = RTTI::Serialize( serialize_buffer, BUFFER_SIZE, sstr );
-
-
-    //SomeStruct sstr1;
-    //memset( &sstr1, 0x00, sizeof( sstr1 ) );
-    //string::create( &sstr1.str, "lorem ipsum bla bla bla bla bla", allocator );
-    //uint32_t nb_unserialized = RTTI::Unserialize( &sstr1, serialize_buffer, bytes_written, allocator );
-
-
-    //const RTTITypeInfo* type_inf = RTTI::FindType( "SomeStruct" );
-
-    //SomeStruct* new_sstr = (SomeStruct*)(*type_inf->creator)(allocator);
-
-    
-
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
 	_filesystem->SetRoot( "x:/dev/assets/" );
 
@@ -160,8 +139,6 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     _gfx->StartUp( _rdidev, gfxdesc, _filesystem, allocator );
 
     _ent = ENT::StartUp( allocator );
-
-    
 
 
     g_idscene = _gfx->CreateScene( GFXSceneDesc() );
@@ -223,13 +200,13 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
         };
         const uint32_t n_materials = (uint32_t)sizeof_array( materials );
 
-        for( uint32_t i = 0; i < 4; ++i )
-        {
-            GFXMeshInstanceDesc desc = {};
-            desc.idmesh = g_idmesh[i % MAX_MESHES];
-            desc.idmaterial = _gfx->FindMaterial( materials[i % n_materials] );
-            g_meshes[i] = _gfx->AddMeshToScene( g_idscene, desc, mat44_t( quat_t::identity(), vec3_t( i * 4.f - 1.f, 0.f, 0.f ) ) );
-        }
+        //for( uint32_t i = 0; i < 4; ++i )
+        //{
+        //    GFXMeshInstanceDesc desc = {};
+        //    desc.idmesh = g_idmesh[i % MAX_MESHES];
+        //    desc.idmaterial = _gfx->FindMaterial( materials[i % n_materials] );
+        //    g_meshes[i] = _gfx->AddMeshToScene( g_idscene, desc, mat44_t( quat_t::identity(), vec3_t( i * 4.f - 1.f, 0.f, 0.f ) ) );
+        //}
 
         {
             GFXMeshInstanceDesc desc = {};
@@ -266,6 +243,14 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
+    _ent->DestroyEntity( entity );
+    {
+        ENTSystemInfo ent_sys_info = {};
+        ent_sys_info.ent = _ent;
+        ent_sys_info.gfx = _gfx;
+        ENT::ShutDown( &_ent, &ent_sys_info );
+    }
+
     _gfx->DestroyScene( g_idscene );
 
     for( uint32_t i = 0; i < MAX_MESHES; ++i )
@@ -277,15 +262,6 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     _gfx->DestroyMaterial( _gfx->FindMaterial( "blue" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "green" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "red" ) );
-    
-
-    _ent->DestroyEntity( entity );
-    {
-        ENTSystemInfo ent_sys_info = {};
-        ent_sys_info.ent = _ent;
-        ent_sys_info.gfx = _gfx;
-        ENT::ShutDown( &_ent, &ent_sys_info );
-    }
 
     _gfx->ShutDown();
     GFX::Free( &_gfx, allocator );
@@ -329,16 +305,19 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         ENTSystemInfo ent_sys_info = {};
         ent_sys_info.ent = _ent;
         ent_sys_info.gfx = _gfx;
+        ent_sys_info.default_allocator = allocator;
+        ent_sys_info.scratch_allocator = allocator;
+        ent_sys_info.gfx_scene_id = g_idscene;
         _ent->Step( &ent_sys_info, deltaTimeUS );
     }
 
 
     GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
-    static bool tmp = false;
-    if( !tmp )
+    //static bool tmp = false;
+    //if( !tmp )
     {
         _gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_camera_params, g_camera_matrices );
-        tmp = true;
+       // tmp = true;
     }
 
     

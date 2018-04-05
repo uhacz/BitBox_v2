@@ -74,6 +74,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "util", "code\util\util.vcxp
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "plugin", "code\plugin\plugin.vcxproj", "{1ADA1DD9-68BB-4E31-BDE3-DE1208F0D537}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "resource_manager", "code\resource_manager\resource_manager.vcxproj", "{1FAFF81C-CCB1-45CD-8187-802646CFF6E6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -204,6 +206,12 @@ Global
 		{1ADA1DD9-68BB-4E31-BDE3-DE1208F0D537}.Release|x64.ActiveCfg = Release|x64
 		{1ADA1DD9-68BB-4E31-BDE3-DE1208F0D537}.Release|x64.Build.0 = Release|x64
 		{1ADA1DD9-68BB-4E31-BDE3-DE1208F0D537}.Release|x86.ActiveCfg = Release|x64
+		{1FAFF81C-CCB1-45CD-8187-802646CFF6E6}.Debug|x64.ActiveCfg = Debug|x64
+		{1FAFF81C-CCB1-45CD-8187-802646CFF6E6}.Debug|x64.Build.0 = Debug|x64
+		{1FAFF81C-CCB1-45CD-8187-802646CFF6E6}.Debug|x86.ActiveCfg = Debug|x64
+		{1FAFF81C-CCB1-45CD-8187-802646CFF6E6}.Release|x64.ActiveCfg = Release|x64
+		{1FAFF81C-CCB1-45CD-8187-802646CFF6E6}.Release|x64.Build.0 = Release|x64
+		{1FAFF81C-CCB1-45CD-8187-802646CFF6E6}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -227,6 +235,7 @@ Global
 		{9FB86E9A-AE7F-4295-A36B-0EAD0DF7D749} = {F1CC5A53-273A-4388-AA77-ECC508226680}
 		{DAD0A7D3-3C93-4A28-ABB9-CEE0E38F18BF} = {C3173322-11A2-4345-9576-C5D94DD5B78B}
 		{1ADA1DD9-68BB-4E31-BDE3-DE1208F0D537} = {F1CC5A53-273A-4388-AA77-ECC508226680}
+		{1FAFF81C-CCB1-45CD-8187-802646CFF6E6} = {AADCCE2A-0F9D-4323-921D-23EEC1D57F43}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {61F283C3-90AE-4C79-90E3-053613F89E25}

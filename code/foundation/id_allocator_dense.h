@@ -12,7 +12,7 @@ namespace id_allocator
 
     inline bool has( id_allocator_dense_t* a, id_t id )
     {
-        return id.index < a->capacity && a->sparse_id[id.index].id == id.id;
+        return id.index < a->capacity && a->sparse_id[id.index].hash == id.hash;
     }
     inline uint16_t dense_index( id_allocator_dense_t* a, id_t id )
     {

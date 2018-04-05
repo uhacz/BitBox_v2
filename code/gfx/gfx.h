@@ -114,6 +114,7 @@ struct GFX_EXPORT GFX
 
     RDIXRenderTarget* Framebuffer();
     RDIXPipeline*     MaterialBase();
+    RDIDevice*        Device();
 
     // --- mesh management
     GFXMeshID CreateMesh( const GFXMeshDesc& desc );
@@ -133,6 +134,8 @@ struct GFX_EXPORT GFX
 
     GFXMeshInstanceID AddMeshToScene( GFXSceneID idscene, const GFXMeshInstanceDesc& desc, const mat44_t& pose );
     void              RemoveMeshFromScene( GFXMeshInstanceID idmeshi );
+    GFXMeshID         Mesh( GFXMeshInstanceID idmeshi );
+    void              SetWorldPose( GFXMeshInstanceID idmeshi, const mat44_t& pose );
 
     // --- sky
     void EnableSky( GFXSceneID idscene, bool value );

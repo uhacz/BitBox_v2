@@ -246,12 +246,19 @@ struct GFXSceneContainer
     bool IsSceneAlive( id_t id ) const { return id_table::has( idtable, id ); }
     bool IsMeshAlive( id_t idscene, id_t id ) const
     {
-        return ( IsSceneAlive( idscene ) && id_allocator::has( mesh_idalloc[idscene.index], id ) );
+        const bool scene_ok = IsSceneAlive( idscene );
+        const bool mesh_ok = id_allocator::has( mesh_idalloc[idscene.index], id );
+        return ( scene_ok && mesh_ok );
     }
 
     uint32_t SceneIndexSafe( id_t id )
     {
         return IsSceneAlive( id ) ? id.index : UINT32_MAX;
+    }
+    uint32_t MeshInstanceIndex( id_t idscene, id_t id )
+    {
+        SYS_ASSERT( IsMeshAlive( idscene, id ) );
+        return id_allocator::dense_index( mesh_idalloc[idscene.index], id );
     }
 };
 
@@ -583,6 +590,11 @@ RDIXPipeline* GFX::MaterialBase()
     return gfx->_material.pipeline.base;
 }
 
+RDIDevice* GFX::Device()
+{
+    return gfx->_rdidev;
+}
+
 GFXMeshID GFX::CreateMesh( const GFXMeshDesc& desc )
 {
     gfx->_mesh.lock.lock();
@@ -808,13 +820,39 @@ void GFX::RemoveMeshFromScene( GFXMeshInstanceID idmeshi )
     const id_t new_idinst = id_allocator::invalidate( sc.mesh_idalloc[idscene.index], idinst );
     sc.mesh_lock[idscene.index].unlock();
 
+    const uint32_t instance_index = sc.MeshInstanceIndex( idscene, new_idinst );
+    sc.mesh_data[idscene.index]->idinstance[instance_index] = new_idinst;
+
     GFXSceneContainer::DeadMeshInstanceID dead_id;
     dead_id.idscene = idscene;
-    dead_id.idinst = idinst;
+    dead_id.idinst = new_idinst;
 
     sc.mesh_to_remove_lock.lock();
     array::push_back( sc.mesh_to_remove, dead_id );
     sc.mesh_to_remove_lock.unlock();
+}
+
+GFXMeshID GFX::Mesh( GFXMeshInstanceID idmeshi )
+{
+    const id_t idscene = DecodeSceneID( idmeshi );
+    const id_t idinst = DecodeMeshInstanceID( idmeshi );
+
+    GFXSceneContainer& sc = gfx->_scene;
+    if( !sc.IsMeshAlive( idscene, idinst ) )
+        return { 0 };
+
+    return sc.mesh_data[idscene.index]->idmesh[idinst.index];
+}
+
+void GFX::SetWorldPose( GFXMeshInstanceID idmeshi, const mat44_t& pose )
+{
+    const id_t idscene = DecodeSceneID( idmeshi );
+    const id_t idinst = DecodeMeshInstanceID( idmeshi );
+
+    GFXSceneContainer& sc = gfx->_scene;
+    const uint32_t instance_index = sc.MeshInstanceIndex( idscene, idinst );
+    sc.mesh_data[idscene.index]->world_matrix[instance_index] = pose;
+
 }
 
 void GFX::EnableSky( GFXSceneID idscene, bool value )
