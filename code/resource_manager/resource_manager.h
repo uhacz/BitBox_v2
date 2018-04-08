@@ -27,6 +27,12 @@ struct RSMResourceID
     uint32_t i;
 };
 
+struct RSMResourceData
+{
+    void* pointer;
+    size_t size;
+    BXIAllocator* allocator;
+};
 inline bool IsAlive( RSMResourceID id ) { return id.i != 0; }
 
 struct RSM_EXPORT RSMLoader
@@ -34,8 +40,9 @@ struct RSM_EXPORT RSMLoader
     virtual ~RSMLoader() {}
 
     virtual const char* SupportedType() const = 0;
-    virtual bool Load( const void* data, uint32_t size ) = 0;
-    virtual void Unload( const void* data, uint32_t size ) = 0;
+    virtual bool IsBinary() const = 0;
+    virtual bool Load( RSMResourceData* out, const void* data, uint32_t size, BXIAllocator* allocator ) = 0;
+    virtual void Unload( void* data, uint32_t size, BXIAllocator* allocator ) = 0;
 };
 
 struct RSM_EXPORT RSM
@@ -44,12 +51,19 @@ struct RSM_EXPORT RSM
 
     RSMResourceID Load( const char* relative_path );
     RSMResourceID Create( const char* name, const void* data );
+    RSMEState::E  Wait( RSMResourceID rid );
 
     RSMResourceID Find( const char* relative_path );
     RSMResourceID Find( RSMResourceHash hash );
 
     void* Acquire( RSMResourceID id );
     void  Release( RSMResourceID id );
+
+    void* FindAndAcquire( const char* relative_path )
+    {
+        RSMResourceID rid = Find( relative_path );
+        return IsAlive( rid ) ? Acquire( rid ) : nullptr;
+    }
 
 
     // --- private

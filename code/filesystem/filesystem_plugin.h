@@ -38,6 +38,21 @@ struct BXFileWaitResult
 	BXFile file;
 };
 
+struct BXIFilesystem;
+struct BXPostLoadCallback
+{
+    typedef void( *CallbackFunction )(BXIFilesystem* filesystem, BXFileHandle hfile, BXEFileStatus::E status, void* user_data0, void* user_data1, void* user_data2 );
+    CallbackFunction callback = nullptr;
+    void* user_data0 = nullptr;
+    void* user_data1 = nullptr;
+    void* user_data2 = nullptr;
+
+    BXPostLoadCallback( CallbackFunction cb, void* ud0, void* ud1 = nullptr, void* ud2 = nullptr )
+        : callback( cb ), user_data0( ud0 ), user_data1( ud1 ), user_data2( ud2 ) {}
+
+    BXPostLoadCallback() = default;
+};
+
 // --- 
 struct BXIFilesystem
 {
@@ -51,7 +66,8 @@ struct BXIFilesystem
 
 	virtual void			 SetRoot  ( const char* absoluteDirPath ) = 0;
 	
-	virtual BXFileHandle	 LoadFile ( const char* relativePath, EMode mode, BXIAllocator* allocator = nullptr ) = 0;
+	virtual BXFileHandle	 LoadFile ( const char* relativePath, EMode mode, BXPostLoadCallback callback, BXIAllocator* allocator = nullptr ) = 0;
+    virtual BXFileHandle	 LoadFile ( const char* relativePath, EMode mode, BXIAllocator* allocator = nullptr ) { return LoadFile( relativePath, mode, BXPostLoadCallback{ nullptr,nullptr }, allocator ); }
 	virtual void			 CloseFile( BXFileHandle fhandle, bool freeData = true )							  = 0;
 	
 	virtual BXEFileStatus::E File     ( BXFile* file, BXFileHandle fhandle )            = 0;

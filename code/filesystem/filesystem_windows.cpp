@@ -80,7 +80,7 @@ bool FilesystemWindows::IsValid( BXFileHandle fhandle )
 	return id_table::has( _ids, id );
 }
 
-BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, EMode mode, BXIAllocator* allocator )
+BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, EMode mode, BXPostLoadCallback callback, BXIAllocator* allocator )
 {
 	if( !allocator )
 		allocator = _allocator;
@@ -97,6 +97,7 @@ BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, EMode mode, 
 	info._mode = mode;
 	info._name.Clear();
 	info._name.AppendRelativePath( relativePath );
+    info._callback = callback;
 	info._allocator = allocator;
 
 	BXFileHandle fhandle;
@@ -199,6 +200,10 @@ void FilesystemWindows::ThreadProc()
 
 				const BXEFileStatus::E file_status = (result == IO_OK) ? BXEFileStatus::READY : BXEFileStatus::NOT_FOUND;
 				_files_status[id.index].store( file_status );
+                if( info._callback.callback )
+                {
+                    (*info._callback.callback)(this, fhandle, file_status, info._callback.user_data0, info._callback.user_data1, info._callback.user_data2 );
+                }
 			}
 			else
 			{
