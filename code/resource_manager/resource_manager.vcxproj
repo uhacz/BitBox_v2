@@ -74,6 +74,11 @@
   <ItemGroup>
     <ClCompile Include="resource_manager.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\foundation\foundation.vcxproj">
+      <Project>{81e2ec47-feda-4c4d-a6f7-493c4b92d2ff}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -5,6 +5,7 @@
 #include <rdi_backend/rdi_backend.h>
 #include <rdix/rdix.h>
 
+struct RSM;
 struct GFX;
 struct ENT;
 struct BXIFilesystem;
@@ -22,6 +23,7 @@ private:
 
     GFX* _gfx = nullptr;
     ENT* _ent = nullptr;
+    RSM* _rsm = nullptr;
 };
 
 BX_APPLICATION_PLUGIN_DECLARE( asset_app )

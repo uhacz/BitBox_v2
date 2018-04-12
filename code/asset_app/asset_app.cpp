@@ -38,6 +38,7 @@
 #include "foundation\container_soa.h"
 #include "rtti\rtti.h"
 #include "util\guid.h"
+#include "resource_manager\resource_manager.h"
 
 namespace
 {
@@ -129,6 +130,8 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 {
 	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
 	_filesystem->SetRoot( "x:/dev/assets/" );
+
+    _rsm = RSM::StartUp( _filesystem, allocator );
 
 	BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
 	const BXWindow* window = win_plugin->GetWindow();
@@ -267,6 +270,8 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     GFX::Free( &_gfx, allocator );
 
 	::Shutdown( &_rdidev, &_rdicmdq, allocator );
+    
+    RSM::ShutDown( &_rsm );
     _filesystem = nullptr;
 }
 

@@ -20,7 +20,7 @@ struct BXIAllocator;
     {\
         __RTTI_Initializator_name()\
         {\
-            RTTI::RegisterType( #name, RTTITypeInfo( name::__attributes, name::__nb_attributes, name::__Creator ) );\
+            RTTI::RegisterType<name>( #name );\
         }\
     };\
     static __RTTI_Initializator_name __rtti_initializator_name = __RTTI_Initializator_name()
@@ -34,6 +34,39 @@ struct BXIAllocator;
 #else
 #define RTTI_EXPORT __declspec(dllimport)
 #endif
+
+union RTTITypeFlags
+{
+    uint32_t _all;
+    struct
+    {
+        uint32_t _is_pointer : 1;
+        uint32_t _is_pointer_default : 1;
+        uint32_t _is_pod : 1;
+        uint32_t _is_class : 1;
+        uint32_t _is_float : 1;
+        uint32_t _is_integral : 1;
+        uint32_t _is_enum : 1;
+        uint32_t _is_signed : 1;
+    };
+
+    template< typename T >
+    static RTTITypeFlags ReadType()
+    {
+        RTTITypeFlags flags;
+        flags._all = 0;
+        flags._is_pointer = std::is_pointer<T>::value;
+        flags._is_pod = std::is_pod<T>::value;
+        flags._is_float = std::is_floating_point<T>::value;
+        flags._is_integral = std::is_integral<T>::value;
+        flags._is_enum = std::is_enum<T>::value;
+        flags._is_signed = std::is_signed<T>::value;
+        flags._is_class = std::is_class<T>::value;
+
+        return flags;
+    };
+};
+
 
 struct RTTI_EXPORT RTTIAttr
 {
@@ -106,20 +139,7 @@ struct RTTI_EXPORT RTTIAttr
 
     size_t _defaults_storage_hashcode;
 
-    union 
-    {
-        uint32_t _flags;
-        struct  
-        {
-            uint32_t _is_pointer : 1;
-            uint32_t _is_pointer_default : 1;
-            uint32_t _is_pod : 1;
-            uint32_t _is_float : 1;
-            uint32_t _is_integral : 1;
-            uint32_t _is_enum : 1; 
-            uint32_t _is_signed : 1;
-        };
-    };
+    RTTITypeFlags _flags;
 };
 
 typedef void*(*RTTIObjectCreator)( BXIAllocator* allocator );
@@ -128,16 +148,43 @@ struct RTTI_EXPORT RTTITypeInfo
     const RTTIAttr* const* attributes;
     const uint32_t nb_attributes;
     RTTIObjectCreator creator;
+    RTTITypeFlags flags;
+    uint32_t _index;
 
     RTTITypeInfo();
-    RTTITypeInfo( const RTTIAttr* const* attribs, uint32_t nb_attribs, RTTIObjectCreator creator );
+    RTTITypeInfo( const RTTIAttr* const* attribs, uint32_t nb_attribs );
 };
 
 struct RTTI_EXPORT RTTI
 {
+    //
+    // --- types
+    //
     static void RegisterType( const char* name, const RTTITypeInfo& info );
-    static const RTTITypeInfo* FindType( const char* name );
+    
+    template< typename T >
+    static void _RegisterType( const char* name )
+    {
+        RTTITypeInfo info;
+        info.attributes = T::__attributes;
+        info.nb_attributes = T::__nb_attributes;
+        info.creator = T::__Creator;
+        info.flags = RTTITypeFlags::ReadType<T>();
 
+        RTTI::RegisterType( name, info );
+    }
+    
+    static const RTTITypeInfo* FindType( const char* name );
+    static const RTTITypeInfo* FindChildType( const std::type_info& parent_ti, const RTTITypeInfo* current );
+    template <typename T>
+    static const RTTITypeInfo* FindChildType( const RTTITypeInfo* current )
+    {
+        return FindChildType( typeid(T), current );
+    }
+
+    //
+    // --- attributes
+    //
     static RTTIAttr* AllocateAttribute(uint32_t size);
 
     template< typename P, typename T >
@@ -166,15 +213,8 @@ struct RTTI_EXPORT RTTI
         attr->_offset_max_value = UINT16_MAX;
         attr->_defaults_storage_hashcode = 0;
 
-        attr->_flags = 0;
-        attr->_is_pointer  = std::is_pointer<T>::value;
-        //attr->_is_pointer_default : 1;
-        attr->_is_pod      = std::is_pod<T>::value;
-        attr->_is_float    = std::is_floating_point<T>::value;
-        attr->_is_integral = std::is_integral<T>::value;
-        attr->_is_enum     = std::is_enum<T>::value;
-        attr->_is_signed   = std::is_signed<T>::value;
-
+        attr->_flags = RTTITypeFlags::ReadType<T>();
+        
         return attr;
     }
 

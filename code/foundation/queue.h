@@ -30,6 +30,11 @@ namespace queue_internal
 
 namespace queue
 {
+    template< typename T > void      set_allocator( queue_t<T>& q, BXIAllocator* allocator )
+    {
+        SYS_ASSERT( q.data.data == nullptr );
+        q.data.allocator = allocator;
+    }
     template< typename T > const T&  front( const queue_t<T>& q ) { return q[0]; }
     template< typename T > T&		 front( queue_t<T>& q )       { return q[0]; }
     template< typename T > const T&  back ( const queue_t<T>& q ) { return q[q.size - 1]; }

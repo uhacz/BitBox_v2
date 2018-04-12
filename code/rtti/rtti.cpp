@@ -110,16 +110,18 @@ static uint64_t ComputeTypeNameHash( const char* name )
     return uint64_t( hi ) << 32 | uint64_t( lo );
 }
 
-RTTITypeInfo::RTTITypeInfo( const RTTIAttr* const* attribs, uint32_t nb_attribs, RTTIObjectCreator creat )
+RTTITypeInfo::RTTITypeInfo( const RTTIAttr* const* attribs, uint32_t nb_attribs )
     : attributes( attribs )
     , nb_attributes( nb_attribs )
-    , creator( creat )
+    , creator( nullptr )
+    , _index( UINT32_MAX )
 {}
 
 RTTITypeInfo::RTTITypeInfo()
     : attributes(nullptr)
     , nb_attributes(0)
     , creator(nullptr)
+    , _index(UINT32_MAX)
 {}
 
 void RTTI::RegisterType( const char* name, const RTTITypeInfo& info )
@@ -131,7 +133,10 @@ void RTTI::RegisterType( const char* name, const RTTITypeInfo& info )
 #endif
 
     const uint32_t index = __nb_types++;
-    new( __types + index ) RTTITypeInfo( info.attributes, info.nb_attributes, info.creator );
+    RTTITypeInfo* new_info = __types + index;
+    memcpy( new_info, &info, sizeof( RTTITypeInfo ) );
+    new_info->_index = index;
+
     __typed_name_hash[index] = hash;
 }
 
@@ -147,6 +152,11 @@ const RTTITypeInfo* RTTI::FindType( const char* name )
     }
 
     return nullptr;
+}
+
+const RTTITypeInfo* RTTI::FindChildType( const std::type_info& parent_ti, const RTTITypeInfo* current )
+{
+
 }
 
 // ---

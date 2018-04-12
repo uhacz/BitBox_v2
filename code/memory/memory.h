@@ -14,12 +14,19 @@
 #include <new>
 #define BX_NEW(a, T, ...) (new ((a)->Alloc( a, sizeof(T), ALIGNOF(T))) T(__VA_ARGS__))
 
+
+template< typename T >
+void InvokeDestructor( T* obj )
+{
+    obj->~T();
+}
+
 template<typename T>
 void BX_DELETE( BXIAllocator* alloc, T* ptr )
 {
     if( ptr )
     {
-        ptr->~T();
+        InvokeDestructor( ptr );
         BX_FREE( alloc, ptr );
     }
 }
