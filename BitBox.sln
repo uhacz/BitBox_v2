@@ -51,6 +51,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gfx", "code\gfx\gfx.vcxproj", "{8333F018-A7D7-4BA7-8E2C-44655620860F}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "asset_app", "code\asset_app\asset_app.vcxproj", "{3E76CDE2-37E8-4E04-94C2-19EEFED7F69F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1FAFF81C-CCB1-45CD-8187-802646CFF6E6} = {1FAFF81C-CCB1-45CD-8187-802646CFF6E6}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "shaders", "code\shaders\shaders.vcxproj", "{42304925-462C-4B9F-922F-8AE0E02F2CCC}"
 EndProject

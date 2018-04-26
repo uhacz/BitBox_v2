@@ -7,6 +7,7 @@
 #include <util/bbox.h>
 
 #include <rdi_backend/rdi_backend_type.h>
+#include <resource_manager/resource_manager.h>
 
 #include <mutex>
 
@@ -15,6 +16,7 @@ namespace gfx_shader
 {
 #include <shaders/hlsl/samplers.h>
 #include <shaders/hlsl/material_data.h>
+
 }//
 
 struct BXIFilesystem;
@@ -58,11 +60,11 @@ namespace GFXERenderMask
     };
 }//
 
-struct GFXMeshDesc
-{
-    const char* filename = nullptr;
-    RDIXRenderSource* rsouce = nullptr;
-};
+//struct GFXMeshDesc
+//{
+//    const char* filename = nullptr;
+//    RDIXRenderSource* rsouce = nullptr;
+//};
 
 struct GFXMaterialDesc
 {
@@ -86,7 +88,7 @@ struct GFXSceneDesc
 using GFXDrawCallback = void( RDICommandQueue* cmdq, void* userdata );
 struct GFXMeshInstanceDesc
 {
-    GFXMeshID idmesh = { 0 };
+    RSMResourceID idmesh_resource = { 0 };
     GFXMaterialID idmaterial = { 0 };
 
     GFXDrawCallback* callback = nullptr;
@@ -110,16 +112,16 @@ struct GFX_EXPORT GFX
     static void Free( GFX** gfx, BXIAllocator* allocator );
 
     void StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
-    void ShutDown();
+    void ShutDown( RSM* rsm );
 
     RDIXRenderTarget* Framebuffer();
     RDIXPipeline*     MaterialBase();
     RDIDevice*        Device();
 
     // --- mesh management
-    GFXMeshID CreateMesh( const GFXMeshDesc& desc );
-    void      DestroyMesh( GFXMeshID idmesh, bool destroy_resource = true );
-    RDIXRenderSource* RenderSource( GFXMeshID idmesh );
+    //GFXMeshID CreateMesh( const GFXMeshDesc& desc );
+    //void      DestroyMesh( GFXMeshID idmesh, bool destroy_resource = true );
+    //RDIXRenderSource* RenderSource( GFXMeshID idmesh );
 
     // --- material system
     GFXMaterialID        CreateMaterial( const char* name, const GFXMaterialDesc& desc );
@@ -134,7 +136,7 @@ struct GFX_EXPORT GFX
 
     GFXMeshInstanceID AddMeshToScene( GFXSceneID idscene, const GFXMeshInstanceDesc& desc, const mat44_t& pose );
     void              RemoveMeshFromScene( GFXMeshInstanceID idmeshi );
-    GFXMeshID         Mesh( GFXMeshInstanceID idmeshi );
+    RSMResourceID     Mesh( GFXMeshInstanceID idmeshi );
     void              SetWorldPose( GFXMeshInstanceID idmeshi, const mat44_t& pose );
 
     // --- sky
@@ -144,7 +146,7 @@ struct GFX_EXPORT GFX
     const GFXSkyParams& SkyParams( GFXSceneID idscene ) const;
 
     // --- frame
-    GFXFrameContext* BeginFrame( RDICommandQueue* cmdq );
+    GFXFrameContext* BeginFrame( RDICommandQueue* cmdq, RSM* rsm );
     void             EndFrame( GFXFrameContext* fctx );
     void             RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect );
 

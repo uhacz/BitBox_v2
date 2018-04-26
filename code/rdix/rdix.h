@@ -92,6 +92,7 @@ struct RDIXTransformBufferBindInfo
 RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformBufferDesc& desc, BXIAllocator* allocator );
 void				 DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAllocator* allocator );
 void				 ClearTransformBuffer( RDIXTransformBuffer* buffer );
+uint32_t             GetDataCapacity( RDIXTransformBuffer* buffer );
 uint32_t			 AppendMatrix( RDIXTransformBuffer* buffer, const struct mat44_t& matrix );
 
 void				 UploadTransformBuffer( RDICommandQueue* cmdq, RDIXTransformBuffer* buffer );

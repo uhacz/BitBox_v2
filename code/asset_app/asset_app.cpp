@@ -39,6 +39,8 @@
 #include "rtti\rtti.h"
 #include "util\guid.h"
 #include "resource_manager\resource_manager.h"
+#include "util\random\random.h"
+#include "util\grid.h"
 
 namespace
 {
@@ -49,15 +51,16 @@ namespace
 
     GFXCameraInputContext g_camera_input_ctx = {};
 
-    constexpr uint32_t MAX_MESHES = 3;
+    constexpr uint32_t MAX_MESHES = 2;
     constexpr uint32_t MAX_MESH_INSTANCES = 32;
 
     GFXSceneID g_idscene = { 0 };
-    GFXMeshID g_idmesh[MAX_MESHES] = {};
+    RSMResourceID g_idmesh[MAX_MESHES] = {};
     GFXMeshInstanceID g_meshes[MAX_MESH_INSTANCES] = {};
     GFXMeshInstanceID g_ground_mesh = {};
 
-    ENTEntityID entity;
+    static constexpr uint32_t NUM_ENTITIES = 1024*8;
+    ENTEntityID entity[NUM_ENTITIES];
 }
 
 struct TestComponent : ENTIComponent
@@ -68,42 +71,48 @@ struct TestComponent : ENTIComponent
 
     virtual void Initialize( ENTSystemInfo* sys ) override
     {
-        poly_shape_t shape = {};
-        if( _shape_type == 0 )
-        {
-            poly_shape::createShpere( &shape, 8, sys->scratch_allocator );
-        }
-        else if( _shape_type == 1 )
-        {
-            poly_shape::createBox( &shape, 4, sys->scratch_allocator );
-        }
+        static uint32_t instance_index = 0;
+
+        const char* shapes[] = { "box", "sphere", "box", "sphere", "box", "sphere", "box", "sphere", "box", "sphere", "box", "sphere" };
+        const char* materials[] = { "red", "green", "blue" };
+        const uint32_t nb_shapes = (uint32_t)sizeof_array( shapes );
+        const uint32_t nb_materials = (uint32_t)sizeof_array( materials );
         
-        if( shape.num_vertices )
-        {
-            GFXMeshDesc mesh_desc = {};
-            mesh_desc.rsouce = CreateRenderSourceFromShape( sys->gfx->Device(), &shape, sys->default_allocator );
+        uint32_t i = instance_index++;
+        random_t rnd = RandomInit( (uint64_t)this + i*192, 0xda3e39cb94b95bdbULL );
+        
+        for( uint32_t dummy = 0; dummy <= i; ++dummy )
+            Random( &rnd );
 
-            GFXMeshID mesh_id = sys->gfx->CreateMesh( mesh_desc );
+        const uint32_t shape_index = Random( &rnd ) % nb_shapes;
+        const uint32_t material_index = Random( &rnd, nb_materials );
+        
+        const uint32_t grid_w = 32;
+        const uint32_t grid_h = 16;
+        const uint32_t grid_d = 32;
 
-            const char* mat_name = (strlen( _material_name.c_str() )) ? _material_name.c_str() : "red";
-            GFXMeshInstanceDesc meshi_desc = {};
-            meshi_desc.idmesh = mesh_id;
-            meshi_desc.idmaterial = sys->gfx->FindMaterial( mat_name );
-            _mesh_instance_id = sys->gfx->AddMeshToScene( sys->gfx_scene_id, meshi_desc, _mesh_pose );
-        }
+        grid_t grid( grid_w, grid_h, grid_d );
+        i = i % grid.NumCells();
 
-        poly_shape::deallocateShape( &shape );
+        uint32_t coords[3];
+        grid.Coords( coords, i );
+
+        _mesh_pose.set_translation( vec3_t( coords[0], coords[1], coords[2] ) * 2.f );
+        
+        const char* mat_name = materials[material_index]; // (strlen( _material_name.c_str() )) ? _material_name.c_str() : "red";
+        GFXMeshInstanceDesc meshi_desc = {};
+        meshi_desc.idmesh_resource = sys->rsm->Find( shapes[shape_index] );
+        meshi_desc.idmaterial = sys->gfx->FindMaterial( mat_name );
+        _mesh_instance_id = sys->gfx->AddMeshToScene( sys->gfx_scene_id, meshi_desc, _mesh_pose );
     }
     virtual void Deinitialize( ENTSystemInfo* sys ) override
     {
-        GFXMeshID meshid = sys->gfx->Mesh( _mesh_instance_id );
         sys->gfx->RemoveMeshFromScene( _mesh_instance_id );
-        sys->gfx->DestroyMesh( meshid );
     }
 
     virtual void ParallelStep( ENTSystemInfo* sys, uint64_t dt_us )
     {
-        const float dt_s = BXTime::Micro_2_Sec( dt_us );
+        const float dt_s = (float)BXTime::Micro_2_Sec( dt_us );
         _mesh_pose = _mesh_pose * mat44_t::rotationx( dt_s );
         _mesh_pose = _mesh_pose * mat44_t::rotationy( dt_s * 0.5f );
         _mesh_pose = _mesh_pose * mat44_t::rotationz( dt_s * 0.25f );
@@ -120,7 +129,7 @@ struct TestComponent : ENTIComponent
 
 };
 
-RTTI_DEFINE_TYPE( TestComponent, {
+RTTI_DEFINE_TYPE_DERIVED( TestComponent, ENTIComponent, {
     RTTI_ATTR( TestComponent, _mesh_pose, "MeshPose" )->SetDefault( mat44_t::identity() ),
     RTTI_ATTR( TestComponent, _shape_type, "ShapeType" )->SetDefault( 0u ),
     RTTI_ATTR( TestComponent, _material_name, "MaterialName" )->SetDefault( "red" ),
@@ -143,8 +152,10 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
     _ent = ENT::StartUp( allocator );
 
-
-    g_idscene = _gfx->CreateScene( GFXSceneDesc() );
+    GFXSceneDesc desc;
+    desc.max_renderables = NUM_ENTITIES + 1;
+    desc.name = "test scene";
+    g_idscene = _gfx->CreateScene( desc );
 	
     { // red
         GFXMaterialDesc mat;
@@ -180,16 +191,16 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     }
 
     {
+        const char* names[] = { "sphere", "box" };
+
         poly_shape_t shapes[MAX_MESHES] = {};
         poly_shape::createShpere( &shapes[0], 8, allocator );
         poly_shape::createBox( &shapes[1], 4, allocator );
-        poly_shape::createShpere( &shapes[2], 2, allocator );
         const uint32_t n_shapes = (uint32_t)sizeof_array( shapes );
         for( uint32_t i = 0; i < n_shapes; ++i )
         {
-            GFXMeshDesc desc;
-            desc.rsouce = CreateRenderSourceFromShape( _rdidev, &shapes[i], allocator );
-            g_idmesh[i] = _gfx->CreateMesh( desc );
+            RDIXRenderSource* rsource = CreateRenderSourceFromShape( _rdidev, &shapes[i], allocator );
+            g_idmesh[i] = _rsm->Create( names[i], rsource, allocator );
         }
         for( uint32_t i = 0; i < n_shapes; ++i )
         {
@@ -214,16 +225,19 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
         {
             GFXMeshInstanceDesc desc = {};
             desc.idmaterial = _gfx->FindMaterial( "rough" );
-            desc.idmesh = g_idmesh[1];
+            desc.idmesh_resource = g_idmesh[1];
             mat44_t pose = mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) );
             pose = append_scale( pose, vec3_t( 100.f, 0.5f, 100.f ) );
 
             g_ground_mesh = _gfx->AddMeshToScene( g_idscene, desc, pose );
         }
 
-        entity = _ent->CreateEntity();
-        _ent->CreateComponent( entity, "TestComponent" );
-	}
+        for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
+        {
+            entity[i] = _ent->CreateEntity();
+            _ent->CreateComponent( entity[i], "TestComponent" );
+        }
+    }
     
     {// sky
         BXFileWaitResult filewait = _filesystem->LoadFileSync( _filesystem, "texture/sky_cubemap.dds", BXIFilesystem::FILE_MODE_BIN, allocator );
@@ -246,7 +260,8 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    _ent->DestroyEntity( entity );
+    for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
+        _ent->DestroyEntity( entity[i] );
     {
         ENTSystemInfo ent_sys_info = {};
         ent_sys_info.ent = _ent;
@@ -258,7 +273,7 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 
     for( uint32_t i = 0; i < MAX_MESHES; ++i )
     {
-        _gfx->DestroyMesh( g_idmesh[i] );
+        _rsm->Release( g_idmesh[i] );
     }
 
     _gfx->DestroyMaterial( _gfx->FindMaterial( "rough" ) );
@@ -266,7 +281,7 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     _gfx->DestroyMaterial( _gfx->FindMaterial( "green" ) );
     _gfx->DestroyMaterial( _gfx->FindMaterial( "red" ) );
 
-    _gfx->ShutDown();
+    _gfx->ShutDown( _rsm );
     GFX::Free( &_gfx, allocator );
 
 	::Shutdown( &_rdidev, &_rdicmdq, allocator );
@@ -310,6 +325,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         ENTSystemInfo ent_sys_info = {};
         ent_sys_info.ent = _ent;
         ent_sys_info.gfx = _gfx;
+        ent_sys_info.rsm = _rsm;
         ent_sys_info.default_allocator = allocator;
         ent_sys_info.scratch_allocator = allocator;
         ent_sys_info.gfx_scene_id = g_idscene;
@@ -317,7 +333,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     }
 
 
-    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
+    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq, _rsm );
     //static bool tmp = false;
     //if( !tmp )
     {

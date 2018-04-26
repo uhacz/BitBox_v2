@@ -775,22 +775,20 @@ RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformB
 {
 	// m -> matrix
 	// mit -> matrix inverse transpose
-
-	const RDIFormat gpu_format_m = RDIFormat::Float4();
-	const RDIFormat gpu_format_mit = RDIFormat::Float3();
-
-	const uint32_t num_elements = 3 * desc.capacity; // 3 x float4 (matrix) or 3 x float3 (matrix it)
-
 	uint32_t mem_size = sizeof( RDIXTransformBuffer );
-	mem_size += num_elements * gpu_format_m.ByteWidth();
-	mem_size += num_elements * gpu_format_mit.ByteWidth();
+	mem_size += desc.capacity * sizeof( rdix::Matrix );
+	mem_size += desc.capacity * sizeof( rdix::MatrixIT );
 
 	RDIXTransformBuffer* buffer = (RDIXTransformBuffer*)BX_MALLOC( allocator, mem_size, 16 );
 	memset( buffer, 0x00, mem_size );
 
+    const RDIFormat gpu_format_m = RDIFormat::Float4();
+    const RDIFormat gpu_format_mit = RDIFormat::Float3();
+    const uint32_t num_elements = 3 * desc.capacity; // 3 x float4 (matrix) or 3 x float3 (matrix it)
+
 	buffer->gpu_instance_offset = CreateConstantBuffer( dev, 16 );
-	buffer->gpu_buffer_matrix = CreateBufferRO( dev, desc.capacity, gpu_format_m, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
-	buffer->gpu_buffer_matrix_it = CreateBufferRO( dev, desc.capacity, gpu_format_mit, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
+	buffer->gpu_buffer_matrix = CreateBufferRO( dev, num_elements, gpu_format_m, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
+	buffer->gpu_buffer_matrix_it = CreateBufferRO( dev, num_elements, gpu_format_mit, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
 	buffer->max_elements = desc.capacity;
 
 	return buffer;
@@ -811,6 +809,11 @@ void DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAl
 void ClearTransformBuffer( RDIXTransformBuffer* buffer )
 {
 	buffer->num_elements = 0;
+}
+
+uint32_t GetDataCapacity( RDIXTransformBuffer* buffer )
+{
+    return buffer->max_elements * sizeof( mat44_t );
 }
 
 uint32_t AppendMatrix( RDIXTransformBuffer* buffer, const mat44_t& matrix )

@@ -8,34 +8,20 @@
 #include "foundation/container_soa.h"
 #include "rtti/rtti.h"
 
-static constexpr uint32_t MAX_ENTITIES = 64;
-static constexpr uint32_t MAX_COMPONENTS = 2048;
+static constexpr uint32_t MAX_ENTITIES = 1024*32;
+static constexpr uint32_t MAX_COMPONENTS = MAX_ENTITIES * 10;
 static constexpr uint32_t ENTITY_DEFAULT_NB_COMPONENTS = 8;
 
 static constexpr uint32_t ENTITY_STORAGE_MEMORY_BUDGET = 1024 * 1024;
 
 static constexpr ENTCComponent::TYPE COMP_TYPE_CUSTOM = ENTCComponent::RESERVED;
 
-//union ENTComponentData
-//{
-//    ENTIComponent* custom_impl;
-//    ENTCComponent::ID system_id;
-//};
 struct ENTComponentStorage
 {
     ENTIComponent*      impl[MAX_COMPONENTS] = {};
-    //ENTCComponent::TYPE type[MAX_COMPONENTS] = {};
     ENTComponentID      component_id[MAX_COMPONENTS] = {};
     ENTEntityID         entity_id[MAX_COMPONENTS] = {};
 };
-
-//using ENTComponentIDArray = array_t<ENTComponentID>;
-//void PrepareComponentArray( ENTComponentIDArray* ca, BXIAllocator* allocator )
-//{
-//    SYS_ASSERT( ca->capacity == 0 );
-//    ca->allocator = allocator;
-//    array::reserve( *ca, ENTITY_DEFAULT_NB_COMPONENTS );
-//}
 
 static inline bool operator == ( const ENTComponentID& a, const ENTComponentID& b )
 {
@@ -71,51 +57,13 @@ void IDArrayRemove( array_t<T>* arr, const T& value )
     }
 }
 
-//void ComponentIDArrayPushBack( ENTComponentIDArray* ca, ENTComponentID comp_id, BXIAllocator* allocator )
-//{
-//    if( ca->capacity == 0 )
-//        PrepareComponentArray( ca, allocator );
-//
-//    const uint32_t found = array::find( ca->begin(), ca->size, comp_id );
-//    if( found == array::npos )
-//    {
-//        array::push_back( *ca, comp_id );
-//    }
-//}
-//void ComponentIDArrayRemove( ENTComponentIDArray* ca, ENTComponentID comp_id )
-//{
-//    if( ca->size == 0 )
-//        return;
-//
-//    const uint32_t found = array::find( ca->begin(), ca->size, comp_id );
-//    if( found != array::npos )
-//    {
-//        array::erase( *ca, found );
-//    }
-//}
-
 struct ENTEntityStorage
 {
-    //ENTComponentIDArray system;
     array_t<ENTCComponent::TYPE> system_type;
     array_t<ENTCComponent::ID > system_id;
     array_t<ENTComponentID> custom;
 };
 
-//void EntityComponentAdd( ENTEntityStorage* storage, ENTComponentID comp_id, ENTCComponent::TYPE type, BXIAllocator* allocator )
-//{
-//    if( type == COMP_TYPE_CUSTOM )
-//        ComponentIDArrayPushBack( &storage->custom, comp_id, allocator );
-//    else
-//        ComponentIDArrayPushBack( &storage->system, comp_id, allocator );
-//}
-//void EntityComponentRemove( ENTEntityStorage* storage, ENTComponentID comp_id, ENTCComponent::TYPE type )
-//{
-//    if( type == COMP_TYPE_CUSTOM )
-//        ComponentIDArrayRemove( &storage->custom, comp_id );
-//    else
-//        ComponentIDArrayRemove( &storage->system, comp_id );
-//}
 
 struct ENTPendingComponent
 {
@@ -171,18 +119,9 @@ namespace
     {
         const id_t iid = { id.i };
         SYS_ASSERT( id_table::has( sys->comp_id_alloc, iid ) );
-        //SYS_ASSERT( sys->comp_storage.type[iid.index] == COMP_TYPE_CUSTOM );
 
         return sys->comp_storage.impl[iid.index]; // .custom_impl;
     }
-    //ENTCComponent::ID GetSystemComponent( ENT::ENTSystem* sys, ENTComponentID id )
-    //{
-    //    const id_t iid = { id.i };
-    //    SYS_ASSERT( id_table::has( sys->comp_id_alloc, iid ) );
-    //    SYS_ASSERT( sys->comp_storage.type[iid.index] != COMP_TYPE_CUSTOM );
-
-    //    return sys->comp_storage.data[iid.index].system_id;
-    //}
 
     void DeinitializeAndDestroyComponent( ENT::ENTSystem* ent, ENTComponentID comp_id, ENTSystemInfo* system_info )
     {
@@ -331,18 +270,6 @@ namespace
 
 void ENT::AttachComponent( ENTEntityID eid, ENTComponentExtID ext_id )
 {
-    //id_t id = {};
-    //{
-    //    scope_mutex_t guard( _ent->component_lock );
-    //    id = id_table::create( _ent->comp_id_alloc );
-    //}
-
-    //ENTComponentStorage& cstorage = _ent->comp_storage;
-    //cstorage.component_id[id.index].i = id.hash;
-    //cstorage.data[id.index].system_id = cid;
-    //cstorage.type[id.index] = type;
-    //cstorage.entity_id[id.index] = eid;
-
     ENTPendingComponent pending = {};
     pending.entity_id = eid;
     pending.comp_id.i = 0;
@@ -350,8 +277,6 @@ void ENT::AttachComponent( ENTEntityID eid, ENTComponentExtID ext_id )
     pending.to_add = 1;
 
     AddPendingComponent( _ent, pending );
-
-    //return { id.hash };
 }
 
 void ENT::DetachComponent( ENTEntityID eid, ENTComponentExtID ext_id )

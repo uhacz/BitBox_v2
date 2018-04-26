@@ -1,19 +1,25 @@
 #include "resource_manager.h"
+#include "resource_loader.h"
 #include <foundation/containers.h>
 #include <foundation/hashmap.h>
 #include <foundation/queue.h>
 #include <foundation/id_table.h>
-
+#include <foundation/tag.h>
+#include <foundation/debug.h>
 #include <foundation/hash.h>
 #include <foundation/string_util.h>
-#include <filesystem/filesystem_plugin.h>
 
 #include <foundation/thread/mutex.h>
 #include <foundation/thread/semaphore.h>
 
+#include <filesystem/filesystem_plugin.h>
+
+#include <rtti/rtti.h>
+
 #include <atomic>
-#include "foundation/tag.h"
-#include "foundation/debug.h"
+
+
+
 
 #define RSM_LOG_STATUS 1
 
@@ -138,7 +144,7 @@ static void BackgroundThread( RSM::RSMImpl* rsm )
                 
                 RSMResourceData* data = &rsm->rdata[pending.id.index];                
                 loader->Unload( data );
-                BX_FREE( data->allocator, data->pointer );
+                BX_FREE( data->allocator, (void*)data->pointer );
 
                 string::free( &rsm->rname[pending.id.index] );
                 rsm->rhash[pending.id.index]         = { 0 };
@@ -155,6 +161,11 @@ static void BackgroundThread( RSM::RSMImpl* rsm )
     }
 }
 
+static inline uint32_t ResourceTypeHash( const char* type )
+{
+    const uint32_t seed = tag32_t( "RSMR" );
+    return murmur3_hash32( type, (uint32_t)strlen( type ), seed );
+}
 RSMResourceHash RSM::CreateHash( const char* relative_path )
 {
     const size_t NAME_SIZE = 256;
@@ -172,10 +183,10 @@ RSMResourceHash RSM::CreateHash( const char* relative_path )
         string::token( str, type, TYPE_SIZE - 1, " .\n" );
     }
 
-    const uint32_t seed = tag32_t( "RSMR" );
+    
 
     RSMResourceHashDecoder hash_decoder;
-    hash_decoder.type = murmur3_hash32( type, (uint32_t)strlen( type ), seed );
+    hash_decoder.type = ResourceTypeHash( type );
     hash_decoder.name = murmur3_hash32( name, (uint32_t)strlen( name ), hash_decoder.type );
     
     return { hash_decoder.hash };
@@ -301,7 +312,7 @@ RSMResourceID RSM::Load( const char* relative_path )
     return result;
 }
 
-RSMResourceID RSM::Create( const char* name, const void* data )
+RSMResourceID RSM::Create( const char* name, const void* data, BXIAllocator* data_allocator )
 {
     const RSMResourceHash rhash = CreateHash( name );
 
@@ -327,7 +338,7 @@ RSMResourceID RSM::Create( const char* name, const void* data )
     RSMResourceData& rdata = _rsm->rdata[index];
     rdata.pointer = (void*)data;
     rdata.size = 0;
-    rdata.allocator = nullptr;
+    rdata.allocator = data_allocator;
 
     _rsm->rstate[index] = RSMEState::READY;
 
@@ -348,19 +359,19 @@ RSMEState::E RSM::Wait( RSMResourceID rid )
     return _rsm->rstate[id.index];
 }
 
-RSMResourceID RSM::Find( const char* relative_path )
+RSMResourceID RSM::Find( const char* relative_path ) const
 {
     const RSMResourceHash rhash = CreateHash( relative_path );
     return Find( rhash );
 }
 
-RSMResourceID RSM::Find( RSMResourceHash rhash )
+RSMResourceID RSM::Find( RSMResourceHash rhash ) const
 {
     id_t id = LookupFind( _rsm, rhash );
     return { id.hash };
 }
 
-void* RSM::Get( RSMResourceID id )
+const void* RSM::Get( RSMResourceID id ) const
 {
     id_t iid = { id.i };
     return _rsm->IsAlive( iid ) ? _rsm->rdata[iid.index].pointer : nullptr;
@@ -413,6 +424,24 @@ RSM* RSM::StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator )
     queue::set_allocator( rsm->to_load, rsm->pending_resources_allocator );
     queue::set_allocator( rsm->to_unload, rsm->pending_resources_allocator );
 
+    { // find all loaders
+        const RTTITypeInfo* typeinfo = nullptr;
+        while( typeinfo = RTTI::FindChildType<RSMLoader>( typeinfo ) )
+        {
+            SYS_ASSERT( rsm->nb_loaders < RSM::RSMImpl::MAX_TYPES );
+            RSMLoader* loader = (RSMLoader*)(*typeinfo->creator)(rsm->main_allocator);
+            if( loader )
+            {
+                const uint32_t loader_index = rsm->nb_loaders++;
+                rsm->loader[loader_index] = loader;
+
+                const char* type = loader->SupportedType();
+                rsm->loader_supported_type[loader_index] = ResourceTypeHash( type );
+            }
+        }
+    }
+
+
     rsm->is_running = 1;
     rsm->background_thread = std::thread( BackgroundThread, rsm );
    
@@ -430,6 +459,12 @@ void RSM::ShutDown( RSM** ptr )
     rsm->is_running = 0;
     rsm->sema.signal();
     rsm->background_thread.join();
+
+    for( uint32_t i = 0; i < rsm->nb_loaders; ++i )
+    {
+        BX_DELETE0( rsm->main_allocator, rsm->loader[i] );
+    }
+
 
     if( id_table::size( rsm->id_alloc ) > 0 )
     {

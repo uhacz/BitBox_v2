@@ -25,8 +25,7 @@ namespace gfx_shader
 }//
 
 static constexpr uint32_t MAX_SCENES = 4;
-static constexpr uint32_t MAX_MESHES = 128;
-static constexpr uint32_t MAX_MESH_INSTANCES = 1024;
+static constexpr uint32_t MAX_MESH_INSTANCES = 1024*64;
 static constexpr uint32_t MAX_MATERIALS = 64;
 
 namespace GFXEFramebuffer
@@ -46,6 +45,7 @@ namespace GFXEFramebuffer
 struct GFXFrameContext
 {
     RDICommandQueue* cmdq = nullptr;
+    RSM* rsm = nullptr;
 
     bool Valid() const { return cmdq != nullptr; }
 };
@@ -180,32 +180,13 @@ struct GFXMaterialContainer
     bool IsAlive( id_t id ) const { return id_table::has( idtable, id ); }
 };
 
-struct GFXMeshContainer
-{
-    enum EMeshFlag : uint8_t
-    {
-        FROM_FILE = BIT_OFFSET( 0 ),
-        DESTROY_RESOURCE = BIT_OFFSET( 4 ),
-    };
-
-    mutex_t lock;
-    id_table_t<MAX_MESHES> idtable;
-    RDIXRenderSource* rsource[MAX_MESHES] = {};
-    uint8_t flags[MAX_MESHES] = {};
-
-    mutex_t to_remove_lock;
-    IDArray to_remove;
-
-    bool IsAlive( id_t id ) const { return id_table::has( idtable, id ); }
-};
-
 struct GFXSceneContainer
 {
     struct MeshData
     {
         mat44_t* world_matrix;
         uint32_t* transform_buffer_instance_index;
-        GFXMeshID* idmesh;
+        RSMResourceID* idmesh_resource;
         GFXMaterialID* idmat;
         id_t* idinstance;
     };
@@ -281,14 +262,13 @@ struct GFXSystem
     uint32_t _sync_interval = 0;
 
     GFXMaterialContainer _material;
-    GFXMeshContainer     _mesh;
     GFXSceneContainer    _scene;
     GFXSceneID           _scene_lookup[MAX_SCENES][MAX_MESH_INSTANCES] = {};
     GFXPostProcess       _postprocess;
 
 
     GFXMaterialID _fallback_idmaterial;
-    GFXMeshID     _fallback_idmesh;
+    RDIXRenderSource* _fallback_mesh = nullptr;
 
     gfx_shader::ShaderSamplers _samplers;
     gfx_shader::MaterialFrameData _material_fdata;
@@ -298,13 +278,13 @@ struct GFXSystem
 
 namespace gfx_internal
 {
-    void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst )
+    void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst, RSM* rsm )
     {
         if( !sc->IsMeshAlive( idscene, idinst ) )
             return;
 
         const uint32_t scene_index = idscene.index;
-        const uint32_t data_index = id_allocator::dense_index( sc->mesh_idalloc[scene_index], idinst );
+        const uint32_t data_index = sc->MeshInstanceIndex( idscene, idinst );// id_allocator::dense_index( sc->mesh_idalloc[scene_index], idinst );
 
         {
             std::lock_guard<mutex_t> lck( sc->mesh_lock[scene_index] );
@@ -313,13 +293,15 @@ namespace gfx_internal
             SYS_ASSERT( remove_info.copy_data_from_index == data_index );
             (void)remove_info;
 
+
             // here should be material and mesh release, or sth like that...
+            rsm->Release( sc->mesh_data[scene_index]->idmesh_resource[data_index] );
 
             container_soa::remove_packed( sc->mesh_data[scene_index], data_index );
         }
     }
 
-    void RemovePendingObjects( GFXSystem* gfx )
+    void RemovePendingObjects( GFXSystem* gfx, RSM* rsm )
     {
         {// mesh instances
             GFXSceneContainer& sc = gfx->_scene;
@@ -329,7 +311,7 @@ namespace gfx_internal
                 GFXSceneContainer::DeadMeshInstanceID dead_id = array::back( sc.mesh_to_remove );
                 array::pop_back( sc.mesh_to_remove );
 
-                ReleaseMeshInstance( &sc, dead_id.idscene, dead_id.idinst );
+                ReleaseMeshInstance( &sc, dead_id.idscene, dead_id.idinst, rsm );
             }
         }
 
@@ -345,7 +327,7 @@ namespace gfx_internal
                 {
                     const uint32_t last_index = container_soa::size( sc.mesh_data[id.index] ) - 1;
                     const id_t idinst = sc.mesh_data[id.index]->idinstance[last_index];
-                    ReleaseMeshInstance( &sc, id, idinst );
+                    ReleaseMeshInstance( &sc, id, idinst, rsm );
                 }
 
                 Destroy( &sc.sky_data[id.index].sky_texture );
@@ -362,36 +344,36 @@ namespace gfx_internal
             }
         }
 
-        {// -- meshes
-            GFXMeshContainer& mesh = gfx->_mesh;
-            std::lock_guard<mutex_t> lock_guard( mesh.to_remove_lock );
-            while( !array::empty( mesh.to_remove ) )
-            {
-                id_t id = array::back( mesh.to_remove );
-                array::pop_back( mesh.to_remove );
+        //{// -- meshes
+        //    GFXMeshContainer& mesh = gfx->_mesh;
+        //    std::lock_guard<mutex_t> lock_guard( mesh.to_remove_lock );
+        //    while( !array::empty( mesh.to_remove ) )
+        //    {
+        //        id_t id = array::back( mesh.to_remove );
+        //        array::pop_back( mesh.to_remove );
 
-                if( mesh.flags[id.index] & GFXMeshContainer::DESTROY_RESOURCE )
-                {
-                    if( mesh.flags[id.index] & GFXMeshContainer::FROM_FILE )
-                    {
-                        SYS_NOT_IMPLEMENTED;
-                    }
-                    else
-                    {
-                        DestroyRenderSource( gfx->_rdidev, &mesh.rsource[id.index] );
-                    }
-                }
+        //        if( mesh.flags[id.index] & GFXMeshContainer::DESTROY_RESOURCE )
+        //        {
+        //            if( mesh.flags[id.index] & GFXMeshContainer::FROM_FILE )
+        //            {
+        //                SYS_NOT_IMPLEMENTED;
+        //            }
+        //            else
+        //            {
+        //                DestroyRenderSource( gfx->_rdidev, &mesh.rsource[id.index] );
+        //            }
+        //        }
 
-                mesh.rsource[id.index] = nullptr;
-                mesh.flags[id.index] = 0;
+        //        mesh.rsource[id.index] = nullptr;
+        //        mesh.flags[id.index] = 0;
 
 
-                {
-                    std::lock_guard<mutex_t> lck( mesh.lock );
-                    id_table::destroy( mesh.idtable, id );
-                }
-            }
-        }
+        //        {
+        //            std::lock_guard<mutex_t> lck( mesh.lock );
+        //            id_table::destroy( mesh.idtable, id );
+        //        }
+        //    }
+        //}
 
         {// --- materials
             GFXMaterialContainer& mc = gfx->_material;
@@ -531,22 +513,17 @@ void GFX::StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesyste
 
     { // fallback mesh
         par_shapes_mesh* shape = par_shapes_create_parametric_sphere( 64, 64, FLT_EPSILON );
-        
-        GFXMeshDesc mesh_desc = {};
-        mesh_desc.rsouce = CreateRenderSourceFromShape( dev, shape, allocator );
-        gfx->_fallback_idmesh = CreateMesh( mesh_desc );
-
+        gfx->_fallback_mesh = CreateRenderSourceFromShape( dev, shape, allocator );
         par_shapes_free_mesh( shape );
     }
 }
 
 
-void GFX::ShutDown()
+void GFX::ShutDown( RSM* rsm )
 {
-
-    DestroyMesh( gfx->_fallback_idmesh );
+    DestroyRenderSource( gfx->_rdidev, &gfx->_fallback_mesh );
     DestroyMaterial( gfx->_fallback_idmaterial );
-    gfx_internal::RemovePendingObjects( gfx );
+    gfx_internal::RemovePendingObjects( gfx, rsm );
 
     RDIDevice* dev = gfx->_rdidev;
     BXIAllocator* allocator = gfx->_allocator;
@@ -595,50 +572,50 @@ RDIDevice* GFX::Device()
     return gfx->_rdidev;
 }
 
-GFXMeshID GFX::CreateMesh( const GFXMeshDesc& desc )
-{
-    gfx->_mesh.lock.lock();
-    id_t id = id_table::create( gfx->_mesh.idtable );
-    gfx->_mesh.lock.unlock();
-
-    SYS_ASSERT( desc.filename || desc.rsouce );
-
-    if( desc.filename )
-    {
-        SYS_NOT_IMPLEMENTED;
-    }
-    else
-    {
-        gfx->_mesh.rsource[id.index] = desc.rsouce;
-    }
-
-    return { id.hash };
-}
-
-void GFX::DestroyMesh( GFXMeshID idmesh, bool destroy_resource )
-{
-    id_t id = { idmesh.i };
-    if( !id_table::has( gfx->_mesh.idtable, id ) )
-        return;
-
-    gfx->_mesh.lock.lock();
-    id = id_table::invalidate( gfx->_mesh.idtable, id );
-    gfx->_mesh.lock.unlock();
-
-    if( destroy_resource )
-        gfx->_mesh.flags[id.index] |= GFXMeshContainer::DESTROY_RESOURCE;
-
-    gfx->_mesh.to_remove_lock.lock();
-    array::push_back( gfx->_mesh.to_remove, id );
-    gfx->_mesh.to_remove_lock.unlock();
-}
-
-RDIXRenderSource* GFX::RenderSource( GFXMeshID idmesh )
-{
-    const id_t id = { idmesh.i };
-
-    return (gfx->_mesh.IsAlive( id )) ? gfx->_mesh.rsource[id.index] : nullptr;
-}
+//GFXMeshID GFX::CreateMesh( const GFXMeshDesc& desc )
+//{
+//    gfx->_mesh.lock.lock();
+//    id_t id = id_table::create( gfx->_mesh.idtable );
+//    gfx->_mesh.lock.unlock();
+//
+//    SYS_ASSERT( desc.filename || desc.rsouce );
+//
+//    if( desc.filename )
+//    {
+//        SYS_NOT_IMPLEMENTED;
+//    }
+//    else
+//    {
+//        gfx->_mesh.rsource[id.index] = desc.rsouce;
+//    }
+//
+//    return { id.hash };
+//}
+//
+//void GFX::DestroyMesh( GFXMeshID idmesh, bool destroy_resource )
+//{
+//    id_t id = { idmesh.i };
+//    if( !id_table::has( gfx->_mesh.idtable, id ) )
+//        return;
+//
+//    gfx->_mesh.lock.lock();
+//    id = id_table::invalidate( gfx->_mesh.idtable, id );
+//    gfx->_mesh.lock.unlock();
+//
+//    if( destroy_resource )
+//        gfx->_mesh.flags[id.index] |= GFXMeshContainer::DESTROY_RESOURCE;
+//
+//    gfx->_mesh.to_remove_lock.lock();
+//    array::push_back( gfx->_mesh.to_remove, id );
+//    gfx->_mesh.to_remove_lock.unlock();
+//}
+//
+//RDIXRenderSource* GFX::RenderSource( GFXMeshID idmesh )
+//{
+//    const id_t id = { idmesh.i };
+//
+//    return (gfx->_mesh.IsAlive( id )) ? gfx->_mesh.rsource[id.index] : nullptr;
+//}
 
 GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc )
 {
@@ -715,12 +692,15 @@ GFXSceneID GFX::CreateScene( const GFXSceneDesc& desc )
     RDIXTransformBufferDesc transform_buffer_desc = {};
     transform_buffer_desc.capacity = desc.max_renderables;
     RDIXTransformBuffer* transform_buffer = CreateTransformBuffer( gfx->_rdidev, transform_buffer_desc, gfx->_allocator );
-    RDIXCommandBuffer* command_buffer = CreateCommandBuffer( gfx->_allocator, desc.max_renderables * 4 + 10 );
+
+    const uint32_t cmd_buffer_size = desc.max_renderables * 8 + 10;
+    const uint32_t cmd_buffer_data_size = GetDataCapacity( transform_buffer );
+    RDIXCommandBuffer* command_buffer = CreateCommandBuffer( gfx->_allocator, cmd_buffer_size, cmd_buffer_data_size );
     
     container_soa_desc_t cnt_desc;
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, world_matrix );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, transform_buffer_instance_index );
-    container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmesh );
+    container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmesh_resource );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmat );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idinstance );
 
@@ -782,9 +762,9 @@ GFXMeshInstanceID GFX::AddMeshToScene( GFXSceneID idscene, const GFXMeshInstance
 
     const uint32_t index = idscn.index;
 
-    GFXMeshID idmesh = desc.idmesh;
-    if( !gfx->_mesh.IsAlive( { idmesh.i } ) )
-        idmesh = gfx->_fallback_idmesh;
+    //GFXMeshID idmesh = desc.idmesh;
+    //if( !gfx->_mesh.IsAlive( { idmesh.i } ) )
+    //    idmesh = gfx->_fallback_idmesh;
 
     GFXMaterialID idmat = desc.idmaterial;
     if( !gfx->_material.IsAlive( { idmat.i } ) )
@@ -800,7 +780,7 @@ GFXMeshInstanceID GFX::AddMeshToScene( GFXSceneID idscene, const GFXMeshInstance
     
     SYS_ASSERT( data_index == idinst.index );
     data->world_matrix[idinst.index] = pose;
-    data->idmesh[idinst.index] = idmesh;
+    data->idmesh_resource[idinst.index] = desc.idmesh_resource;
     data->idmat[idinst.index] = idmat;
     data->idinstance[idinst.index] = idinst;
 
@@ -832,7 +812,7 @@ void GFX::RemoveMeshFromScene( GFXMeshInstanceID idmeshi )
     sc.mesh_to_remove_lock.unlock();
 }
 
-GFXMeshID GFX::Mesh( GFXMeshInstanceID idmeshi )
+RSMResourceID GFX::Mesh( GFXMeshInstanceID idmeshi )
 {
     const id_t idscene = DecodeSceneID( idmeshi );
     const id_t idinst = DecodeMeshInstanceID( idmeshi );
@@ -841,7 +821,7 @@ GFXMeshID GFX::Mesh( GFXMeshInstanceID idmeshi )
     if( !sc.IsMeshAlive( idscene, idinst ) )
         return { 0 };
 
-    return sc.mesh_data[idscene.index]->idmesh[idinst.index];
+    return sc.mesh_data[idscene.index]->idmesh_resource[idinst.index];
 }
 
 void GFX::SetWorldPose( GFXMeshInstanceID idmeshi, const mat44_t& pose )
@@ -904,15 +884,16 @@ const GFXSkyParams& GFX::SkyParams( GFXSceneID idscene ) const
     return sc.sky_data[index].params;
 }
 
-GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq )
+GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq, RSM* rsm )
 {
-    gfx_internal::RemovePendingObjects( gfx );
+    gfx_internal::RemovePendingObjects( gfx, rsm );
 
     ClearState( cmdq );
     SetSamplers( cmdq, (RDISampler*)&gfx->_samplers._point, 0, 4, RDIEPipeline::ALL_STAGES_MASK );
 
     SYS_ASSERT( !gfx->_frame_ctx.Valid() );
     gfx->_frame_ctx.cmdq = cmdq;
+    gfx->_frame_ctx.rsm = rsm;
     return &gfx->_frame_ctx;
 }
 
@@ -922,6 +903,7 @@ void GFX::EndFrame( GFXFrameContext* fctx )
 
     ::Swap( fctx->cmdq, gfx->_sync_interval );
     fctx->cmdq = nullptr;
+    fctx->rsm = nullptr;
 }
 void GFX::RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect )
 {
@@ -976,7 +958,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
     bind_info.stage_mask = RDIEPipeline::VERTEX_MASK;
 
     const uint32_t num_meshes = container_soa::size( sc.mesh_data[scene_index] );
-    const array_span_t<GFXMeshID> idmesh_array( sc.mesh_data[scene_index]->idmesh, num_meshes );
+    const array_span_t<RSMResourceID> idmesh_array( sc.mesh_data[scene_index]->idmesh_resource, num_meshes );
     const array_span_t<GFXMaterialID> idmat_array( sc.mesh_data[scene_index]->idmat, num_meshes );
     const array_span_t<mat44_t> matrix_array( sc.mesh_data[scene_index]->world_matrix, num_meshes );
     
@@ -997,7 +979,8 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
         chain.AppendCmd<RDIXSetResourcesCmd>( MaterialBinding( idmat_array[i] ) );
         
         RDIXDrawRenderSourceCmd* draw_cmd = chain.AppendCmd<RDIXDrawRenderSourceCmd>();
-        draw_cmd->rsource = RenderSource( idmesh_array[i] );
+        RDIXRenderSource* rsource = (RDIXRenderSource*)fctx->rsm->Get( idmesh_array[i] );
+        draw_cmd->rsource = rsource ? rsource : gfx->_fallback_mesh;
         draw_cmd->num_instances = 1;
 
         chain.Submit( DRAW_ELEMENTS );

@@ -6,25 +6,69 @@
 
 struct BXIAllocator;
 
-#define RTTI_DECLARE_TYPE( name ) \
-    static const char* TypeName() { return #name; };\
-    static const RTTIAttr* __attributes[];\
-    static const uint32_t __nb_attributes;\
-    static void* __Creator( BXIAllocator* allocator )
 //
-#define RTTI_DEFINE_TYPE( name, ... )\
+// declaration
+//
+#define _RTTI_DECLARE_ATTRIBUTES_()\
+    static const RTTIAttr* __attributes[];\
+    static const uint32_t __nb_attributes
+
+#define _RTTI_DECLARE_TYPE_( name )\
+    static const std::type_info& __parent_type;\
+    static const char* TypeName() { return #name; };\
+    static void* __Creator( BXIAllocator* allocator )
+
+#define RTTI_DECLARE_TYPE( name ) \
+    _RTTI_DECLARE_TYPE_( name );\
+    _RTTI_DECLARE_ATTRIBUTES_()
+
+#define RTTI_DECLARE_TYPE_DERIVED(name )\
+    _RTTI_DECLARE_TYPE_( name, parent );\
+    _RTTI_DECLARE_ATTRIBUTES_()
+
+
+//
+// definition
+//
+#define _RTTI_DEFINE_ATTRIBUTES_( name, ... )\
     const RTTIAttr* name::__attributes[] = __VA_ARGS__;\
-    const uint32_t name::__nb_attributes = (uint32_t)sizeof_array( name::__attributes );\
+    const uint32_t name::__nb_attributes = (uint32_t)sizeof_array( name::__attributes )
+
+#define _RTTI_DEFINE_NO_ATTRIBUTES_(name)\
+    const RTTIAttr* name::__attributes[];\
+    const uint32_t name::__nb_attributes = 0
+
+#define _RTTI_DEFINE_TYPE_( name, parent )\
+    const std::type_info& name::__parent_type = typeid(parent);\
     void* name::__Creator( BXIAllocator* allocator ) { return BX_NEW( allocator, name ); }\
-    struct __RTTI_Initializator_name\
+    struct __RTTI_Initializator_##name\
     {\
-        __RTTI_Initializator_name()\
+        __RTTI_Initializator_##name()\
         {\
-            RTTI::RegisterType<name>( #name );\
+            RTTI::_RegisterType<name>( #name );\
         }\
     };\
-    static __RTTI_Initializator_name __rtti_initializator_name = __RTTI_Initializator_name()
-    
+    static __RTTI_Initializator_##name __rtti_initializator_##name = __RTTI_Initializator_##name()
+
+
+
+#define RTTI_DEFINE_TYPE( name, ... )\
+    _RTTI_DEFINE_ATTRIBUTES_( name, __VA_ARGS__ );\
+    _RTTI_DEFINE_TYPE_(name, void )
+
+#define RTTI_DEFINE_TYPE_DERIVED( name, parent, ... )\
+    _RTTI_DEFINE_ATTRIBUTES_( name, __VA_ARGS__ );\
+    _RTTI_DEFINE_TYPE_(name, parent )
+
+#define RTTI_DEFINE_EMPTY_TYPE( name )\
+    _RTTI_DEFINE_NO_ATTRIBUTES_(name);\
+    _RTTI_DEFINE_TYPE_(name, void )
+
+#define RTTI_DEFINE_EMPTY_TYPE_DERIVED( name, parent )\
+    _RTTI_DEFINE_NO_ATTRIBUTES_(name);\
+    _RTTI_DEFINE_TYPE_(name, parent )
+
+
 
 #define RTTI_ATTR( type, field, name ) RTTI::Create( &type::field, name )
 
@@ -78,7 +122,7 @@ struct RTTI_EXPORT RTTIAttr
     template< typename T >
     RTTIAttr* SetDefault( const T& value ) 
     { 
-        _is_pointer_default = std::is_pointer< std::decay<decltype(value)>::type >::value;
+        _flags._is_pointer_default = std::is_pointer< std::decay<decltype(value)>::type >::value;
         return SetDefaultData( &value, (uint32_t)sizeof(T), typeid( std::decay<decltype(value)>::type )); 
     }
 
@@ -145,14 +189,18 @@ struct RTTI_EXPORT RTTIAttr
 typedef void*(*RTTIObjectCreator)( BXIAllocator* allocator );
 struct RTTI_EXPORT RTTITypeInfo
 {
+    const std::type_info& type_info;
+    const std::type_info& parent_info;
+    RTTIObjectCreator creator;
+    
     const RTTIAttr* const* attributes;
     const uint32_t nb_attributes;
-    RTTIObjectCreator creator;
+
     RTTITypeFlags flags;
     uint32_t _index;
 
     RTTITypeInfo();
-    RTTITypeInfo( const RTTIAttr* const* attribs, uint32_t nb_attribs );
+    RTTITypeInfo( const std::type_info& ti, const std::type_info& parent_ti, const RTTIAttr* const* attribs, uint32_t nb_attribs );
 };
 
 struct RTTI_EXPORT RTTI
@@ -165,9 +213,7 @@ struct RTTI_EXPORT RTTI
     template< typename T >
     static void _RegisterType( const char* name )
     {
-        RTTITypeInfo info;
-        info.attributes = T::__attributes;
-        info.nb_attributes = T::__nb_attributes;
+        RTTITypeInfo info = RTTITypeInfo( typeid(T), T::__parent_type, T::__attributes, T::__nb_attributes );
         info.creator = T::__Creator;
         info.flags = RTTITypeFlags::ReadType<T>();
 
@@ -176,10 +222,10 @@ struct RTTI_EXPORT RTTI
     
     static const RTTITypeInfo* FindType( const char* name );
     static const RTTITypeInfo* FindChildType( const std::type_info& parent_ti, const RTTITypeInfo* current );
-    template <typename T>
+    template <typename Tparent>
     static const RTTITypeInfo* FindChildType( const RTTITypeInfo* current )
     {
-        return FindChildType( typeid(T), current );
+        return FindChildType( typeid(Tparent), current );
     }
 
     //

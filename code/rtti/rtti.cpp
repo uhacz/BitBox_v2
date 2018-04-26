@@ -11,6 +11,7 @@
 
 static constexpr uint32_t MAX_TYPES = 1024 * 16;
 static uint64_t __typed_name_hash[MAX_TYPES] = {};
+
 static RTTITypeInfo __types[MAX_TYPES] = {};
 static uint32_t __nb_types = 0;
 
@@ -110,15 +111,19 @@ static uint64_t ComputeTypeNameHash( const char* name )
     return uint64_t( hi ) << 32 | uint64_t( lo );
 }
 
-RTTITypeInfo::RTTITypeInfo( const RTTIAttr* const* attribs, uint32_t nb_attribs )
-    : attributes( attribs )
-    , nb_attributes( nb_attribs )
+RTTITypeInfo::RTTITypeInfo( const std::type_info& ti, const std::type_info& parent_ti, const RTTIAttr* const* attribs, uint32_t nb_attribs )
+    : type_info( ti )
+    , parent_info( parent_ti )
     , creator( nullptr )
+    , attributes( attribs )
+    , nb_attributes( nb_attribs )
     , _index( UINT32_MAX )
 {}
 
 RTTITypeInfo::RTTITypeInfo()
-    : attributes(nullptr)
+    : type_info( typeid(void) )
+    , parent_info( typeid(void) )
+    , attributes(nullptr)
     , nb_attributes(0)
     , creator(nullptr)
     , _index(UINT32_MAX)
@@ -156,7 +161,20 @@ const RTTITypeInfo* RTTI::FindType( const char* name )
 
 const RTTITypeInfo* RTTI::FindChildType( const std::type_info& parent_ti, const RTTITypeInfo* current )
 {
+    uint32_t current_index = (current) ? current->_index + 1 : 0;
+    if( current_index >= __nb_types )
+        return nullptr;
+    
+    while( current_index < __nb_types )
+    {
+        const RTTITypeInfo& type = __types[current_index];
+        if( type.parent_info == parent_ti )
+            return &type;
 
+        ++current_index;
+    }
+
+    return nullptr;
 }
 
 // ---
