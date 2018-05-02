@@ -3,7 +3,15 @@
 static void* TLFSAlloc( BXIAllocator* _this, size_t size, size_t align )
 {
     TLSFAllocator* allocator = (TLSFAllocator*)_this;
-    return tlsf_memalign( allocator->_tlsf, align, size );
+    void* ptr = tlsf_memalign( allocator->_tlsf, align, size );
+#if _DEBUG
+    if( !ptr )
+    {
+        // OOM
+        __debugbreak();
+    }
+#endif
+    return ptr;
 }
 static void TLSFFree( BXIAllocator* _this, void* ptr )
 {

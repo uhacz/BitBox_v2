@@ -12,8 +12,8 @@ struct BXIAllocator;
 
 namespace ENTCComponent
 {
-    using ID = uint32_t;
-    using TYPE = uint16_t;
+    using ID = uint64_t;
+    using TYPE = uint32_t;
     static constexpr TYPE RESERVED   = 0xFFFF;
     static constexpr TYPE INVALID    = 0;
     static constexpr TYPE GFX_CAMERA = 1;
@@ -26,14 +26,19 @@ struct ENTComponentID { uint32_t i; };
 
 struct ENTComponentExtID
 {
-    ENTCComponent::TYPE type = ENTCComponent::INVALID;
-    ENTCComponent::ID   id   = 0;
-
-    ENTComponentExtID() {}
+    ENTCComponent::TYPE type;
+    ENTCComponent::ID   id;
+    
+    ENTComponentExtID()
+        : type( ENTCComponent::INVALID ), id( 0 ) {}
     ENTComponentExtID( ENTCComponent::TYPE t, ENTCComponent::ID i )
-        : type( t ), id( i )
-    {}
+        : type( t ), id( i ) {}
 };
+inline bool operator == ( const ENTComponentExtID& a, const ENTComponentExtID& b )
+{
+    return a.type == b.type && a.id == b.id;
+}
+
 
 
 struct ENT;
@@ -58,24 +63,29 @@ struct ENT_EXPORT ENTIComponent
 {
     virtual ~ENTIComponent();
 
-    virtual void Initialize( ENTSystemInfo* );
-    virtual void Deinitialize( ENTSystemInfo* );
-    virtual void Attach( ENTSystemInfo* );
-    virtual void Detach( ENTSystemInfo* );
-    virtual void ParallelStep( ENTSystemInfo* , uint64_t dt_us );
-    virtual void SerialStep( ENTSystemInfo*, ENTIComponent* parent, uint64_t dt_us );
-    virtual int32_t Serialize( ENTSerializeInfo* info );
+    virtual void Initialize( ENTEntityID entity_id, ENTSystemInfo* sys );
+    virtual void Deinitialize( ENTEntityID entity_id, ENTSystemInfo* sys );
+    virtual void Attach( ENTEntityID entity_id, ENTSystemInfo* sys );
+    virtual void Detach( ENTEntityID entity_id, ENTSystemInfo* sys );
+    virtual void ParallelStep( ENTEntityID entity_id, ENTSystemInfo* sys, uint64_t dt_us );
+    virtual void SerialStep( ENTEntityID entity_id, ENTIComponent* parent, ENTSystemInfo* sys, uint64_t dt_us );
+    virtual int32_t Serialize( ENTEntityID entity_id, ENTSerializeInfo* sys );
 };
 
 struct ENT_EXPORT ENT
 {
     ENTEntityID CreateEntity();
     void        DestroyEntity( ENTEntityID entity_id );
+    bool        IsAlive( ENTEntityID entity_id );
 
     void           AttachComponent( ENTEntityID eid, ENTComponentExtID ext_id );
     void           DetachComponent( ENTEntityID eid, ENTComponentExtID ext_id );
     ENTComponentID CreateComponent( ENTEntityID eid, const char* type_name );
     void           DestroyComponent( ENTEntityID eid, ENTComponentID cid );
+
+    array_span_t<ENTComponentExtID> GetSystemComponents( ENTEntityID eid );
+    array_span_t<ENTComponentID> GetCustomComponents( ENTEntityID eid );
+    ENTIComponent* ResolveComponent( ENTComponentID cid );
 
     void Step( ENTSystemInfo* system_info, uint64_t dt_us );
     

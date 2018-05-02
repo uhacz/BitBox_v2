@@ -69,7 +69,7 @@ struct TestComponent : ENTIComponent
 
     virtual ~TestComponent() {}
 
-    virtual void Initialize( ENTSystemInfo* sys ) override
+    virtual void Initialize( ENTEntityID entity_id, ENTSystemInfo* sys ) override
     {
         static uint32_t instance_index = 0;
 
@@ -103,27 +103,45 @@ struct TestComponent : ENTIComponent
         GFXMeshInstanceDesc meshi_desc = {};
         meshi_desc.idmesh_resource = sys->rsm->Find( shapes[shape_index] );
         meshi_desc.idmaterial = sys->gfx->FindMaterial( mat_name );
-        _mesh_instance_id = sys->gfx->AddMeshToScene( sys->gfx_scene_id, meshi_desc, _mesh_pose );
+        GFXMeshInstanceID mesh_instance_id = sys->gfx->AddMeshToScene( sys->gfx_scene_id, meshi_desc, _mesh_pose );
+        sys->ent->AttachComponent( entity_id, ENTComponentExtID( ENTCComponent::GFX_MESH, mesh_instance_id.i ) );
     }
-    virtual void Deinitialize( ENTSystemInfo* sys ) override
+    virtual void Deinitialize( ENTEntityID entity_id, ENTSystemInfo* sys ) override
     {
-        sys->gfx->RemoveMeshFromScene( _mesh_instance_id );
+        const array_span_t<ENTComponentExtID> system_components = sys->ent->GetSystemComponents( entity_id );
+        for( uint32_t i = 0; i < system_components.size(); ++i )
+        {
+            if( system_components[i].type == ENTCComponent::GFX_MESH )
+            {
+                sys->gfx->RemoveMeshFromScene( { system_components[i].id } );
+            }
+        }
     }
 
-    virtual void ParallelStep( ENTSystemInfo* sys, uint64_t dt_us )
+    virtual void ParallelStep( ENTEntityID entity_id, ENTSystemInfo* sys, uint64_t dt_us )
     {
         const float dt_s = (float)BXTime::Micro_2_Sec( dt_us );
-        _mesh_pose = _mesh_pose * mat44_t::rotationx( dt_s );
-        _mesh_pose = _mesh_pose * mat44_t::rotationy( dt_s * 0.5f );
-        _mesh_pose = _mesh_pose * mat44_t::rotationz( dt_s * 0.25f );
-        sys->gfx->SetWorldPose( _mesh_instance_id, _mesh_pose );
+
+        const array_span_t<ENTComponentExtID> system_components = sys->ent->GetSystemComponents( entity_id );
+        for( uint32_t i = 0; i < system_components.size(); ++i )
+        {
+            if( system_components[i].type == ENTCComponent::GFX_MESH )
+            {
+                _mesh_pose = _mesh_pose * mat44_t::rotationx( dt_s );
+                _mesh_pose = _mesh_pose * mat44_t::rotationy( dt_s * 0.5f );
+                _mesh_pose = _mesh_pose * mat44_t::rotationz( dt_s * 0.25f );
+                sys->gfx->SetWorldPose( { system_components[i].id }, _mesh_pose );
+            }
+        }
+
+        
     }
-    virtual void SerialStep( ENTSystemInfo*, ENTIComponent* parent, uint64_t dt_us )
+    virtual void SerialStep( ENTEntityID entity_id, ENTIComponent* parent, ENTSystemInfo*, uint64_t dt_us )
     {
     }
 
     mat44_t _mesh_pose = mat44_t::identity();
-    GFXMeshInstanceID _mesh_instance_id = { 0 };
+    //GFXMeshInstanceID _mesh_instance_id = { 0 };
     uint32_t _shape_type = 1;
     string_t _material_name;
 

@@ -12,7 +12,7 @@ static constexpr uint32_t MAX_ENTITIES = 1024*32;
 static constexpr uint32_t MAX_COMPONENTS = MAX_ENTITIES * 10;
 static constexpr uint32_t ENTITY_DEFAULT_NB_COMPONENTS = 8;
 
-static constexpr uint32_t ENTITY_STORAGE_MEMORY_BUDGET = 1024 * 1024;
+static constexpr uint32_t ENTITY_STORAGE_MEMORY_BUDGET = 1024 * 1024 * 4;
 
 static constexpr ENTCComponent::TYPE COMP_TYPE_CUSTOM = ENTCComponent::RESERVED;
 
@@ -59,8 +59,7 @@ void IDArrayRemove( array_t<T>* arr, const T& value )
 
 struct ENTEntityStorage
 {
-    array_t<ENTCComponent::TYPE> system_type;
-    array_t<ENTCComponent::ID > system_id;
+    array_t<ENTComponentExtID> system;
     array_t<ENTComponentID> custom;
 };
 
@@ -90,6 +89,7 @@ struct ENT::ENTSystem
     mutex_t           entity_lock;
     EntityIDAllocator entity_id_alloc;
     ENTEntityStorage  entity_storage[MAX_ENTITIES];
+    ENTEntityID       entity_self_id[MAX_ENTITIES];
 
     mutex_t              component_lock;
     ComponentIDAllocator comp_id_alloc;
@@ -105,33 +105,65 @@ struct ENT::ENTSystem
 };
 namespace
 {
-    ENTIComponent* AllocateComponent( ENT::ENTSystem* sys, const RTTITypeInfo* type_inf )
+    static inline bool IsEntityAlive( ENT::ENTSystem* sys, ENTEntityID id )
+    {
+        const id_t eid = { id.i };
+        return id_array::has( sys->entity_id_alloc, eid );
+    }
+
+    static inline ENTEntityStorage* GetEntityStorage( ENT::ENTSystem* sys, id_t eid )
+    {
+        const uint32_t index = id_array::index( sys->entity_id_alloc, eid );
+        return &sys->entity_storage[index];
+    }
+
+    static inline ENTEntityStorage* GetEntityStorage( ENT::ENTSystem* sys, ENTEntityID id )
+    {
+        const id_t eid = { id.i };
+        return GetEntityStorage( sys, eid );
+    }
+
+    static inline bool IsComponentAlive( ENT::ENTSystem* sys, ENTComponentID id )
+    {
+        const id_t cid = { id.i };
+        return id_table::has( sys->comp_id_alloc, cid );
+    }
+
+
+    static ENTIComponent* AllocateComponent( ENT::ENTSystem* sys, const RTTITypeInfo* type_inf )
     {
         ENTIComponent* new_comp = (ENTIComponent*)(*type_inf->creator)( sys->main_allocator );
         return new_comp;
     }
-    void FreeComponent( ENT::ENTSystem* sys, ENTIComponent* comp )
+    static void FreeComponent( ENT::ENTSystem* sys, ENTIComponent* comp )
     {
         BX_DELETE( sys->main_allocator, comp );
     }
     
-    ENTIComponent* GetCustomComponent( ENT::ENTSystem* sys, ENTComponentID id )
+    static inline ENTIComponent* GetCustomComponent( ENT::ENTSystem* sys, ENTComponentID id )
     {
-        const id_t iid = { id.i };
-        SYS_ASSERT( id_table::has( sys->comp_id_alloc, iid ) );
+        SYS_ASSERT( IsComponentAlive( sys, id ) );
 
-        return sys->comp_storage.impl[iid.index]; // .custom_impl;
+        const id_t iid = { id.i };
+        return sys->comp_storage.impl[iid.index];
+    }
+    static inline ENTEntityID GetOwnerEntityId( ENT::ENTSystem* sys, ENTComponentID id )
+    {
+        SYS_ASSERT( IsComponentAlive( sys, id ) );
+
+        const id_t iid = { id.i };
+        return sys->comp_storage.entity_id[iid.index];
     }
 
-    void DeinitializeAndDestroyComponent( ENT::ENTSystem* ent, ENTComponentID comp_id, ENTSystemInfo* system_info )
+    static void DeinitializeAndDestroyComponent( ENT::ENTSystem* ent, ENTEntityID entity_id, ENTComponentID comp_id, ENTSystemInfo* system_info )
     {
         ENTIComponent* impl = GetCustomComponent( ent, comp_id );
-        impl->Detach( system_info );
-        impl->Deinitialize( system_info );
+        impl->Detach( entity_id, system_info );
+        impl->Deinitialize( entity_id, system_info );
         FreeComponent( ent, impl );
     }
 
-    void ProcessPendingComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
+    static void ProcessPendingComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
     {
         scope_mutex_t guard( ent->pending_lock );
 
@@ -140,40 +172,34 @@ namespace
             ENTPendingComponent pending = array::back( ent->pending_components );
             array::pop_back( ent->pending_components );
 
-            const bool entity_valid = id_array::has( ent->entity_id_alloc, { pending.entity_id.i } );
+            const bool entity_valid = IsEntityAlive( ent, pending.entity_id );
             const bool component_valid = id_table::has( ent->comp_id_alloc, { pending.comp_id.i } );
             const bool component_ext_valid = pending.comp_ext_id.type != ENTCComponent::INVALID && pending.comp_ext_id.id != 0;
         
             if( entity_valid && component_valid )
             {
-                const id_t eid = { pending.entity_id.i };
-                const id_t cid = { pending.comp_id.i };
-                
-                ENTEntityStorage& storage = ent->entity_storage[eid.index];
+                ENTEntityStorage* storage = GetEntityStorage( ent, pending.entity_id );
                 if( pending.to_add )
                 {
-                    IDArrayPushBack( &storage.custom, pending.comp_id, &ent->entity_storage_allocator );
+                    IDArrayPushBack( &storage->custom, pending.comp_id, &ent->entity_storage_allocator );
                     array::push_back( ent->new_components, pending.comp_id );
                 }
                 else
                 {
-                    DeinitializeAndDestroyComponent( ent, pending.comp_id, system_info );
-                    IDArrayRemove( &storage.custom, pending.comp_id );
+                    DeinitializeAndDestroyComponent( ent, pending.entity_id, pending.comp_id, system_info );
+                    IDArrayRemove( &storage->custom, pending.comp_id );
                 }
             }
             else if( entity_valid && component_ext_valid )
             {
-                const id_t eid = { pending.entity_id.i };
-                ENTEntityStorage& storage = ent->entity_storage[eid.index];
+                ENTEntityStorage* storage = GetEntityStorage( ent, pending.entity_id );
                 if( pending.to_add )
                 {
-                    IDArrayPushBack( &storage.system_id, pending.comp_ext_id.id, &ent->entity_storage_allocator );
-                    IDArrayPushBack( &storage.system_type, pending.comp_ext_id.type, &ent->entity_storage_allocator );
+                    IDArrayPushBack( &storage->system, pending.comp_ext_id, &ent->entity_storage_allocator );
                 }
                 else
                 {
-                    IDArrayRemove( &storage.system_id, pending.comp_ext_id.id );
-                    IDArrayRemove( &storage.system_type, pending.comp_ext_id.type );
+                    IDArrayRemove( &storage->system, pending.comp_ext_id );
                 }
             }
             else if( entity_valid )
@@ -181,21 +207,25 @@ namespace
                 SYS_ASSERT( pending.to_add == 0 );
                 
                 const id_t eid = { pending.entity_id.i };
-                ENTEntityStorage& storage = ent->entity_storage[eid.index];
+                ENTEntityStorage* storage = GetEntityStorage( ent, eid );
 
                 ENTComponentStorage& comp_storage = ent->comp_storage;
 
-                for( uint32_t i = 0; i < storage.custom.size; ++i )
+                for( uint32_t i = 0; i < storage->custom.size; ++i )
                 {
-                    DeinitializeAndDestroyComponent( ent, storage.custom[i], system_info );
+                    DeinitializeAndDestroyComponent( ent, pending.entity_id, storage->custom[i], system_info );
                 }
 
-                array::destroy( storage.custom );
-                array::destroy( storage.system_id );
-                array::destroy( storage.system_type );
+                array::destroy( storage->custom );
+                array::destroy( storage->system );
                 
                 const id_array_destroy_info_t destroy_info = id_array::destroy( ent->entity_id_alloc, eid );
+                ent->entity_self_id[destroy_info.copy_data_to_index] = ent->entity_self_id[destroy_info.copy_data_from_index];
                 ent->entity_storage[destroy_info.copy_data_to_index] = ent->entity_storage[destroy_info.copy_data_from_index];
+
+                ent->entity_self_id[destroy_info.copy_data_from_index] = { 0 };
+
+
             }
             else
             {
@@ -204,23 +234,25 @@ namespace
         }
     }
 
-    void InitializeComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
+    static void InitializeComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
     {
         for( uint32_t i = 0; i < ent->new_components.size; ++i )
         {
             ENTComponentID comp_id = ent->new_components[i];
             ENTIComponent* impl = GetCustomComponent( ent, comp_id );
-            impl->Initialize( system_info );
+            ENTEntityID entity_id = GetOwnerEntityId( ent, comp_id );
+            impl->Initialize( entity_id, system_info );
         }
     }
 
-    void AttachComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
+    static void AttachComponents( ENT::ENTSystem* ent, ENTSystemInfo* system_info )
     {
         for( uint32_t i = 0; i < ent->new_components.size; ++i )
         {
             ENTComponentID comp_id = ent->new_components[i];
             ENTIComponent* impl = GetCustomComponent( ent, comp_id );
-            impl->Attach( system_info );
+            ENTEntityID entity_id = GetOwnerEntityId( ent, comp_id );
+            impl->Attach( entity_id, system_info );
         }
     }
 
@@ -229,8 +261,15 @@ namespace
 
 ENTEntityID ENT::CreateEntity()
 {
-    scope_lock_t<mutex_t> guard( _ent->entity_lock );
-    id_t id = id_array::create( _ent->entity_id_alloc );
+    id_t id = { 0 };
+    {
+        scope_lock_t<mutex_t> guard( _ent->entity_lock );
+        id = id_array::create( _ent->entity_id_alloc );
+    }
+
+    const uint32_t index = id_array::index( _ent->entity_id_alloc, id );
+    _ent->entity_self_id[index] = { id.hash };
+
     return { id.hash };
 }
 
@@ -242,6 +281,9 @@ void ENT::DestroyEntity( ENTEntityID entity_id )
         {
             id_t new_id = id_array::invalidate( _ent->entity_id_alloc, { entity_id.i } );
             entity_id.i = new_id.hash;
+            
+            const uint32_t index = id_array::index( _ent->entity_id_alloc, new_id );
+            _ent->entity_self_id[index] = entity_id;
         }
         else
         {
@@ -257,6 +299,11 @@ void ENT::DestroyEntity( ENTEntityID entity_id )
         scope_mutex_t guard( _ent->pending_lock );
         array::push_back( _ent->pending_components, pending );
     }
+}
+
+bool ENT::IsAlive( ENTEntityID entity_id )
+{
+    return IsEntityAlive( _ent, entity_id );
 }
 
 namespace
@@ -332,6 +379,32 @@ void ENT::DestroyComponent( ENTEntityID eid, ENTComponentID cid )
     AddPendingComponent( _ent, pending );
 }
 
+array_span_t<ENTComponentExtID> ENT::GetSystemComponents( ENTEntityID eid )
+{
+    if( !IsEntityAlive( _ent, eid ) )
+        return array_span_t<ENTComponentExtID>( nullptr, nullptr );
+    
+    ENTEntityStorage* storage = GetEntityStorage( _ent, eid );
+    return array_span_t<ENTComponentExtID>( storage->system.begin(), storage->system.end() );
+}
+
+array_span_t<ENTComponentID> ENT::GetCustomComponents( ENTEntityID eid )
+{
+    if( !IsEntityAlive( _ent, eid ) )
+        return array_span_t<ENTComponentID>( nullptr, nullptr );
+
+    ENTEntityStorage* storage = GetEntityStorage( _ent, eid );
+    return array_span_t<ENTComponentID>( storage->custom.begin(), storage->custom.end() );
+}
+
+ENTIComponent* ENT::ResolveComponent( ENTComponentID cid )
+{
+    if( !IsComponentAlive( _ent, { cid.i } ) )
+        return nullptr;
+
+    return GetCustomComponent( _ent, cid );
+}
+
 void ENT::Step( ENTSystemInfo* system_info, uint64_t dt_us )
 {
 
@@ -346,10 +419,11 @@ void ENT::Step( ENTSystemInfo* system_info, uint64_t dt_us )
         for( uint32_t ie = 0; ie < nb_entities; ++ie )
         {
             ENTEntityStorage& estorage = _ent->entity_storage[ie];
+            ENTEntityID entity_id = _ent->entity_self_id[ie];
             for( uint32_t ic = 0; ic < estorage.custom.size; ++ic )
             {
                 ENTIComponent* impl = GetCustomComponent( _ent, estorage.custom[ic] );
-                impl->ParallelStep( system_info, dt_us );
+                impl->ParallelStep( entity_id, system_info, dt_us );
             }
         }
     }
@@ -358,11 +432,12 @@ void ENT::Step( ENTSystemInfo* system_info, uint64_t dt_us )
         for( uint32_t ie = 0; ie < nb_entities; ++ie )
         {
             ENTEntityStorage& estorage = _ent->entity_storage[ie];
+            ENTEntityID entity_id = _ent->entity_self_id[ie];
             for( uint32_t ic = 0; ic < estorage.custom.size; ++ic )
             {
                 ENTIComponent* parent = nullptr;
                 ENTIComponent* impl = GetCustomComponent( _ent, estorage.custom[ic] );
-                impl->SerialStep( system_info, parent, dt_us );
+                impl->SerialStep( entity_id, parent, system_info, dt_us );
             }
         }
     }
@@ -407,25 +482,25 @@ void ENT::ShutDown( ENT** ent, ENTSystemInfo* system_info )
 ENTIComponent::~ENTIComponent()
 {}
 
-void ENTIComponent::Initialize( ENTSystemInfo* )
+void ENTIComponent::Initialize( ENTEntityID, ENTSystemInfo* )
 {}
 
-void ENTIComponent::Deinitialize( ENTSystemInfo* )
+void ENTIComponent::Deinitialize( ENTEntityID, ENTSystemInfo* )
 {}
 
-void ENTIComponent::Attach( ENTSystemInfo* )
+void ENTIComponent::Attach( ENTEntityID, ENTSystemInfo* )
 {}
 
-void ENTIComponent::Detach( ENTSystemInfo* )
+void ENTIComponent::Detach( ENTEntityID, ENTSystemInfo* )
 {}
 
-void ENTIComponent::ParallelStep( ENTSystemInfo*, uint64_t dt_us )
+void ENTIComponent::ParallelStep( ENTEntityID, ENTSystemInfo*, uint64_t )
 {}
 
-void ENTIComponent::SerialStep( ENTSystemInfo*, ENTIComponent* parent, uint64_t dt_us )
+void ENTIComponent::SerialStep( ENTEntityID, ENTIComponent*, ENTSystemInfo*, uint64_t )
 {}
 
-int32_t ENTIComponent::Serialize( ENTSerializeInfo* info )
+int32_t ENTIComponent::Serialize( ENTEntityID, ENTSerializeInfo* )
 {
     return 0;
 }
