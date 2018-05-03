@@ -158,7 +158,7 @@ struct RDIXUpdateConstantBufferCmd : RDIXCommand
 	uint8_t* DataPtr() { return (uint8_t*)(this + 1); }
 
     RDIXUpdateConstantBufferCmd() = default;
-    RDIXUpdateConstantBufferCmd( const RDIConstantBuffer& cb, const void* data );
+    RDIXUpdateConstantBufferCmd( const RDIConstantBuffer& cb, const void* data, uint32_t data_size );
 
 };
 struct RDIXUpdateBufferCmd : RDIXCommand
@@ -227,9 +227,13 @@ struct RDIXCommandChain
     T* AppendCmd( CmdArgs&&... cmdargs )
     {
         T* cmd = AllocateCommand<T>( _cmdbuff, _tail_cmd, std::forward<CmdArgs>( cmdargs )... );
-        _tail_cmd = cmd;
-        if( !_head_cmd )
-            _head_cmd = cmd;
+        if( cmd )
+        {
+            _tail_cmd = cmd;
+            if( !_head_cmd )
+                _head_cmd = cmd;
+        }
+        _flag_fail |= (cmd == nullptr);
         return cmd;
     }
 
@@ -237,19 +241,27 @@ struct RDIXCommandChain
     T* AppendCmdWithData( uint32_t data_size, CmdArgs&&... cmdargs )
     {
         T* cmd = AllocateCommand<T>( _cmdbuff, data_size, _tail_cmd, std::forward<CmdArgs>( cmdargs )... );
-        _tail_cmd = cmd;
-        if( !_head_cmd )
-            _head_cmd = cmd;
+        if( cmd )
+        {
+            _tail_cmd = cmd;
+            if( !_head_cmd )
+                _head_cmd = cmd;
+        }
+        _flag_fail |= (cmd == nullptr);
         return cmd;
     }
 
-    void Submit( uint64_t sort_key )
+    bool Submit( uint64_t sort_key )
     {
-        SubmitCommand( _cmdbuff, _head_cmd, sort_key );
+        if( _flag_fail )
+            return false;
+
+        return SubmitCommand( _cmdbuff, _head_cmd, sort_key );
     }
 
 
     RDIXCommandBuffer* _cmdbuff = nullptr;
     RDIXCommand* _head_cmd = nullptr;
     RDIXCommand* _tail_cmd = nullptr;
+    uint32_t _flag_fail = 0;
 };

@@ -89,14 +89,10 @@ struct RDIXCommandBuffer
 		uint32_t data_size = 0;
 	}_data;
 
-	union
+	struct
 	{
-		uint32_t all = 0;
-		struct
-		{
-			uint16_t commands;
-			uint16_t data;
-		};
+        uint32_t commands;
+        uint32_t data;
 	} _overflow;
 
 	uint32_t _can_add_commands = 0;
@@ -159,13 +155,18 @@ void DestroyCommandBuffer( RDIXCommandBuffer** cmdBuff, BXIAllocator* allocator 
 
 void ClearCommandBuffer( RDIXCommandBuffer* cmdBuff, BXIAllocator* allocator )
 {
-	if( cmdBuff->_overflow.all )
+	if( cmdBuff->_overflow.data + cmdBuff->_overflow.commands )
 	{
-		uint32_t maxCommands = (cmdBuff->_overflow.commands) ? cmdBuff->_data.max_commands * 2 : cmdBuff->_data.max_commands;
-		uint32_t dataCapacity = (cmdBuff->_overflow.data) ? cmdBuff->_data.data_capacity * 2 : cmdBuff->_data.data_capacity;
-		cmdBuff->AllocateData( maxCommands, dataCapacity, allocator );
-		cmdBuff->_overflow.all = 0;
-	}
+        const uint32_t max_commands = cmdBuff->_data.max_commands + cmdBuff->_overflow.commands;
+        const uint32_t max_data = cmdBuff->_data.data_capacity + cmdBuff->_overflow.data;
+        if( max_commands != cmdBuff->_data.max_commands || max_data != cmdBuff->_data.data_capacity )
+        {
+            cmdBuff->AllocateData( max_commands, max_data, allocator );
+        }
+
+		cmdBuff->_overflow.data = 0;
+        cmdBuff->_overflow.commands = 0;
+    }
 	cmdBuff->_data.num_commands = 0;
 	cmdBuff->_data.data_size = 0;
 }
@@ -203,32 +204,41 @@ bool SubmitCommand( RDIXCommandBuffer* cmdbuff, RDIXCommand* cmdPtr, uint64_t so
 {
 	SYS_ASSERT( cmdbuff->_can_add_commands );
 	RDIXCommandBuffer::Data& data = cmdbuff->_data;
-	if( data.num_commands >= data.max_commands )
-		return false;
+    if( data.num_commands >= data.max_commands )
+    {
+        cmdbuff->_overflow.commands += 1;
+        return false;
+    }
 
-	uint32_t index = data.num_commands++;
-	RDIXCommandBuffer::CmdInternal cmd_int = {};
-	cmd_int.key = sortKey;
-	cmd_int.cmd = cmdPtr;
-	data.commands[index] = cmd_int;
-	return true;
+    if( cmdPtr )
+    {
+        uint32_t index = data.num_commands++;
+        RDIXCommandBuffer::CmdInternal cmd_int = {};
+        cmd_int.key = sortKey;
+        cmd_int.cmd = cmdPtr;
+        data.commands[index] = cmd_int;
+    }
+	return cmdPtr != nullptr;
 }
 void* _AllocateCommand( RDIXCommandBuffer* cmdbuff, uint32_t cmdSize )
 {
 	SYS_ASSERT( cmdbuff->_can_add_commands );
 	RDIXCommandBuffer::Data& data = cmdbuff->_data;
-	if( data.data_size + cmdSize > data.data_capacity )
-		return nullptr;
-
+    if( data.data_size + cmdSize > data.data_capacity )
+    {
+        cmdbuff->_overflow.data += cmdSize;
+        return nullptr;
+    }
 	uint8_t* ptr = data.data + data.data_size;
 	data.data_size += cmdSize;
 
 	return ptr;
 }
 
-RDIXUpdateConstantBufferCmd::RDIXUpdateConstantBufferCmd( const RDIConstantBuffer& cb, const void* data ) : cbuffer( cb )
+RDIXUpdateConstantBufferCmd::RDIXUpdateConstantBufferCmd( const RDIConstantBuffer& cb, const void* data, uint32_t data_size ) : cbuffer( cb )
 {
-    memcpy( DataPtr(), data, cbuffer.size_in_bytes );
+    SYS_ASSERT( data_size <= cbuffer.size_in_bytes );
+    memcpy( DataPtr(), data, data_size );
 }
 
 RDIXUpdateBufferCmd::RDIXUpdateBufferCmd( const RDIResource& rs, const void* data, uint32_t datasize ) : resource( rs ), size( datasize )

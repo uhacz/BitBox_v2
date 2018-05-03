@@ -60,12 +60,6 @@ namespace GFXERenderMask
     };
 }//
 
-//struct GFXMeshDesc
-//{
-//    const char* filename = nullptr;
-//    RDIXRenderSource* rsouce = nullptr;
-//};
-
 struct GFXMaterialDesc
 {
     const char* filename = nullptr;
@@ -117,11 +111,6 @@ struct GFX_EXPORT GFX
     RDIXRenderTarget* Framebuffer();
     RDIXPipeline*     MaterialBase();
     RDIDevice*        Device();
-
-    // --- mesh management
-    //GFXMeshID CreateMesh( const GFXMeshDesc& desc );
-    //void      DestroyMesh( GFXMeshID idmesh, bool destroy_resource = true );
-    //RDIXRenderSource* RenderSource( GFXMeshID idmesh );
 
     // --- material system
     GFXMaterialID        CreateMaterial( const char* name, const GFXMaterialDesc& desc );

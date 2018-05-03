@@ -344,37 +344,6 @@ namespace gfx_internal
             }
         }
 
-        //{// -- meshes
-        //    GFXMeshContainer& mesh = gfx->_mesh;
-        //    std::lock_guard<mutex_t> lock_guard( mesh.to_remove_lock );
-        //    while( !array::empty( mesh.to_remove ) )
-        //    {
-        //        id_t id = array::back( mesh.to_remove );
-        //        array::pop_back( mesh.to_remove );
-
-        //        if( mesh.flags[id.index] & GFXMeshContainer::DESTROY_RESOURCE )
-        //        {
-        //            if( mesh.flags[id.index] & GFXMeshContainer::FROM_FILE )
-        //            {
-        //                SYS_NOT_IMPLEMENTED;
-        //            }
-        //            else
-        //            {
-        //                DestroyRenderSource( gfx->_rdidev, &mesh.rsource[id.index] );
-        //            }
-        //        }
-
-        //        mesh.rsource[id.index] = nullptr;
-        //        mesh.flags[id.index] = 0;
-
-
-        //        {
-        //            std::lock_guard<mutex_t> lck( mesh.lock );
-        //            id_table::destroy( mesh.idtable, id );
-        //        }
-        //    }
-        //}
-
         {// --- materials
             GFXMaterialContainer& mc = gfx->_material;
             BXIAllocator* allocator = gfx->_allocator;
@@ -572,51 +541,6 @@ RDIDevice* GFX::Device()
     return gfx->_rdidev;
 }
 
-//GFXMeshID GFX::CreateMesh( const GFXMeshDesc& desc )
-//{
-//    gfx->_mesh.lock.lock();
-//    id_t id = id_table::create( gfx->_mesh.idtable );
-//    gfx->_mesh.lock.unlock();
-//
-//    SYS_ASSERT( desc.filename || desc.rsouce );
-//
-//    if( desc.filename )
-//    {
-//        SYS_NOT_IMPLEMENTED;
-//    }
-//    else
-//    {
-//        gfx->_mesh.rsource[id.index] = desc.rsouce;
-//    }
-//
-//    return { id.hash };
-//}
-//
-//void GFX::DestroyMesh( GFXMeshID idmesh, bool destroy_resource )
-//{
-//    id_t id = { idmesh.i };
-//    if( !id_table::has( gfx->_mesh.idtable, id ) )
-//        return;
-//
-//    gfx->_mesh.lock.lock();
-//    id = id_table::invalidate( gfx->_mesh.idtable, id );
-//    gfx->_mesh.lock.unlock();
-//
-//    if( destroy_resource )
-//        gfx->_mesh.flags[id.index] |= GFXMeshContainer::DESTROY_RESOURCE;
-//
-//    gfx->_mesh.to_remove_lock.lock();
-//    array::push_back( gfx->_mesh.to_remove, id );
-//    gfx->_mesh.to_remove_lock.unlock();
-//}
-//
-//RDIXRenderSource* GFX::RenderSource( GFXMeshID idmesh )
-//{
-//    const id_t id = { idmesh.i };
-//
-//    return (gfx->_mesh.IsAlive( id )) ? gfx->_mesh.rsource[id.index] : nullptr;
-//}
-
 GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc )
 {
     id_t id = gfx_internal::FindMaterial( gfx, name );
@@ -693,8 +617,8 @@ GFXSceneID GFX::CreateScene( const GFXSceneDesc& desc )
     transform_buffer_desc.capacity = desc.max_renderables;
     RDIXTransformBuffer* transform_buffer = CreateTransformBuffer( gfx->_rdidev, transform_buffer_desc, gfx->_allocator );
 
-    const uint32_t cmd_buffer_size = desc.max_renderables * 8 + 10;
-    const uint32_t cmd_buffer_data_size = GetDataCapacity( transform_buffer );
+    const uint32_t cmd_buffer_size = 128;// desc.max_renderables * 8 + 128;
+    const uint32_t cmd_buffer_data_size = 1024; // GetDataCapacity( transform_buffer );
     RDIXCommandBuffer* command_buffer = CreateCommandBuffer( gfx->_allocator, cmd_buffer_size, cmd_buffer_data_size );
     
     container_soa_desc_t cnt_desc;
@@ -974,44 +898,49 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
 
         RDIXCommandChain chain( cmdbuffer, nullptr );
 
-        chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( sizeof( uint32_t ), GetInstanceOffsetCBuffer( transform_buffer ), &instance_offset );
+        const uint32_t data_size = (uint32_t)sizeof( uint32_t );
+        chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( data_size, GetInstanceOffsetCBuffer( transform_buffer ), &instance_offset, data_size );
         chain.AppendCmd<RDIXSetPipelineCmd>( pipeline, false );
         chain.AppendCmd<RDIXSetResourcesCmd>( MaterialBinding( idmat_array[i] ) );
         
-        RDIXDrawRenderSourceCmd* draw_cmd = chain.AppendCmd<RDIXDrawRenderSourceCmd>();
-        RDIXRenderSource* rsource = (RDIXRenderSource*)fctx->rsm->Get( idmesh_array[i] );
-        draw_cmd->rsource = rsource ? rsource : gfx->_fallback_mesh;
-        draw_cmd->num_instances = 1;
-
+        if( RDIXDrawRenderSourceCmd* draw_cmd = chain.AppendCmd<RDIXDrawRenderSourceCmd>() )
+        {
+            RDIXRenderSource* rsource = (RDIXRenderSource*)fctx->rsm->Get( idmesh_array[i] );
+            draw_cmd->rsource = rsource ? rsource : gfx->_fallback_mesh;
+            draw_cmd->num_instances = 1;
+        }
         chain.Submit( DRAW_ELEMENTS );
+
     }
 
     RDIXTransformBufferCommands transform_buff_cmds = UploadAndSetTransformBuffer( cmdbuffer, nullptr, transform_buffer, bind_info );
     SubmitCommand( cmdbuffer, transform_buff_cmds.first, UPLOAD_TRANSFORM_BUFFER );
 
-    if( sc.sky_data[scene_index].flag_enabled )
-    { 
-        const GFXSceneContainer::SkyData& sky = sc.sky_data[scene_index];
-        gfx_shader::LightningFrameData ldata;
-        ldata.sun_L = -vec4_t( sky.params.sun_dir, 0.f );
-        ldata.sun_color = vec4_t( 1.f, 1.f, 1.f, 1.f );
-        ldata.sun_intensity = sky.params.sun_intensity;
-        ldata.sky_intensity = sky.params.sky_intensity;
-        ldata.environment_map_width = sky.sky_texture.info.width;
-        ldata.environment_map_max_mip = sky.sky_texture.info.mips - 1;
-
+    {
+        if( sc.sky_data[scene_index].flag_enabled )
         {
-            RDIXCommandChain chain( cmdbuffer, nullptr );
-            chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( sizeof( ldata ), gfx->_material.lighting_data_gpu, &ldata );
-            chain.AppendCmd<RDIXSetConstantBufferCmd>( gfx->_material.lighting_data_gpu, LIGHTING_FRAME_DATA_SLOT, RDIEPipeline::PIXEL_MASK );
-            chain.AppendCmd<RDIXSetResourceROCmd>( sky.sky_texture, LIGHTING_SKY_CUBEMAP_SLOT, RDIEPipeline::PIXEL_MASK );
-            chain.AppendCmd<RDIXSetRenderTargetCmd>( gfx->_framebuffer );
-            chain.AppendCmd<RDIXClearRenderTargetCmd>( gfx->_framebuffer, 0.f, 0.f, 0.f, 1.f, -1.f );
-            chain.AppendCmd<RDIXSetPipelineCmd>( gfx->_material.pipeline.skybox, false );
-            chain.AppendCmd<RDIXDrawCmd>( 6, 0 );
-            chain.Submit( DRAW_SKYBOX );
-        }
+            const GFXSceneContainer::SkyData& sky = sc.sky_data[scene_index];
+            gfx_shader::LightningFrameData ldata;
+            ldata.sun_L = -vec4_t( sky.params.sun_dir, 0.f );
+            ldata.sun_color = vec4_t( 1.f, 1.f, 1.f, 1.f );
+            ldata.sun_intensity = sky.params.sun_intensity;
+            ldata.sky_intensity = sky.params.sky_intensity;
+            ldata.environment_map_width = sky.sky_texture.info.width;
+            ldata.environment_map_max_mip = sky.sky_texture.info.mips - 1;
 
+            {
+                RDIXCommandChain chain( cmdbuffer, nullptr );
+                const uint32_t data_size = (uint32_t)sizeof( ldata );
+                chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( data_size, gfx->_material.lighting_data_gpu, &ldata, data_size );
+                chain.AppendCmd<RDIXSetConstantBufferCmd>( gfx->_material.lighting_data_gpu, LIGHTING_FRAME_DATA_SLOT, RDIEPipeline::PIXEL_MASK );
+                chain.AppendCmd<RDIXSetResourceROCmd>( sky.sky_texture, LIGHTING_SKY_CUBEMAP_SLOT, RDIEPipeline::PIXEL_MASK );
+                chain.AppendCmd<RDIXSetRenderTargetCmd>( gfx->_framebuffer );
+                chain.AppendCmd<RDIXClearRenderTargetCmd>( gfx->_framebuffer, 0.f, 0.f, 0.f, 1.f, -1.f );
+                chain.AppendCmd<RDIXSetPipelineCmd>( gfx->_material.pipeline.skybox, false );
+                chain.AppendCmd<RDIXDrawCmd>( 6, 0 );
+                chain.Submit( DRAW_SKYBOX );
+            }
+        }
     }
 
     EndCommandBuffer( cmdbuffer );
