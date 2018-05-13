@@ -1,46 +1,45 @@
 #include "asset_app.h"
 
+#include <memory\memory.h>
+#include <rtti\rtti.h>
+#include <plugin\plugin_registry.h>
+#include <plugin\plugin_load.h>
+
 #include <window\window.h>
 #include <window\window_interface.h>
 
 #include <filesystem\filesystem_plugin.h>
 
-#include <plugin\plugin_registry.h>
-#include <plugin\plugin_load.h>
-#include <memory\memory.h>
+#include <string.h>
 #include <foundation/time.h>
+#include <foundation/array.h>
+#include <foundation/id_array.h>
+#include <foundation/id_table.h>
+#include <foundation/string_util.h>
+#include <foundation\buffer.h>
+#include <foundation\id_allocator_dense.h>
+#include <foundation\container_soa.h>
 
+#include <util\guid.h>
+#include <util\random\random.h>
+#include <util\grid.h>
 #include <util/poly_shape/poly_shape.h>
 
+#include <resource_manager\resource_manager.h>
 #include <rdix/rdix.h>
 #include <rdix/rdix_command_buffer.h>
+
 #include <gfx/gfx.h>
 #include <gfx/gfx_camera.h>
-
-#include <entity/entity.h>
-
-#include <string.h>
-
 #include <gfx/gfx_shader_interop.h>
-
 #include <shaders/hlsl/material_frame_data.h>
 #include <shaders/hlsl/material_data.h>
 #include <shaders/hlsl/transform_instance_data.h>
 
-#include <foundation/array.h>
-#include <foundation/id_array.h>
-#include <foundation/id_table.h>
-#include <foundation/dense_container.h>
-#include <foundation/string_util.h>
+#include <gui/gui.h>
+#include <3rd_party/imgui/imgui.h>
 
-#include "foundation\buffer.h"
-#include "foundation\id_allocator_dense.h"
-#include "foundation\container_soa.h"
-#include "rtti\rtti.h"
-#include "util\guid.h"
-#include "resource_manager\resource_manager.h"
-#include "util\random\random.h"
-#include "util\grid.h"
+#include <entity/entity.h>
 
 namespace
 {
@@ -59,7 +58,7 @@ namespace
     GFXMeshInstanceID g_meshes[MAX_MESH_INSTANCES] = {};
     GFXMeshInstanceID g_ground_mesh = {};
 
-    static constexpr uint32_t NUM_ENTITIES = 1024*8;
+    static constexpr uint32_t NUM_ENTITIES = 1024*1;
     ENTEntityID entity[NUM_ENTITIES];
 }
 
@@ -133,8 +132,6 @@ struct TestComponent : ENTIComponent
                 sys->gfx->SetWorldPose( { system_components[i].id }, _mesh_pose );
             }
         }
-
-        
     }
     virtual void SerialStep( ENTEntityID entity_id, ENTIComponent* parent, ENTSystemInfo*, uint64_t dt_us )
     {
@@ -164,6 +161,8 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 	const BXWindow* window = win_plugin->GetWindow();
 	::Startup( &_rdidev, &_rdicmdq, window->GetSystemHandle( window ), window->width, window->height, 0, allocator );
     
+    GUI::StartUp( win_plugin, _rdidev );
+
     GFXDesc gfxdesc = {};
     _gfx = GFX::Allocate( allocator );
     _gfx->StartUp( _rdidev, gfxdesc, _filesystem, allocator );
@@ -302,7 +301,9 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     _gfx->ShutDown( _rsm );
     GFX::Free( &_gfx, allocator );
 
-	::Shutdown( &_rdidev, &_rdicmdq, allocator );
+    GUI::ShutDown();
+	
+    ::Shutdown( &_rdidev, &_rdicmdq, allocator );
     
     RSM::ShutDown( &_rsm );
     _filesystem = nullptr;
@@ -315,8 +316,11 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     if( win->input.IsKeyPressedOnce( BXInput::eKEY_ESC ) )
         return false;
 
+    GUI::NewFrame();
+
 	const float delta_time_sec = (float)BXTime::Micro_2_Sec( deltaTimeUS );
 
+    if( !ImGui::GetIO().WantCaptureMouse )
 	{
 		const float sensitivity_in_pix = delta_time_sec;
 		BXInput* input = &win->input;
@@ -359,7 +363,11 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
        // tmp = true;
     }
 
-    
+    if( ImGui::Begin( "Frame info" ) )
+    {
+        ImGui::Text( "dt: %2.4f", delta_time_sec );
+    }
+    ImGui::End();
 		
     BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
     ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );
@@ -370,6 +378,9 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     _gfx->PostProcess( frame_ctx, g_camera_params, g_camera_matrices );
 
     _gfx->RasterizeFramebuffer( _rdicmdq, 1, g_camera_params.aspect() );
+
+    GUI::Draw();
+
     _gfx->EndFrame( frame_ctx );
 
     return true;

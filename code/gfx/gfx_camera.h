@@ -2,7 +2,7 @@
 
 #include "dll_interface.h"
 #include <foundation/type.h>
-#include <foundation/math/vmath_type.h>
+#include <foundation/math/vmath.h>
 
 struct GFX_EXPORT GFXCameraParams
 {

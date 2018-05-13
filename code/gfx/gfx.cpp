@@ -9,7 +9,6 @@
 #include <foundation/id_table.h>
 #include <foundation/id_array.h>
 #include <foundation/array.h>
-#include <foundation/dense_container.h>
 #include <foundation/container_soa.h>
 #include <foundation/id_allocator_dense.h>
 #include <foundation/thread/mutex.h>

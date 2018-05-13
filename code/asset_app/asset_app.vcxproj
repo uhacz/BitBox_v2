@@ -82,6 +82,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\3rd_party\imgui\imgui.vcxproj">
+      <Project>{3420b694-89a1-4e00-814e-c8da87b0143d}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\entity\entity.vcxproj">
       <Project>{ece75f49-497f-4b51-98df-eb5c82a87a4c}</Project>
     </ProjectReference>
@@ -93,6 +96,9 @@
     </ProjectReference>
     <ProjectReference Include="..\gfx\gfx.vcxproj">
       <Project>{8333f018-a7d7-4ba7-8e2c-44655620860f}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\gui\gui.vcxproj">
+      <Project>{ca8972fd-4d42-4a45-9b72-13b7b2c1efd8}</Project>
     </ProjectReference>
     <ProjectReference Include="..\input\input.vcxproj">
       <Project>{15dae8e3-4c6a-4bd3-895f-546150f7f91e}</Project>

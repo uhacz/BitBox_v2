@@ -6,10 +6,6 @@
 
 struct BXIAllocator;
 
-
-
-
-
 namespace ENTCComponent
 {
     using ID = uint64_t;
