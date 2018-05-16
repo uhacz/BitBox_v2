@@ -68,7 +68,7 @@ struct GFXMaterialDesc
 
 struct GFXSkyParams
 {
-    vec3_t sun_dir = vec3_t( 0.f, -1.f, 0.f );
+    vec3_t sun_dir = normalize( vec3_t( 5.f, -5.f, 0.f ) );
     float sun_intensity = 1.f;
     float sky_intensity = 1.f;
 };
@@ -102,11 +102,8 @@ struct GFXUtils
 
 struct GFX_EXPORT GFX
 {
-    static GFX* Allocate( BXIAllocator* allocator );
-    static void Free( GFX** gfx, BXIAllocator* allocator );
-
-    void StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
-    void ShutDown( RSM* rsm );
+    static GFX* StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
+    static void ShutDown( GFX**gfx, RSM* rsm );
 
     RDIXRenderTarget* Framebuffer();
     RDIXPipeline*     MaterialBase();
@@ -115,6 +112,7 @@ struct GFX_EXPORT GFX
     // --- material system
     GFXMaterialID        CreateMaterial( const char* name, const GFXMaterialDesc& desc );
     void                 DestroyMaterial( GFXMaterialID idmat );
+    void                 SetMaterialData( GFXMaterialID idmat, const gfx_shader::Material& data );
     GFXMaterialID        FindMaterial( const char* name );
     bool                 IsMaterialAlive( GFXMaterialID idmat );
     RDIXResourceBinding* MaterialBinding( GFXMaterialID idmat );

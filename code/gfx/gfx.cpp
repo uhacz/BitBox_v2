@@ -265,9 +265,14 @@ struct GFXSystem
     GFXSceneID           _scene_lookup[MAX_SCENES][MAX_MESH_INSTANCES] = {};
     GFXPostProcess       _postprocess;
 
-
-    GFXMaterialID _fallback_idmaterial;
+    static constexpr uint32_t NUM_DEFAULT_MESHES = 2;
+    RSMResourceID     _default_meshes[NUM_DEFAULT_MESHES];
     RDIXRenderSource* _fallback_mesh = nullptr;
+
+
+    static constexpr uint32_t NUM_DEFAULT_MATERIALS = 4;
+    GFXMaterialID _default_materials[NUM_DEFAULT_MATERIALS];
+    GFXMaterialID _fallback_idmaterial;
 
     gfx_shader::ShaderSamplers _samplers;
     gfx_shader::MaterialFrameData _material_fdata;
@@ -277,7 +282,7 @@ struct GFXSystem
 
 namespace gfx_internal
 {
-    void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst, RSM* rsm )
+    static void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst, RSM* rsm )
     {
         if( !sc->IsMeshAlive( idscene, idinst ) )
             return;
@@ -300,7 +305,7 @@ namespace gfx_internal
         }
     }
 
-    void RemovePendingObjects( GFXSystem* gfx, RSM* rsm )
+    static void RemovePendingObjects( GFXSystem* gfx, RSM* rsm )
     {
         {// mesh instances
             GFXSceneContainer& sc = gfx->_scene;
@@ -367,11 +372,11 @@ namespace gfx_internal
         }
     }
 
-    bool IsMaterialAlive( GFXSystem* gfx, id_t id )
+    static bool IsMaterialAlive( GFXSystem* gfx, id_t id )
     {
         return id_table::has( gfx->_material.idtable, id );
     }
-    id_t FindMaterial( GFXSystem* gfx, const char* name )
+    static  id_t FindMaterial( GFXSystem* gfx, const char* name )
     {
         const GFXMaterialContainer& materials = gfx->_material;
         for( uint32_t i = 0; i < MAX_MATERIALS; ++i )
@@ -385,16 +390,27 @@ namespace gfx_internal
         return makeInvalidHandle<id_t>();
     }
 
-    RDIXResourceBinding* GetMaterialBinding( GFXSystem* gfx, id_t id )
+    static void UploadMaterial( GFXSystem* gfx, id_t id, const gfx_shader::Material& data )
+    {
+        GFXMaterialContainer& mc = gfx->_material;
+        RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
+
+        UpdateCBuffer( GetImmediateCommandQueue( gfx->_rdidev ), *cbuffer, &data );
+        mc.data[id.index] = data;
+    }
+
+    static RDIXResourceBinding* GetMaterialBinding( GFXSystem* gfx, id_t id )
     {
         if( !IsMaterialAlive( gfx, id ) )
-            return nullptr;
-
+        {
+            id_t fallback_id = { gfx->_fallback_idmaterial.i };
+            return gfx->_material.binding[fallback_id.index];
+        }
         return gfx->_material.binding[id.index];
     }
 }
 
-GFX* GFX::Allocate( BXIAllocator* allocator )
+static GFX* GFXAllocate( BXIAllocator* allocator )
 {
     uint32_t mem_size = 0;
     mem_size += sizeof( GFX );
@@ -413,19 +429,22 @@ GFX* GFX::Allocate( BXIAllocator* allocator )
     return gfx_interface;
 }
 
-void GFX::Free( GFX** gfxi, BXIAllocator* allocator )
+static void GFXFree( GFX** gfxi, BXIAllocator* allocator )
 {
     gfxi[0]->gfx->~GFXSystem();
     gfxi[0]->utils->data->~GFXUtilsData();
     BX_DELETE0( allocator, gfxi[0] );
 }
 
-void GFX::StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator )
+GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator )
 {
+    GFX* gfx_interface = GFXAllocate( allocator );
+    GFXSystem* gfx = gfx_interface->gfx;
+
     gfx->_allocator = allocator;
     gfx->_rdidev = dev;
 
-    utils->StartUp( dev, filesystem, allocator );
+    gfx_interface->utils->StartUp( dev, filesystem, allocator );
 
     {// --- framebuffer
         RDIXRenderTargetDesc render_target_desc( desc.framebuffer_width, desc.framebuffer_height );
@@ -476,21 +495,90 @@ void GFX::StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesyste
         material_desc.data.roughness = 0.9f;
         material_desc.data.specular_albedo = float3( 1.0, 0.0, 0.0 );
         material_desc.data.metal = 0.f;
-        gfx->_fallback_idmaterial = CreateMaterial( "fallback", material_desc );
+        gfx->_fallback_idmaterial = gfx_interface->CreateMaterial( "fallback", material_desc );
     }
 
+    { // default materials
+        { // red
+            GFXMaterialDesc mat;
+            mat.data.specular_albedo = vec3_t( 1.f, 0.f, 0.f );
+            mat.data.diffuse_albedo = vec3_t( 1.f, 0.f, 0.f );
+            mat.data.metal = 0.f;
+            mat.data.roughness = 0.15f;
+            gfx->_default_materials[0] = gfx_interface->CreateMaterial( "red", mat );
+        }
+        { // green
+            GFXMaterialDesc mat;
+            mat.data.specular_albedo = vec3_t( 0.f, 1.f, 0.f );
+            mat.data.diffuse_albedo = vec3_t( 0.f, 1.f, 0.f );
+            mat.data.metal = 0.f;
+            mat.data.roughness = 0.25f;
+            gfx->_default_materials[1] = gfx_interface->CreateMaterial( "green", mat );
+        }
+        { // blue
+            GFXMaterialDesc mat;
+            mat.data.specular_albedo = vec3_t( 0.f, 0.f, 1.f );
+            mat.data.diffuse_albedo = vec3_t( 0.f, 0.f, 1.f );
+            mat.data.metal = 0.f;
+            mat.data.roughness = 0.25f;
+            gfx->_default_materials[2] = gfx_interface->CreateMaterial( "blue", mat );
+        }
+        {
+            GFXMaterialDesc mat;
+            mat.data.specular_albedo = vec3_t( 0.5f, 0.5f, 0.5f );
+            mat.data.diffuse_albedo = vec3_t( 0.5f, 0.5f, 0.5f );
+            mat.data.metal = 0.f;
+            mat.data.roughness = 0.5f;
+            gfx->_default_materials[3] = gfx_interface->CreateMaterial( "rough", mat );
+        }
+    }
     { // fallback mesh
-        par_shapes_mesh* shape = par_shapes_create_parametric_sphere( 64, 64, FLT_EPSILON );
+        par_shapes_mesh* shape = par_shapes_create_parametric_sphere( 8, 8, FLT_EPSILON );
         gfx->_fallback_mesh = CreateRenderSourceFromShape( dev, shape, allocator );
         par_shapes_free_mesh( shape );
     }
+    { // default meshes
+        const char* names[] = { "sphere", "box" };
+
+        poly_shape_t shapes[GFXSystem::NUM_DEFAULT_MESHES] = {};
+        poly_shape::createShpere( &shapes[0], 8, allocator );
+        poly_shape::createBox( &shapes[1], 4, allocator );
+        const uint32_t n_shapes = (uint32_t)sizeof_array( shapes );
+        for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MESHES; ++i )
+        {
+            RDIXRenderSource* rsource = CreateRenderSourceFromShape( gfx->_rdidev, &shapes[i], allocator );
+            gfx->_default_meshes[i] = rsm->Create( names[i], rsource, allocator );
+        }
+        for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MESHES; ++i )
+        {
+            poly_shape::deallocateShape( &shapes[i] );
+        }
+    }
+
+    return gfx_interface;
 }
 
 
-void GFX::ShutDown( RSM* rsm )
+void GFX::ShutDown( GFX** gfx_interface_handle, RSM* rsm )
 {
+    if( !gfx_interface_handle[0] )
+        return;
+
+    GFX* gfx_interface = gfx_interface_handle[0];
+    GFXSystem* gfx = gfx_interface->gfx;
+
+    for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MESHES; ++i )
+    {
+        rsm->Release( gfx->_default_meshes[i] );
+        gfx->_default_meshes[i] = RSMResourceID::Null();
+    }
     DestroyRenderSource( gfx->_rdidev, &gfx->_fallback_mesh );
-    DestroyMaterial( gfx->_fallback_idmaterial );
+    
+    gfx_interface->DestroyMaterial( gfx->_fallback_idmaterial );
+    for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MATERIALS; ++i )
+    {
+        gfx_interface->DestroyMaterial( gfx->_default_materials[i] );
+    }
     gfx_internal::RemovePendingObjects( gfx, rsm );
 
     RDIDevice* dev = gfx->_rdidev;
@@ -522,7 +610,8 @@ void GFX::ShutDown( RSM* rsm )
 
     DestroyRenderTarget( dev, &gfx->_framebuffer );
    
-    utils->ShutDown( dev );
+    gfx_interface->utils->ShutDown( dev );
+    GFXFree( gfx_interface_handle, allocator );
 }
 
 RDIXRenderTarget* GFX::Framebuffer()
@@ -559,12 +648,12 @@ GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc
 
     RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
     RDIXResourceBinding* binding = CloneResourceBinding( ResourceBinding( mc.pipeline.base ), allocator );
-
-    UpdateCBuffer( GetImmediateCommandQueue( dev ), *cbuffer, &desc.data );
+    
+    gfx_internal::UploadMaterial( gfx, id, desc.data );
     SetConstantBuffer( binding, "MaterialData", cbuffer );
 
     mc.binding[id.index] = binding;
-    mc.data[id.index] = desc.data;
+    
     string::create( &mc.name[id.index], name, allocator );
     mc.idself[id.index] = id;
 
@@ -588,6 +677,14 @@ void GFX::DestroyMaterial( GFXMaterialID idmat )
     mc.to_remove_lock.unlock();
 }
 
+void GFX::SetMaterialData( GFXMaterialID idmat, const gfx_shader::Material& data )
+{
+    if( !IsMaterialAlive( idmat ) )
+        return;
+    id_t id = { idmat.i };
+    gfx_internal::UploadMaterial( gfx, id, data );
+}
+
 GFXMaterialID GFX::FindMaterial( const char* name )
 {
     return { gfx_internal::FindMaterial( gfx, name ).hash };
@@ -601,7 +698,7 @@ bool GFX::IsMaterialAlive( GFXMaterialID idmat )
 RDIXResourceBinding* GFX::MaterialBinding( GFXMaterialID idmat )
 {
     const id_t id = { idmat.i };
-    return (gfx->_material.IsAlive( id )) ? gfx->_material.binding[id.index] : nullptr;
+    return gfx_internal::GetMaterialBinding( gfx, id );
 }
 
 GFXSceneID GFX::CreateScene( const GFXSceneDesc& desc )
@@ -684,10 +781,6 @@ GFXMeshInstanceID GFX::AddMeshToScene( GFXSceneID idscene, const GFXMeshInstance
         return { 0 };
 
     const uint32_t index = idscn.index;
-
-    //GFXMeshID idmesh = desc.idmesh;
-    //if( !gfx->_mesh.IsAlive( { idmesh.i } ) )
-    //    idmesh = gfx->_fallback_idmesh;
 
     GFXMaterialID idmat = desc.idmaterial;
     if( !gfx->_material.IsAlive( { idmat.i } ) )

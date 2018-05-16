@@ -25,7 +25,10 @@ struct RSMResourceHash
 struct RSMResourceID
 {
     uint32_t i;
+
+    static constexpr RSMResourceID Null() { return { 0 }; };
 };
+
 inline bool IsAlive( RSMResourceID id ) { return id.i != 0; }
 
 struct RSM_EXPORT RSM

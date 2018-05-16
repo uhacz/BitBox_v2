@@ -2,6 +2,7 @@
 
 #include <plugin/plugin_interface.h>
 #include <foundation/type.h>
+#include <foundation/debug.h>
 #include <typeinfo>
 
 struct BXIAllocator;

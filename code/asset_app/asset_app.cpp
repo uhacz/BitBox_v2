@@ -41,6 +41,26 @@
 
 #include <entity/entity.h>
 
+struct GroundMesh
+{
+    mat44_t _world_pose;
+    GFXMeshInstanceID _mesh_id;
+};
+void CreateGroundMesh( GroundMesh* mesh, GFX* gfx, GFXSceneID scene_id, RSM* rsm, const vec3_t& scale = vec3_t( 100.f, 0.5f, 100.f ), const mat44_t& pose = mat44_t::identity() )
+{
+    GFXMeshInstanceDesc desc = {};
+    desc.idmaterial = gfx->FindMaterial( "rough" );
+    desc.idmesh_resource = rsm->Find( "box" );
+    const mat44_t final_pose = append_scale( pose, scale );
+
+    mesh->_mesh_id = gfx->AddMeshToScene( scene_id, desc, final_pose );
+    mesh->_world_pose = final_pose;
+}
+void DestroyGroundMesh( GroundMesh* mesh, GFX* gfx )
+{
+    gfx->RemoveMeshFromScene( mesh->_mesh_id );
+}
+
 namespace
 {
 	// camera
@@ -50,105 +70,69 @@ namespace
 
     GFXCameraInputContext g_camera_input_ctx = {};
 
-    constexpr uint32_t MAX_MESHES = 2;
-    constexpr uint32_t MAX_MESH_INSTANCES = 32;
+    //constexpr uint32_t MAX_MESHES = 2;
+    //constexpr uint32_t MAX_MESH_INSTANCES = 32;
 
     GFXSceneID g_idscene = { 0 };
-    RSMResourceID g_idmesh[MAX_MESHES] = {};
-    GFXMeshInstanceID g_meshes[MAX_MESH_INSTANCES] = {};
-    GFXMeshInstanceID g_ground_mesh = {};
+    //RSMResourceID g_idmesh[MAX_MESHES] = {};
+    //GFXMeshInstanceID g_meshes[MAX_MESH_INSTANCES] = {};
+   
+    GroundMesh g_ground_mesh;
 
-    static constexpr uint32_t NUM_ENTITIES = 1024*1;
-    ENTEntityID entity[NUM_ENTITIES];
+    //static constexpr uint32_t NUM_ENTITIES = 4;
+    //ENTEntityID entity[NUM_ENTITIES];
 }
 
-struct TestComponent : ENTIComponent
+
+
+
+struct MATEditor
 {
-    RTTI_DECLARE_TYPE( TestComponent );
-
-    virtual ~TestComponent() {}
-
-    virtual void Initialize( ENTEntityID entity_id, ENTSystemInfo* sys ) override
+    void StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm )
     {
-        static uint32_t instance_index = 0;
-
-        const char* shapes[] = { "box", "sphere", "box", "sphere", "box", "sphere", "box", "sphere", "box", "sphere", "box", "sphere" };
-        const char* materials[] = { "red", "green", "blue" };
-        const uint32_t nb_shapes = (uint32_t)sizeof_array( shapes );
-        const uint32_t nb_materials = (uint32_t)sizeof_array( materials );
+        _mat_data.diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
+        _mat_data.specular_albedo = vec3_t( 1.f, 1.f, 1.f );
+        _mat_data.metal = 0.f;
+        _mat_data.roughness = 0.5f;
         
-        uint32_t i = instance_index++;
-        random_t rnd = RandomInit( (uint64_t)this + i*192, 0xda3e39cb94b95bdbULL );
-        
-        for( uint32_t dummy = 0; dummy <= i; ++dummy )
-            Random( &rnd );
+        GFXMaterialDesc desc;
+        desc.data = _mat_data;
+        _mat_id = gfx->CreateMaterial( "editable", desc );
 
-        const uint32_t shape_index = Random( &rnd ) % nb_shapes;
-        const uint32_t material_index = Random( &rnd, nb_materials );
-        
-        const uint32_t grid_w = 32;
-        const uint32_t grid_h = 16;
-        const uint32_t grid_d = 32;
-
-        grid_t grid( grid_w, grid_h, grid_d );
-        i = i % grid.NumCells();
-
-        uint32_t coords[3];
-        grid.Coords( coords, i );
-
-        _mesh_pose.set_translation( vec3_t( coords[0], coords[1], coords[2] ) * 2.f );
-        
-        const char* mat_name = materials[material_index]; // (strlen( _material_name.c_str() )) ? _material_name.c_str() : "red";
-        GFXMeshInstanceDesc meshi_desc = {};
-        meshi_desc.idmesh_resource = sys->rsm->Find( shapes[shape_index] );
-        meshi_desc.idmaterial = sys->gfx->FindMaterial( mat_name );
-        GFXMeshInstanceID mesh_instance_id = sys->gfx->AddMeshToScene( sys->gfx_scene_id, meshi_desc, _mesh_pose );
-        sys->ent->AttachComponent( entity_id, ENTComponentExtID( ENTCComponent::GFX_MESH, mesh_instance_id.i ) );
+        GFXMeshInstanceDesc mesh_desc = {};
+        mesh_desc.idmaterial = _mat_id;
+        mesh_desc.idmesh_resource = rsm->Find( "sphere" );
+        _mesh_id = gfx->AddMeshToScene( scene_id, mesh_desc, mat44_t::identity() );
     }
-    virtual void Deinitialize( ENTEntityID entity_id, ENTSystemInfo* sys ) override
+    void ShutDown( GFX* gfx )
     {
-        const array_span_t<ENTComponentExtID> system_components = sys->ent->GetSystemComponents( entity_id );
-        for( uint32_t i = 0; i < system_components.size(); ++i )
+        gfx->RemoveMeshFromScene( _mesh_id );
+        gfx->DestroyMaterial( _mat_id );
+    }
+
+    void Tick( GFX* gfx )
+    {
+        bool edited = false;
+        if( ImGui::Begin( "Material" ) )
         {
-            if( system_components[i].type == ENTCComponent::GFX_MESH )
-            {
-                sys->gfx->RemoveMeshFromScene( { system_components[i].id } );
-            }
+            edited |= ImGui::ColorEdit3( "Diffuse albedo", _mat_data.diffuse_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
+            edited |= ImGui::ColorEdit3( "Specular albedo", _mat_data.specular_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
+            edited |= ImGui::SliderFloat( "Roughness", &_mat_data.roughness, 0.f, 1.f, "%.4f" );
+        }
+        ImGui::End();
+
+        if( edited )
+        {
+            gfx->SetMaterialData( _mat_id, _mat_data );
         }
     }
 
-    virtual void ParallelStep( ENTEntityID entity_id, ENTSystemInfo* sys, uint64_t dt_us )
-    {
-        const float dt_s = (float)BXTime::Micro_2_Sec( dt_us );
-
-        const array_span_t<ENTComponentExtID> system_components = sys->ent->GetSystemComponents( entity_id );
-        for( uint32_t i = 0; i < system_components.size(); ++i )
-        {
-            if( system_components[i].type == ENTCComponent::GFX_MESH )
-            {
-                _mesh_pose = _mesh_pose * mat44_t::rotationx( dt_s );
-                _mesh_pose = _mesh_pose * mat44_t::rotationy( dt_s * 0.5f );
-                _mesh_pose = _mesh_pose * mat44_t::rotationz( dt_s * 0.25f );
-                sys->gfx->SetWorldPose( { system_components[i].id }, _mesh_pose );
-            }
-        }
-    }
-    virtual void SerialStep( ENTEntityID entity_id, ENTIComponent* parent, ENTSystemInfo*, uint64_t dt_us )
-    {
-    }
-
-    mat44_t _mesh_pose = mat44_t::identity();
-    //GFXMeshInstanceID _mesh_instance_id = { 0 };
-    uint32_t _shape_type = 1;
-    string_t _material_name;
-
+    GFXMeshInstanceID _mesh_id;
+    GFXMaterialID _mat_id;
+    gfx_shader::Material _mat_data;
 };
 
-RTTI_DEFINE_TYPE_DERIVED( TestComponent, ENTIComponent, {
-    RTTI_ATTR( TestComponent, _mesh_pose, "MeshPose" )->SetDefault( mat44_t::identity() ),
-    RTTI_ATTR( TestComponent, _shape_type, "ShapeType" )->SetDefault( 0u ),
-    RTTI_ATTR( TestComponent, _material_name, "MaterialName" )->SetDefault( "red" ),
-} );
+static MATEditor g_mat_editor;
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
@@ -164,96 +148,25 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     GUI::StartUp( win_plugin, _rdidev );
 
     GFXDesc gfxdesc = {};
-    _gfx = GFX::Allocate( allocator );
-    _gfx->StartUp( _rdidev, gfxdesc, _filesystem, allocator );
+    _gfx = GFX::StartUp( _rdidev, _rsm, gfxdesc, _filesystem, allocator );
 
     _ent = ENT::StartUp( allocator );
 
     GFXSceneDesc desc;
-    desc.max_renderables = NUM_ENTITIES + 1;
+    desc.max_renderables = 16 + 1;
     desc.name = "test scene";
     g_idscene = _gfx->CreateScene( desc );
 	
-    { // red
-        GFXMaterialDesc mat;
-        mat.data.specular_albedo = vec3_t( 1.f, 0.f, 0.f );
-        mat.data.diffuse_albedo = vec3_t( 1.f, 0.f, 0.f );
-        mat.data.metal = 0.f;
-        mat.data.roughness = 0.15f;
-        _gfx->CreateMaterial( "red", mat );
-    }
-    { // green
-        GFXMaterialDesc mat;
-        mat.data.specular_albedo = vec3_t( 0.f, 1.f, 0.f );
-        mat.data.diffuse_albedo = vec3_t( 0.f, 1.f, 0.f );
-        mat.data.metal = 0.f;
-        mat.data.roughness = 0.25f;
-        _gfx->CreateMaterial( "green", mat );
-    }
-    { // blue
-        GFXMaterialDesc mat;
-        mat.data.specular_albedo = vec3_t( 0.f, 0.f, 1.f );
-        mat.data.diffuse_albedo = vec3_t( 0.f, 0.f, 1.f );
-        mat.data.metal = 0.f;
-        mat.data.roughness = 0.25f;
-        _gfx->CreateMaterial( "blue", mat );
-    }
     {
-        GFXMaterialDesc mat;
-        mat.data.specular_albedo = vec3_t( 0.5f, 0.5f, 0.5f );
-        mat.data.diffuse_albedo = vec3_t( 0.5f, 0.5f, 0.5f );
-        mat.data.metal = 0.f;
-        mat.data.roughness = 0.5f;
-        _gfx->CreateMaterial( "rough", mat );
-    }
-
-    {
-        const char* names[] = { "sphere", "box" };
-
-        poly_shape_t shapes[MAX_MESHES] = {};
-        poly_shape::createShpere( &shapes[0], 8, allocator );
-        poly_shape::createBox( &shapes[1], 4, allocator );
-        const uint32_t n_shapes = (uint32_t)sizeof_array( shapes );
-        for( uint32_t i = 0; i < n_shapes; ++i )
         {
-            RDIXRenderSource* rsource = CreateRenderSourceFromShape( _rdidev, &shapes[i], allocator );
-            g_idmesh[i] = _rsm->Create( names[i], rsource, allocator );
-        }
-        for( uint32_t i = 0; i < n_shapes; ++i )
-        {
-            poly_shape::deallocateShape( &shapes[i] );
+            CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, _rsm, vec3_t(100.f, 0.5f, 100.f), mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) ) );
         }
 
-
-        const char* materials[] =
-        {
-            "red", "green", "blue",
-        };
-        const uint32_t n_materials = (uint32_t)sizeof_array( materials );
-
-        //for( uint32_t i = 0; i < 4; ++i )
+        //for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
         //{
-        //    GFXMeshInstanceDesc desc = {};
-        //    desc.idmesh = g_idmesh[i % MAX_MESHES];
-        //    desc.idmaterial = _gfx->FindMaterial( materials[i % n_materials] );
-        //    g_meshes[i] = _gfx->AddMeshToScene( g_idscene, desc, mat44_t( quat_t::identity(), vec3_t( i * 4.f - 1.f, 0.f, 0.f ) ) );
+        //    entity[i] = _ent->CreateEntity();
+        //    _ent->CreateComponent( entity[i], "TestComponent" );
         //}
-
-        {
-            GFXMeshInstanceDesc desc = {};
-            desc.idmaterial = _gfx->FindMaterial( "rough" );
-            desc.idmesh_resource = g_idmesh[1];
-            mat44_t pose = mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) );
-            pose = append_scale( pose, vec3_t( 100.f, 0.5f, 100.f ) );
-
-            g_ground_mesh = _gfx->AddMeshToScene( g_idscene, desc, pose );
-        }
-
-        for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
-        {
-            entity[i] = _ent->CreateEntity();
-            _ent->CreateComponent( entity[i], "TestComponent" );
-        }
     }
     
     {// sky
@@ -271,14 +184,17 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
 	g_camera_world = mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) );
 
+    g_mat_editor.StartUp( _gfx, g_idscene, _rsm );
 
     return true;
 }
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
-        _ent->DestroyEntity( entity[i] );
+    g_mat_editor.ShutDown( _gfx );
+    //for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
+    //    _ent->DestroyEntity( entity[i] );
+    
     {
         ENTSystemInfo ent_sys_info = {};
         ent_sys_info.ent = _ent;
@@ -286,20 +202,10 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
         ENT::ShutDown( &_ent, &ent_sys_info );
     }
 
+    DestroyGroundMesh( &g_ground_mesh, _gfx );
     _gfx->DestroyScene( g_idscene );
 
-    for( uint32_t i = 0; i < MAX_MESHES; ++i )
-    {
-        _rsm->Release( g_idmesh[i] );
-    }
-
-    _gfx->DestroyMaterial( _gfx->FindMaterial( "rough" ) );
-    _gfx->DestroyMaterial( _gfx->FindMaterial( "blue" ) );
-    _gfx->DestroyMaterial( _gfx->FindMaterial( "green" ) );
-    _gfx->DestroyMaterial( _gfx->FindMaterial( "red" ) );
-
-    _gfx->ShutDown( _rsm );
-    GFX::Free( &_gfx, allocator );
+    GFX::ShutDown( &_gfx, _rsm );
 
     GUI::ShutDown();
 	
@@ -354,6 +260,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         _ent->Step( &ent_sys_info, deltaTimeUS );
     }
 
+    g_mat_editor.Tick( _gfx );
 
     GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq, _rsm );
     //static bool tmp = false;
