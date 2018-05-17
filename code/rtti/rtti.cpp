@@ -129,9 +129,9 @@ RTTITypeInfo::RTTITypeInfo()
     , _index(UINT32_MAX)
 {}
 
-void RTTI::RegisterType( const char* name, const RTTITypeInfo& info )
+void RTTI::RegisterType( const RTTITypeInfo& info )
 {
-    const uint64_t hash = ComputeTypeNameHash( name );
+    const uint64_t hash = ComputeTypeNameHash( info.type_name );
 #if BX_RTTI_TYPE_NAME_HASH_CHECK == 1
     for( uint32_t i = 0; i < __nb_types; ++i )
         SYS_ASSERT( __typed_name_hash[i] != hash );

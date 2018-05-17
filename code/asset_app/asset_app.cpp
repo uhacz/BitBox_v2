@@ -70,13 +70,7 @@ namespace
 
     GFXCameraInputContext g_camera_input_ctx = {};
 
-    //constexpr uint32_t MAX_MESHES = 2;
-    //constexpr uint32_t MAX_MESH_INSTANCES = 32;
-
     GFXSceneID g_idscene = { 0 };
-    //RSMResourceID g_idmesh[MAX_MESHES] = {};
-    //GFXMeshInstanceID g_meshes[MAX_MESH_INSTANCES] = {};
-   
     GroundMesh g_ground_mesh;
 
     //static constexpr uint32_t NUM_ENTITIES = 4;
@@ -88,12 +82,17 @@ namespace
 
 struct MATEditor
 {
+    static void SetDefault( gfx_shader::Material* mat )
+    {
+        mat->diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
+        mat->specular_albedo = vec3_t( 1.f, 1.f, 1.f );
+        mat->metal = 0.f;
+        mat->roughness = 0.5f;
+    }
+
     void StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm )
     {
-        _mat_data.diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
-        _mat_data.specular_albedo = vec3_t( 1.f, 1.f, 1.f );
-        _mat_data.metal = 0.f;
-        _mat_data.roughness = 0.5f;
+        SetDefault( &_mat_data );
         
         GFXMaterialDesc desc;
         desc.data = _mat_data;
@@ -115,6 +114,23 @@ struct MATEditor
         bool edited = false;
         if( ImGui::Begin( "Material" ) )
         {
+            if( ImGui::BeginMenu( "File" ) )
+            {
+                if( ImGui::MenuItem( "New" ) )
+                {
+                    SetDefault( &_mat_data );
+                    edited = true;
+                }
+                if( ImGui::MenuItem( "Load" ) )
+                {
+                
+                }
+                if( ImGui::MenuItem( "Save" ) )
+                {
+                    
+                }
+                ImGui::EndMenu();
+            }
             edited |= ImGui::ColorEdit3( "Diffuse albedo", _mat_data.diffuse_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
             edited |= ImGui::ColorEdit3( "Specular albedo", _mat_data.specular_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
             edited |= ImGui::SliderFloat( "Roughness", &_mat_data.roughness, 0.f, 1.f, "%.4f" );

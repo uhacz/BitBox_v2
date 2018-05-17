@@ -183,7 +183,7 @@ OUT_PS ps_base( IN_PS input )
     float3 color_from_sky_diff = (lit_data.diffuse * diffuse_env);
     float3 color_from_sky_spec = (specular_env * Fresnel( _material.specular_albedo, N, V ));
     
-    float3 color_from_sky = (color_from_sky_diff + color_from_sky_spec) * _ldata.sky_intensity * PI_RCP;
+    float3 color_from_sky = (color_from_sky_spec) * _ldata.sky_intensity * PI_RCP;
     color += color_from_sky;
 #else
     float alpha = WrappedNdotL( N, L, 1.1f );

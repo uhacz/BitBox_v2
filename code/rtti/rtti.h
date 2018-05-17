@@ -46,7 +46,7 @@ struct BXIAllocator;
     {\
         __RTTI_Initializator_##name()\
         {\
-            RTTI::_RegisterType<name>( #name );\
+            RTTI::_RegisterType<name>();\
         }\
     };\
     static __RTTI_Initializator_##name __rtti_initializator_##name = __RTTI_Initializator_##name()
@@ -190,6 +190,7 @@ struct RTTI_EXPORT RTTIAttr
 typedef void*(*RTTIObjectCreator)( BXIAllocator* allocator );
 struct RTTI_EXPORT RTTITypeInfo
 {
+    const char* type_name;
     const std::type_info& type_info;
     const std::type_info& parent_info;
     RTTIObjectCreator creator;
@@ -209,16 +210,17 @@ struct RTTI_EXPORT RTTI
     //
     // --- types
     //
-    static void RegisterType( const char* name, const RTTITypeInfo& info );
+    static void RegisterType( const RTTITypeInfo& info );
     
     template< typename T >
-    static void _RegisterType( const char* name )
+    static void _RegisterType()
     {
         RTTITypeInfo info = RTTITypeInfo( typeid(T), T::__parent_type, T::__attributes, T::__nb_attributes );
+        info.type_name = T::TypeName();
         info.creator = T::__Creator;
         info.flags = RTTITypeFlags::ReadType<T>();
 
-        RTTI::RegisterType( name, info );
+        RTTI::RegisterType( info );
     }
     
     static const RTTITypeInfo* FindType( const char* name );
