@@ -5,42 +5,17 @@
 #include <foundation/debug.h>
 #include <foundation/id_table.h>
 #include <foundation/thread/semaphore.h>
+#include <util/file_system_name.h>
 #include <thread>
 #include <mutex>
 #include <atomic>
 
+
 namespace bx
 {
-
-
-	struct FsName
+    struct FileInputInfo
 	{
-		enum
-		{
-			MAX_LENGTH = 255,
-			MAX_SIZE = MAX_LENGTH + 1,
-		};
-		
-		char _data[MAX_SIZE] = {};
-
-		uint32_t _total_length = 0;
-		uint32_t _relative_path_offset = 0;
-		uint32_t _relative_path_length = 0;
-
-		void Clear();
-		bool Empty() const { return _total_length == 0; }
-
-		bool Append				( const char* str );
-		bool AppendRelativePath	( const char* str );
-
-		const char* RelativePath      () const { return _data + _relative_path_offset; }
-		uint32_t	RelativePathLength() const { return _relative_path_length; }
-		const char* AbsolutePath      () const { return _data; }
-	};
-
-	struct FileInputInfo
-	{
-		FsName _name;
+		FSName _name;
 		BXIFilesystem::EMode _mode;
         BXPostLoadCallback _callback;
         BXIAllocator* _allocator;
@@ -55,6 +30,7 @@ struct FilesystemWindows : BXIFilesystem
 	// --- interface
 	bool			 IsValid( BXFileHandle fhandle );
 	void			 SetRoot( const char* absoluteDirPath ) override final;
+    const char*      GetRoot() const override;
 	BXFileHandle	 LoadFile( const char* relativePath, EMode mode, BXPostLoadCallback callback, BXIAllocator* allocator = nullptr ) override final;
 	void			 CloseFile( BXFileHandle fhandle, bool freeData ) override final;
 	BXEFileStatus::E File( BXFile* file, BXFileHandle fhandle ) override final;
@@ -90,7 +66,7 @@ struct FilesystemWindows : BXIFilesystem
 	std::mutex _to_load_lock;
 	std::mutex _to_unload_lock;
 
-	FsName		  _root;
+	FSName		  _root;
 	BXIAllocator* _allocator = nullptr;
 };
 

@@ -10,41 +10,7 @@ namespace bx
 
 // ---
 //
-void FsName::Clear()
-{
-	_total_length = 0;
-	_relative_path_offset = 0;
-	_relative_path_length = 0;
-	_data[0] = 0;
-}
-	
-bool FsName::Append( const char * str )
-{
-	const int32_t len = (int32_t)strlen( str );
-	const int32_t chars_left = MAX_LENGTH - _total_length;
 
-	if( chars_left < len )
-		return false;
-
-	memcpy( _data + _total_length, str, len );
-	_total_length += len;
-	SYS_ASSERT( _total_length <= MAX_LENGTH );
-	_data[_total_length] = 0;
-
-	return true;
-}
-
-bool FsName::AppendRelativePath( const char * str )
-{
-	const uint32_t offset = _total_length;
-	if( Append( str ) )
-	{
-		_relative_path_offset = offset;
-		_relative_path_length = _total_length - offset;
-		return true;
-	}
-	return false;
-}
 
 // ---
 //
@@ -72,6 +38,11 @@ void FilesystemWindows::SetRoot( const char * absoluteDirPath )
 	_root.Clear();
 	bool bres = _root.Append( absoluteDirPath );
 	SYS_ASSERT( bres );
+}
+
+const char* FilesystemWindows::GetRoot() const
+{
+    return _root.AbsolutePath();
 }
 
 bool FilesystemWindows::IsValid( BXFileHandle fhandle )
@@ -184,7 +155,7 @@ void FilesystemWindows::ThreadProc()
 			const id_t id = { fhandle.i };
 			const FileInputInfo& info = _input_info[id.index];
 
-			FsName path;
+			FSName path;
 			path.Append( _root.AbsolutePath() );
 			if( path.AppendRelativePath( info._name.AbsolutePath() ) )
 			{

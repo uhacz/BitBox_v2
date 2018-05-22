@@ -35,9 +35,31 @@ struct string_t
     const char* c_str() const { return (_allocator) ? _dynamic : _static; }
 };
 
+struct string_buffer_t
+{
+    char* _base;
+    unsigned _offset;
+    unsigned _capacity;
+    BXIAllocator* _allocator;
+};
+struct string_buffer_it
+{
+    char* pointer = nullptr;
+    unsigned offset = 0;
+
+    bool null() const { return pointer == nullptr; }
+};
 
 namespace string
 {
     void create( string_t* s, const char* data, BXIAllocator* allocator );
     void free( string_t* s );
+
+    void create( string_buffer_t* s, unsigned capacity, BXIAllocator* allocator );
+    void free( string_buffer_t* s );
+
+    const char* append( string_buffer_t* s, const char* str );
+    const char* append( string_buffer_t* s, const char* str, unsigned len );
+
+    string_buffer_it iterate( const string_buffer_t* s, const string_buffer_it current );
 }

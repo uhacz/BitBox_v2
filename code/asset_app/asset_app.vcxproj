@@ -74,6 +74,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="asset_app.h" />
+    <ClInclude Include="material_editor.h" />
     <ClInclude Include="material_library.h" />
     <ClInclude Include="test_component.h" />
   </ItemGroup>
@@ -82,6 +83,7 @@
       <PreprocessToFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</PreprocessToFile>
       <PreprocessToFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</PreprocessToFile>
     </ClCompile>
+    <ClCompile Include="material_editor.cpp" />
     <ClCompile Include="material_library.cpp" />
     <ClCompile Include="test_component.cpp" />
   </ItemGroup>

@@ -54,6 +54,7 @@ struct BXPostLoadCallback
 };
 
 // --- 
+struct string_buffer_t;
 struct BXIFilesystem
 {
 	enum EMode : int32_t
@@ -65,14 +66,17 @@ struct BXIFilesystem
 	virtual ~BXIFilesystem() {}
 
 	virtual void			 SetRoot  ( const char* absoluteDirPath ) = 0;
-	
+    virtual const char*      GetRoot  () const = 0;
 	virtual BXFileHandle	 LoadFile ( const char* relativePath, EMode mode, BXPostLoadCallback callback, BXIAllocator* allocator = nullptr ) = 0;
     virtual BXFileHandle	 LoadFile ( const char* relativePath, EMode mode, BXIAllocator* allocator = nullptr ) { return LoadFile( relativePath, mode, BXPostLoadCallback{ nullptr,nullptr }, allocator ); }
-	virtual void			 CloseFile( BXFileHandle fhandle, bool freeData = true )							  = 0;
+    virtual void			 CloseFile( BXFileHandle fhandle, bool freeData = true ) = 0;
 	
-	virtual BXEFileStatus::E File     ( BXFile* file, BXFileHandle fhandle )            = 0;
-
+	virtual BXEFileStatus::E File     ( BXFile* file, BXFileHandle fhandle ) = 0;
+    
 	BXFileWaitResult (*LoadFileSync)( BXIFilesystem* fs, const char* relativePath, EMode mode, BXIAllocator* allocator );
+    int32_t( *WriteFileSync )(BXIFilesystem* fs, const char* relativePath, const void* data, uint32_t data_size);
+
+    void ( *ListFiles )( BXIFilesystem* fs, string_buffer_t* s, const char* relative_path, bool recurse, BXIAllocator* allocator );
 };
 
 

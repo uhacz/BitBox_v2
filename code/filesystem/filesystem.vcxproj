@@ -66,6 +66,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="dirent.h" />
     <ClInclude Include="filesystem_plugin.h" />
     <ClInclude Include="filesystem_windows.h" />
   </ItemGroup>
@@ -76,6 +77,9 @@
   <ItemGroup>
     <ProjectReference Include="..\foundation\foundation.vcxproj">
       <Project>{81e2ec47-feda-4c4d-a6f7-493c4b92d2ff}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\util\util.vcxproj">
+      <Project>{dad0a7d3-3c93-4a28-abb9-cee0e38f18bf}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

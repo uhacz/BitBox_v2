@@ -20,9 +20,9 @@
 #include <foundation\id_allocator_dense.h>
 #include <foundation\container_soa.h>
 
-#include <util\guid.h>
-#include <util\random\random.h>
-#include <util\grid.h>
+#include <util/guid.h>
+#include <util/random\random.h>
+#include <util/grid.h>
 #include <util/poly_shape/poly_shape.h>
 
 #include <resource_manager\resource_manager.h>
@@ -32,14 +32,14 @@
 #include <gfx/gfx.h>
 #include <gfx/gfx_camera.h>
 #include <gfx/gfx_shader_interop.h>
-#include <shaders/hlsl/material_frame_data.h>
-#include <shaders/hlsl/material_data.h>
-#include <shaders/hlsl/transform_instance_data.h>
+
 
 #include <gui/gui.h>
 #include <3rd_party/imgui/imgui.h>
 
 #include <entity/entity.h>
+
+#include "material_editor.h"
 
 struct GroundMesh
 {
@@ -80,73 +80,7 @@ namespace
 
 
 
-struct MATEditor
-{
-    static void SetDefault( gfx_shader::Material* mat )
-    {
-        mat->diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
-        mat->specular_albedo = vec3_t( 1.f, 1.f, 1.f );
-        mat->metal = 0.f;
-        mat->roughness = 0.5f;
-    }
 
-    void StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm )
-    {
-        SetDefault( &_mat_data );
-        
-        GFXMaterialDesc desc;
-        desc.data = _mat_data;
-        _mat_id = gfx->CreateMaterial( "editable", desc );
-
-        GFXMeshInstanceDesc mesh_desc = {};
-        mesh_desc.idmaterial = _mat_id;
-        mesh_desc.idmesh_resource = rsm->Find( "sphere" );
-        _mesh_id = gfx->AddMeshToScene( scene_id, mesh_desc, mat44_t::identity() );
-    }
-    void ShutDown( GFX* gfx )
-    {
-        gfx->RemoveMeshFromScene( _mesh_id );
-        gfx->DestroyMaterial( _mat_id );
-    }
-
-    void Tick( GFX* gfx )
-    {
-        bool edited = false;
-        if( ImGui::Begin( "Material" ) )
-        {
-            if( ImGui::BeginMenu( "File" ) )
-            {
-                if( ImGui::MenuItem( "New" ) )
-                {
-                    SetDefault( &_mat_data );
-                    edited = true;
-                }
-                if( ImGui::MenuItem( "Load" ) )
-                {
-                
-                }
-                if( ImGui::MenuItem( "Save" ) )
-                {
-                    
-                }
-                ImGui::EndMenu();
-            }
-            edited |= ImGui::ColorEdit3( "Diffuse albedo", _mat_data.diffuse_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
-            edited |= ImGui::ColorEdit3( "Specular albedo", _mat_data.specular_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
-            edited |= ImGui::SliderFloat( "Roughness", &_mat_data.roughness, 0.f, 1.f, "%.4f" );
-        }
-        ImGui::End();
-
-        if( edited )
-        {
-            gfx->SetMaterialData( _mat_id, _mat_data );
-        }
-    }
-
-    GFXMeshInstanceID _mesh_id;
-    GFXMaterialID _mat_id;
-    gfx_shader::Material _mat_data;
-};
 
 static MATEditor g_mat_editor;
 
@@ -276,7 +210,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         _ent->Step( &ent_sys_info, deltaTimeUS );
     }
 
-    g_mat_editor.Tick( _gfx );
+    g_mat_editor.Tick( _gfx, _filesystem );
 
     GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq, _rsm );
     //static bool tmp = false;

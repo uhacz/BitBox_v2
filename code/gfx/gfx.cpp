@@ -17,9 +17,14 @@
 
 namespace gfx_shader
 {
-#include <shaders/hlsl/material_frame_data.h>
-#include <shaders/hlsl/transform_instance_data.h>
 #include <shaders/hlsl/shadow_data.h>
+
+    RTTI_DEFINE_TYPE( Material, {
+        RTTI_ATTR( Material, diffuse_albedo, "DiffuseAlbedo" ),
+        RTTI_ATTR( Material, specular_albedo, "SpecularAlbedo" ),
+        RTTI_ATTR( Material, roughness, "Roughness" )->SetMin( 0.f )->SetMax( 1.f )->SetDefault( 0.5f ),
+        RTTI_ATTR( Material, metal, "Metal" )->SetMin( 0.f )->SetMax( 1.f )->SetDefault( 0.f ),
+    } );
 
 }//
 

@@ -130,7 +130,7 @@ string_t::string_t( const char* str )
 
 namespace string
 {
-    void string::create( string_t* s, const char* data, BXIAllocator* allocator )
+    void create( string_t* s, const char* data, BXIAllocator* allocator )
     {
         const uint32_t len = length( data );
         if( len > string_t::MAX_STATIC_LENGTH )
@@ -149,7 +149,7 @@ namespace string
         }
     }
 
-    void string::free( string_t* s )
+    void free( string_t* s )
     {
         if( s->_allocator )
         {
@@ -158,6 +158,84 @@ namespace string
         memset( s, 0x00, sizeof( string_t ) );
     }
 
+    void create( string_buffer_t* s, unsigned capacity, BXIAllocator* allocator )
+    {
+        free( s );
 
+        s->_base = (char*)BX_MALLOC( allocator, capacity, 1 );
+        s->_capacity = capacity;
+        s->_allocator = allocator;
+    }
+
+    void free( string_buffer_t* s )
+    {
+        BX_FREE0( s->_allocator, s->_base );
+        s->_capacity = 0;
+        s->_allocator = nullptr;
+    }
+    const char* append( string_buffer_t* s, const char* str )
+    {
+        const uint32_t len = string::length( str );
+        return append( s, str, len );
+    }
+    const char* append( string_buffer_t* s, const char* str, unsigned len )
+    {
+        const uint32_t space_required = len + 1;
+        if( s->_offset + space_required > s->_capacity )
+        {
+            uint32_t new_capacity = s->_capacity * 2;
+            while( new_capacity < (s->_offset + space_required ))
+            {
+                new_capacity *= 2;
+            }
+
+            string_buffer_t new_s;
+            memset( &new_s, 0x00, sizeof( string_buffer_t ) );
+            create( &new_s, new_capacity, s->_allocator );
+
+            memcpy( new_s._base, s->_base, s->_offset );
+            new_s._offset = s->_offset;
+
+            free( s );
+            s[0] = new_s;
+        }
+
+        char* dst = s->_base + s->_offset;
+        memcpy( dst, str, len );
+        dst[len] = 0;
+
+        s->_offset += space_required;
+        return dst;
+    }
+
+    string_buffer_it string::iterate( const string_buffer_t* s, const string_buffer_it current )
+    {
+        string_buffer_it it = current;
+        if( it.null() )
+        {
+            it.pointer = s->_base;
+            it.offset = 0;
+        }
+        else
+        {
+            uint32_t search_offset = current.offset;
+            while( s->_base[++search_offset] )
+            {
+                if( search_offset >= s->_offset )
+                    break;
+            }
+
+            if( search_offset < s->_offset )
+            {
+                it.pointer = s->_base + search_offset;
+                it.offset = search_offset;
+            }
+            else
+            {
+                it = {};
+            }
+        }
+        return it;
+    }
 }
 
