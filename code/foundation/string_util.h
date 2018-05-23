@@ -28,11 +28,12 @@ struct string_t
         
     };
 
-    string_t() {}
+    string_t();
     string_t( const char* str );
 
           char* c_str()       { return (_allocator) ? _dynamic : _static; }
     const char* c_str() const { return (_allocator) ? _dynamic : _static; }
+    unsigned length() const;
 };
 
 struct string_buffer_t
@@ -41,6 +42,8 @@ struct string_buffer_t
     unsigned _offset;
     unsigned _capacity;
     BXIAllocator* _allocator;
+
+    bool null() const { return _base == nullptr; }
 };
 struct string_buffer_it
 {
@@ -61,5 +64,5 @@ namespace string
     const char* append( string_buffer_t* s, const char* str );
     const char* append( string_buffer_t* s, const char* str, unsigned len );
 
-    string_buffer_it iterate( const string_buffer_t* s, const string_buffer_it current );
+    string_buffer_it iterate( const string_buffer_t& s, const string_buffer_it current = string_buffer_it() );
 }

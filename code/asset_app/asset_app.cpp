@@ -134,7 +134,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
 	g_camera_world = mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) );
 
-    g_mat_editor.StartUp( _gfx, g_idscene, _rsm );
+    g_mat_editor.StartUp( _gfx, g_idscene, _rsm, allocator );
 
     return true;
 }

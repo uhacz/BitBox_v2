@@ -6,6 +6,7 @@
 #include "type.h"
 #include "debug.h"
 #include "memory/memory.h"
+#include "common.h"
 
 char* string::token( char* str, char* tok, size_t toklen, char* delim )
 {
@@ -128,6 +129,14 @@ string_t::string_t( const char* str )
 }
 
 
+string_t::string_t()
+{}
+
+unsigned string_t::length() const
+{
+    return (unsigned)strlen( c_str() );
+}
+
 namespace string
 {
     void create( string_t* s, const char* data, BXIAllocator* allocator )
@@ -163,13 +172,22 @@ namespace string
         free( s );
 
         s->_base = (char*)BX_MALLOC( allocator, capacity, 1 );
+        memset( s->_base, 0x00, capacity );
+
+        s->_offset = 0;
         s->_capacity = capacity;
         s->_allocator = allocator;
     }
 
     void free( string_buffer_t* s )
     {
-        BX_FREE0( s->_allocator, s->_base );
+        if( !s )
+            return;
+        
+        if( s->_allocator )
+        {
+            BX_FREE0( s->_allocator, s->_base );
+        }
         s->_capacity = 0;
         s->_allocator = nullptr;
     }
@@ -183,7 +201,7 @@ namespace string
         const uint32_t space_required = len + 1;
         if( s->_offset + space_required > s->_capacity )
         {
-            uint32_t new_capacity = s->_capacity * 2;
+            uint32_t new_capacity = max_of_2( 16u, s->_capacity * 2u );
             while( new_capacity < (s->_offset + space_required ))
             {
                 new_capacity *= 2;
@@ -208,27 +226,27 @@ namespace string
         return dst;
     }
 
-    string_buffer_it string::iterate( const string_buffer_t* s, const string_buffer_it current )
+    string_buffer_it string::iterate( const string_buffer_t& s, const string_buffer_it current )
     {
         string_buffer_it it = current;
         if( it.null() )
         {
-            it.pointer = s->_base;
+            it.pointer = s._base;
             it.offset = 0;
         }
         else
         {
             uint32_t search_offset = current.offset;
-            while( s->_base[++search_offset] )
+            while( s._base[++search_offset] )
             {
-                if( search_offset >= s->_offset )
+                if( search_offset >= s._offset )
                     break;
             }
 
-            if( search_offset < s->_offset )
+            if( search_offset < s._offset )
             {
-                it.pointer = s->_base + search_offset;
-                it.offset = search_offset;
+                it.offset = search_offset + 1;
+                it.pointer = s._base + it.offset;
             }
             else
             {
