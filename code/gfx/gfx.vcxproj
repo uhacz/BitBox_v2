@@ -95,6 +95,9 @@
     <ProjectReference Include="..\rdi_backend\rdi_backend.vcxproj">
       <Project>{f442cd81-4b2a-4ac2-8592-609ce3965b5c}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
+      <Project>{1faff81c-ccb1-45cd-8187-802646cff6e6}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\util\util.vcxproj">
       <Project>{dad0a7d3-3c93-4a28-abb9-cee0e38f18bf}</Project>
     </ProjectReference>

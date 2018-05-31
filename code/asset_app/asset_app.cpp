@@ -141,7 +141,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    g_mat_editor.ShutDown( _gfx );
+    g_mat_editor.ShutDown( _gfx, _rsm );
     //for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
     //    _ent->DestroyEntity( entity[i] );
     
@@ -232,9 +232,9 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     _gfx->BindMaterialFrame( frame_ctx );
     _gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
 
-    _gfx->PostProcess( frame_ctx, g_camera_params, g_camera_matrices );
+    //_gfx->PostProcess( frame_ctx, g_camera_params, g_camera_matrices );
 
-    _gfx->RasterizeFramebuffer( _rdicmdq, 1, g_camera_params.aspect() );
+    _gfx->RasterizeFramebuffer( _rdicmdq, 0, g_camera_params.aspect() );
 
     GUI::Draw();
 

@@ -21,6 +21,12 @@ shared cbuffer MaterialData
 {
 	Material _material;
 };
+
+Texture2D tex_material_base_color;
+Texture2D tex_material_normal;
+Texture2D tex_material_roughness;
+Texture2D tex_material_metalness;
+
 #endif
 
 #endif

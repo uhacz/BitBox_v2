@@ -10,7 +10,7 @@ struct MATEditor
     static void SetDefault( gfx_shader::Material* mat );
 
     void StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* allocator );
-    void ShutDown( GFX* gfx );
+    void ShutDown( GFX* gfx, RSM* rsm );
     void Tick( GFX* gfx, BXIFilesystem* fs );
 
     void _CreateRelativePath( FSName* fs_name, const char* filename );
@@ -21,6 +21,7 @@ struct MATEditor
     GFXMeshInstanceID _mesh_id;
     GFXMaterialID _mat_id;
     gfx_shader::Material _mat_data;
+    GFXMaterialTexture _mat_tex;
     string_t _folder;
 
     string_t _current_file;

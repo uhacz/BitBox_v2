@@ -2,7 +2,7 @@
 #include <memory\memory.h>
 #include <string.h>
 
-bool RSMLoader::Load( RSMResourceData* out, const void* data, uint32_t size, BXIAllocator* allocator )
+bool RSMLoader::Load( RSMResourceData* out, const void* data, uint32_t size, BXIAllocator* allocator, void* system )
 {
     out->allocator = allocator;
     out->pointer = data;

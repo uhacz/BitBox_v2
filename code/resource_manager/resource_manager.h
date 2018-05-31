@@ -35,13 +35,14 @@ struct RSM_EXPORT RSM
 {
     static RSMResourceHash CreateHash( const char* relative_path );
 
-    RSMResourceID Load( const char* relative_path );
+    RSMResourceID Load( const char* relative_path, void* system = nullptr );
     RSMResourceID Create( const char* name, const void* data, BXIAllocator* data_allocator );
     RSMEState::E  Wait( RSMResourceID rid );
 
     RSMResourceID Find( const char* relative_path ) const;
     RSMResourceID Find( RSMResourceHash hash ) const;
 
+    RSMEState::E State( RSMResourceID id ) const;
     const void* Get( RSMResourceID id ) const;
     void  Release( RSMResourceID id );
 

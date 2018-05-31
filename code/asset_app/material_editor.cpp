@@ -9,7 +9,7 @@ void MATEditor::SetDefault( gfx_shader::Material* mat )
     mat->diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
     mat->specular_albedo = vec3_t( 1.f, 1.f, 1.f );
     mat->metal = 0.f;
-    mat->roughness = 0.5f;
+    mat->roughness = 1.f;
 }
 
 void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* allocator )
@@ -18,24 +18,47 @@ void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* 
 
     SetDefault( &_mat_data );
 
+    static const char* tex_names[] =
+    {
+        "texture/2/d.DDS",
+        "texture/2/n.DDS",
+        "texture/2/r.DDS",
+        "texture/not_metal.DDS",
+
+        //"texture/bathroom_tile/basecolor.DDS",
+        //"texture/bathroom_tile/normal.DDS",
+        //"texture/bathroom_tile/roughness.DDS",
+        //"texture/bathroom_tile/metalness.DDS",
+    };
+
+    _mat_tex.id[GFXMaterialTexture::BASE_COLOR] = rsm->Load( tex_names[0], gfx );
+    _mat_tex.id[GFXMaterialTexture::NORMAL]     = rsm->Load( tex_names[1], gfx );
+    _mat_tex.id[GFXMaterialTexture::ROUGHNESS]  = rsm->Load( tex_names[2], gfx );
+    _mat_tex.id[GFXMaterialTexture::METALNESS]  = rsm->Load( tex_names[3], gfx );
+
     GFXMaterialDesc desc;
     desc.data = _mat_data;
+    desc.textures = _mat_tex;
     _mat_id = gfx->CreateMaterial( "editable", desc );
 
     GFXMeshInstanceDesc mesh_desc = {};
     mesh_desc.idmaterial = _mat_id;
-    mesh_desc.idmesh_resource = rsm->Find( "sphere" );
+    mesh_desc.idmesh_resource = rsm->Find( "box" );
     _mesh_id = gfx->AddMeshToScene( scene_id, mesh_desc, mat44_t::identity() );
 
     _folder = "material/";
 }
 
-void MATEditor::ShutDown( GFX* gfx )
+void MATEditor::ShutDown( GFX* gfx, RSM* rsm )
 {
     string::free( &_current_file );
     string::free( &_file_list );
     gfx->RemoveMeshFromScene( _mesh_id );
     gfx->DestroyMaterial( _mat_id );
+    for( uint32_t i = 0; i < GFXMaterialTexture::_COUNT_; ++i )
+    {
+        rsm->Release( _mat_tex.id[i] );
+    }
 }
 
 void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )

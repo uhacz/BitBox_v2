@@ -11,6 +11,13 @@
     />
 <define USE_SKYBOX="1"/>
 </pass>
+<pass name="full" vertex="vs_base" pixel="ps_full">
+<hwstate 
+    depth_test="1"
+    depth_write="1"
+/>
+<define USE_SKYBOX="1"/>
+</pass>
 #~header
 
 struct IN_VS
@@ -19,6 +26,10 @@ struct IN_VS
 	float3 pos	  	  : POSITION;
 	float3 nrm		  : NORMAL;
 	float2 uv0		  : TEXCOORD0;
+#if USE_TANGENTS == 1
+    float3 tan        : TANGENT;
+    float3 bin        : BINORMAL;
+#endif
 };
 
 struct IN_PS
@@ -26,7 +37,11 @@ struct IN_PS
 	float4 pos_hs	: SV_Position;
 	float3 pos_ws	: POSITION;
 	float3 nrm_ws	: NORMAL;
-	float2 uv0		: TEXCOORD;
+	float2 uv0		: TEXCOORD0;
+#if USE_TANGENTS == 1
+    float3 tan_ws   : TANGENT;
+    float3 bin_ws   : BINORMAL;
+#endif
 };
 
 struct OUT_PS
@@ -61,15 +76,17 @@ IN_PS vs_base( IN_VS input )
 
 	float4 pos_ls = float4(input.pos, 1.0);
 	float3 nrm_ls = input.nrm;
+    float3 pos_ws = TransformPosition( world_0, world_1, world_2, pos_ls );
 
-	float3 pos_ws = TransformPosition( world_0, world_1, world_2, pos_ls );
-	float3 nrm_ws = TransformNormal( world_it_0, world_it_1, world_it_2, nrm_ls );
+    output.pos_hs = mul( _fdata.camera_view_proj, float4(pos_ws, 1.0) );
+    output.pos_ws = pos_ws;
+    output.nrm_ws = TransformNormal( world_it_0, world_it_1, world_it_2, nrm_ls );
 
-	float4 pos_hs = mul( _fdata.camera_view_proj, float4(pos_ws, 1.0) );
-	
-	output.pos_hs = pos_hs;
-	output.pos_ws = pos_ws;
-	output.nrm_ws = nrm_ws;
+#if USE_TANGENTS == 1
+    output.tan_ws = TransformNormal( world_it_0, world_it_1, world_it_2, input.tan );
+    output.bin_ws = TransformNormal( world_it_0, world_it_1, world_it_2, input.bin );
+#endif
+
 	output.uv0 = input.uv0;
 	return output;
 }
@@ -82,18 +99,62 @@ float WrappedNdotL( in float3 N, in float3 L, in float w )
 	return saturate( (dot( N, L ) + w) / ((1 + w) * (1 + w)) );
 }
 
+struct LitInput
+{
+    float3 N;
+    float3 L;
+    float3 V;
+    float3 H;
+    float3 R;
+    float NoL;
+    float NoV;
+    float NoH;
+    float HoL;
+};
+
+struct LitData
+{
+    float3 diffuse;
+    float3 specular;
+};
+
+LitInput ComputeLitInput( in float3 N, in float3 L, in float3 V )
+{
+    const float3 H = normalize( L + V );
+
+    LitInput o;
+    o.N = N;
+    o.L = L;
+    o.V = V;
+    o.H = H;
+    o.R = 2.0*dot( N, V )*N - V;
+    o.NoL = saturate( dot( N, L ) );
+    o.NoV = saturate( dot( N, V ) );
+    o.NoH = saturate( dot( N, H ) );
+    o.HoL = saturate( dot( H, L ) );
+    return o;
+}
+
 // ================================================================================================
 // Calculates the Fresnel factor using Schlick's approximation
 // ================================================================================================
-float3 Fresnel( in float3 specAlbedo, in float3 h, in float3 l )
+//float3 Fresnel( in float3 f0, in float HoL )
+//{
+//	//float lDotH = saturate( dot( l, h ) );
+//	float3 fresnel = f0 + (1.0f - f0) * pow( (1.0f - HoL), 5.0f );
+//    fresnel *= dot( f0, 1.0f ) > 0.0f;
+//
+//	return fresnel;
+//}
+
+float pow5( in float x )
 {
-	float lDotH = saturate( dot( l, h ) );
-	float3 fresnel = specAlbedo + (1.0f - specAlbedo) * pow( (1.0f - lDotH), 5.0f );
+    return x * pow( x, 4 );
+}
 
-	// Disable specular entirely if the albedo is set to 0.0
-	fresnel *= dot( specAlbedo, 1.0f ) > 0.0f;
-
-	return fresnel;
+float3 Fresnel( in float3 F0, in float cos_i, float smoothness )
+{
+    return lerp( F0, 1.0, 0.9 * pow5( (smoothness*smoothness) * (1.0 - max( 0.0, cos_i )) ) );
 }
 
 // ===============================================================================================
@@ -110,90 +171,163 @@ float GGX_V1( in float m2, in float nDotX )
 // Rough Surfaces" [Walter 07]. m is roughness, n is the surface normal, h is the half vector,
 // l is the direction to the light source, and specAlbedo is the RGB specular albedo
 // ===============================================================================================
-float GGX_Specular( in float m, in float3 n, in float3 h, in float3 v, in float3 l )
+float GGX_Specular( in LitInput lin, in float roughness )
 {
-	float nDotH = saturate( dot( n, h ) );
-	//float nDotL = WrappedNdotL( n, l, w );
-    float nDotL = saturate( dot( n, l ) );
-    float nDotV = saturate( dot( n, v ) );
-
-	float nDotH2 = nDotH * nDotH;
-	float m2 = m * m;
+	float NoH2 = lin.NoH * lin.NoH;
+	float m2 = roughness * roughness;
 
 	// Calculate the distribution term
-	float d = m2 / (PI * pow( nDotH * nDotH * (m2 - 1) + 1, 2.0f ));
+	float d = m2 / (PI * pow( NoH2 * (m2 - 1) + 1, 2.0f ));
 
 	// Calculate the matching visibility term
-	float v1i = GGX_V1( m2, nDotL );
-	float v1o = GGX_V1( m2, nDotV );
+	float v1i = GGX_V1( m2, lin.NoL );
+	float v1o = GGX_V1( m2, lin.NoV );
 	float vis = v1i * v1o;
 
 	return d * vis;
 }
 
-struct LitData
-{
-    float3 diffuse;
-    float3 specular;
-};
 
-LitData CalcDirectionalLighting( in float3 N, in float3 L, in float3 lightColor, in float3 diffuseAlbedo, in float3 specularAlbedo, in float roughness, in float3 posWS )
+
+LitData CalcDirectionalLighting( in LitInput lin, in Material mat )
 {
     LitData lit_data = (LitData)0;
 
 	float3 lighting = 0.0f;
-	//float nDotL = WrappedNdotL( N, L, w );
-	float nDotL = saturate( dot( N, L) );
-	if( nDotL > 0.0f )
+	if( lin.NoL > 0.0f )
 	{
-		float3 V = normalize( _fdata.camera_eye.xyz - posWS );
-		float3 H = normalize( V + L );
-		float specular = GGX_Specular( roughness, N, H, V, L );
-		float3 fresnel = Fresnel( specularAlbedo, H, L );
+		float specular = GGX_Specular( lin, mat.roughness );
+		float3 fresnel = Fresnel( mat.specular_albedo, lin.HoL, 1.0 - mat.roughness );
 
-        lit_data.diffuse = max( 0, diffuseAlbedo * PI_RCP * nDotL * lightColor );
-        lit_data.specular = max( 0, specular * fresnel * nDotL * lightColor );
+        lit_data.diffuse = max( 0, mat.diffuse_albedo * PI_RCP * lin.NoL );
+        lit_data.specular = max( 0, specular * fresnel * lin.NoL );
 	}
 
     return lit_data;
 }
 
+#if USE_SKYBOX
+LitData ComputeSkyBox( in LitData lit_data, in LitInput lin, in Material material )
+{
+    float a2 = material.roughness * material.roughness;
+    float specPower = (1.0 / a2 - 1.0) * 2.0;
+
+    float MIPlevel = log2( _ldata.environment_map_width * sqrt( 3 ) ) - 0.5 * log2( specPower + 1 );
+    float3 diffuse_env = _skybox.SampleLevel( _samp_bilinear, lin.N, _ldata.environment_map_max_mip ).rgb;
+    float3 specular_env = _skybox.SampleLevel( _samp_bilinear, lin.R, MIPlevel ).rgb;
+
+    float3 F = Fresnel( material.specular_albedo, max( 0.001, lin.NoV ), 1.0 - material.roughness );
+    float3 lambert_color = (1.0 - F) * (lit_data.diffuse) * PI_RCP;
+
+    LitData lit_output;
+    lit_output.diffuse = diffuse_env * lambert_color * (1.0 - F); // *_ldata.sky_intensity;
+    lit_output.specular = specular_env * F; // *_ldata.sky_intensity;
+
+    return lit_output;
+}
+#endif
+
 OUT_PS ps_base( IN_PS input )
 {
 	const float3 light_pos = float3(-5.f, 5.f, 0.f);
 	const float3 light_color = float3(1, 1, 1);
+    const float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
 	const float3 L = normalize( light_pos - input.pos_ws );
 	const float3 N = normalize( input.nrm_ws );
 	
-	float w = 0.1f;
-    LitData lit_data = CalcDirectionalLighting( N, L, light_color, _material.diffuse_albedo, _material.specular_albedo, _material.roughness, input.pos_ws );
-    
-    float3 color = lit_data.diffuse + lit_data.specular;
+    LitInput lit_input = ComputeLitInput( N, L, V );
+    LitData lit_data = CalcDirectionalLighting( lit_input, _material );
+   
+    const float3 base_color = float3(1, 1, 1);
 
+    LitData lit_sky = (LitData)0;
 #if USE_SKYBOX
-    float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
-    const float3 R = 2.0*dot(N,V)*N - V;
-    float a2 = _material.roughness * _material.roughness;
-    float specPower = (1.0 / a2 - 1.0) * 2.0;
-
-    float MIPlevel = log2( _ldata.environment_map_width * sqrt( 3 ) ) - 0.5 * log2( specPower + 1 );
-    float3 diffuse_env = _skybox.SampleLevel( _samp_bilinear, N, _ldata.environment_map_max_mip ).rgb;
-    float3 specular_env = _skybox.SampleLevel( _samp_bilinear, R, MIPlevel ).rgb;
-
-    float3 color_from_sky_diff = (lit_data.diffuse * diffuse_env);
-    float3 color_from_sky_spec = (specular_env * Fresnel( _material.specular_albedo, N, V ));
-    
-    float3 color_from_sky = (color_from_sky_spec) * _ldata.sky_intensity * PI_RCP;
-    color += color_from_sky;
+    lit_sky = ComputeSkyBox( lit_data, lit_input, _material );
 #else
     float alpha = WrappedNdotL( N, L, 1.1f );
     float3 indirect = 0.1f * _material.diffuse_albedo * (alpha)* PI_RCP;
-
-    color = max( color, indirect );
-    color += indirect;
+    lit_sky.diffuse = max( lit_data.diffuse, indirect );
 #endif
+
+    float3 color_diffuse = (lit_data.diffuse * base_color * light_color) + lit_sky.diffuse;
+    float3 color_specular = (lit_data.specular * light_color) + lit_sky.specular;
+    float3 color = color_diffuse + color_specular;
+
+    OUT_PS output;
+    output.rgba = float4(color, 1);
+    return output;
+}
+
+float3x3 CotangentFrame( in float3 N, in float3 p, in float2 uv )
+{
+    // get edge vectors of the pixel triangle
+    float3 dp1 = ddx( p );
+    float3 dp2 = ddy( p );
+    float2 duv1 = ddx( uv );
+    float2 duv2 = ddy( uv );
+
+    // solve the linear system
+    float3 dp2perp = cross( dp2, N );
+    float3 dp1perp = cross( N, dp1 );
+    float3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+    float3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+
+    // construct a scale-invariant frame 
+    float invmax = rsqrt( max( dot( T, T ), dot( B, B ) ) );
+    return ( float3x3(T * invmax, B * invmax, N) );
+}
+
+float3 PerturbNormal( in float3 N, in float3 p, in float2 texcoord )
+{
+    float3 map = ( tex_material_normal.Sample( _samp_point, texcoord ).xyz * 2.0 - 1.0 );
+    float3x3 TBN = CotangentFrame( N, normalize(p), texcoord );
+    return normalize( mul( map, TBN ) );
+}
+
+float3 PerturbNormal_ref( in float3 N, in float3 T, in float3 B, in float2 texcoord )
+{
+    float3 map = normalize( tex_material_normal.Sample( _samp_point, texcoord ).xyz * 2.0 - 1.0 );
+    float3x3 TBN = transpose( float3x3( T, B, N ) );
+    float3 NN = mul( TBN, map );
+    return normalize( NN );
+}
+
+OUT_PS ps_full( IN_PS input )
+{
+    const float3 light_pos = float3(-5.f, 5.f, 0.f);
+    const float3 light_color = float3(1, 1, 1);
+    const float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
+    const float3 L = normalize( light_pos - input.pos_ws );
+    const float3 N_input = normalize( input.nrm_ws );
     
-	OUT_PS output;
-	output.rgba = float4(color, 1);
-	return output;
+#if USE_TANGENTS == 1
+    const float3 T_input = normalize( input.tan_ws );
+    const float3 B_input = normalize( input.bin_ws );
+    const float3 N = PerturbNormal_ref( N_input, T_input, B_input, input.uv0 );
+#else
+    const float3 N = PerturbNormal( N_input, input.pos_ws, input.uv0 );
+#endif
+
+    LitInput lit_input = ComputeLitInput( N, L, V );
+    
+    Material mat = _material;
+    mat.roughness *= tex_material_roughness.Sample( _samp_point, input.uv0 ).r;
+    mat.metal *= tex_material_metalness.Sample( _samp_point, input.uv0 ).r;
+    mat.specular_albedo = lerp( 0.04, _material.specular_albedo, mat.metal );
+    
+    const float3 base_color = tex_material_base_color.Sample( _samp_trilinear, input.uv0 ) * saturate( 1.f - mat.metal );
+
+    LitData lit_data = CalcDirectionalLighting( lit_input, mat );
+    LitData lit_sky = (LitData)0;
+#if USE_SKYBOX
+    lit_sky = ComputeSkyBox( lit_data, lit_input, mat );
+#endif
+
+    float3 color_diffuse = ( lit_data.diffuse * base_color * light_color ) + lit_sky.diffuse;
+    float3 color_specular = (lit_data.specular * light_color) + lit_sky.specular;
+    float3 color = color_diffuse + color_specular;
+    
+    OUT_PS output;
+    output.rgba = float4(color, 1 );
+    return output;
 }

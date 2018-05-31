@@ -63,17 +63,30 @@ namespace GFXERenderMask
     };
 }//
 
+struct GFXMaterialTexture
+{
+    enum E : uint8_t
+    {
+        BASE_COLOR = 0,
+        NORMAL,
+        ROUGHNESS,
+        METALNESS,
+        _COUNT_,
+    };
+    RSMResourceID id[_COUNT_] = {};
+};
+
 struct GFXMaterialDesc
 {
-    const char* filename = nullptr;
     gfx_shader::Material data = {};
+    GFXMaterialTexture textures = {};
 };
 
 struct GFXSkyParams
 {
     vec3_t sun_dir = normalize( vec3_t( 5.f, -5.f, 0.f ) );
     float sun_intensity = 1.f;
-    float sky_intensity = 1.f;
+    float sky_intensity = 0.1f;
 };
 
 struct GFXSceneDesc

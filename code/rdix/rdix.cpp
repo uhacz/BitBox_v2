@@ -657,6 +657,8 @@ RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_
     desc.VertexBuffer( RDIVertexBufferDesc::POS(), shape->positions );
     desc.VertexBuffer( RDIVertexBufferDesc::NRM(), shape->normals );
     desc.VertexBuffer( RDIVertexBufferDesc::UV0(), shape->texcoords );
+    desc.VertexBuffer( RDIVertexBufferDesc::TAN(), shape->tangents );
+    desc.VertexBuffer( RDIVertexBufferDesc::BIN(), shape->bitangents );
     desc.IndexBuffer( RDIEType::UINT, shape->indices );
 
     return CreateRenderSource( dev, desc, allocator );

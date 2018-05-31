@@ -18,7 +18,7 @@ struct RSM_EXPORT RSMLoader
 
     virtual const char* SupportedType() const = 0;
     virtual bool IsBinary() const = 0;
-    virtual bool Load( RSMResourceData* out, const void* data, uint32_t size, BXIAllocator* allocator );
+    virtual bool Load( RSMResourceData* out, const void* data, uint32_t size, BXIAllocator* allocator, void* system );
     virtual void Unload( RSMResourceData* in_out );
 };
 

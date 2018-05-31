@@ -157,12 +157,21 @@ struct GFXShaderLoadHelper
     }
 };
 
+namespace GFXEMaterialFlag
+{
+    enum E : uint8_t
+    {
+        PIPELINE_BASE = BIT_OFFSET(0),
+        PIPELINE_FULL = BIT_OFFSET(1),
+    };
+}//
 struct GFXMaterialContainer
 {
     struct  
     {
         RDIXPipeline* base = nullptr;
         RDIXPipeline* base_with_skybox = nullptr;
+        RDIXPipeline* full = nullptr;
         RDIXPipeline* skybox = nullptr;
     } pipeline;
     
@@ -173,13 +182,18 @@ struct GFXMaterialContainer
     mutex_t                   lock;
     id_table_t<MAX_MATERIALS> idtable;
     gfx_shader::Material      data[MAX_MATERIALS] = {};
+    GFXMaterialTexture        textures[MAX_MATERIALS] = {};
     RDIConstantBuffer         data_gpu[MAX_MATERIALS] = {};
     RDIXResourceBinding*      binding[MAX_MATERIALS] = {};
     string_t                  name[MAX_MATERIALS] = {};
+    uint8_t                   flags[MAX_MATERIALS] = {};
     id_t                      idself[MAX_MATERIALS] = {};
 
     mutex_t to_remove_lock;
     IDArray to_remove;
+
+    mutex_t to_refresh_lock;
+    IDArray to_refresh;
 
     bool IsAlive( id_t id ) const { return id_table::has( idtable, id ); }
 };
@@ -285,8 +299,141 @@ struct GFXSystem
     GFXFrameContext _frame_ctx = {};
 };
 
+template< typename T, uint32_t MAX >
+struct static_array_t
+{
+    T data[MAX];
+    uint32_t size = 0;
+
+    T &operator[]( int i ) { return data[i]; }
+    const T &operator[]( int i ) const { return data[i]; }
+
+    T* begin() { return data; }
+    T* end() { return data + size; }
+
+    const T* begin() const { return data; }
+    const T* end() const { return data + size; }
+};
+namespace array
+{
+    template< typename T, uint32_t MAX > int      capacity( const static_array_t<T, MAX>& arr ) { return arr.capacity; }
+    template< typename T, uint32_t MAX > uint32_t size    ( const static_array_t<T, MAX>& arr ) { return arr.size; }
+    template< typename T, uint32_t MAX > bool     empty   ( const static_array_t<T, MAX>& arr ) { return arr.size == 0; }
+    template< typename T, uint32_t MAX > bool     any     ( const static_array_t<T, MAX>& arr ) { return arr.size != 0; }
+    template< typename T, uint32_t MAX > T&       front   ( static_array_t<T, MAX>& arr ) { return arr.data[0]; }
+    template< typename T, uint32_t MAX > const T& front   ( const static_array_t<T, MAX>& arr ) { return arr.data[0]; }
+    template< typename T, uint32_t MAX > T&       back    ( static_array_t<T, MAX>& arr ) { return arr.data[arr.size - 1]; }
+    template< typename T, uint32_t MAX > const T& back    ( const static_array_t<T, MAX>& arr ) { return arr.data[arr.size - 1]; }
+    template< typename T, uint32_t MAX > void     clear   ( static_array_t<T, MAX>& arr ) { arr.size = 0; }
+
+    template< typename T, uint32_t MAX > uint32_t push_back( static_array_t<T, MAX>& arr, const T& value )
+    {
+        SYS_ASSERT( arr.size + 1 <= MAX );
+        arr.data[arr.size] = value;
+        return arr.size++;
+    }
+
+    template< typename T, uint32_t MAX > void pop_back( static_array_t<T, MAX>& arr )
+    {
+        arr.size = (arr.size > 0) ? --arr.size : 0;
+    }
+
+    template< typename T, uint32_t MAX > void erase_swap( static_array_t<T, MAX>& arr, uint32_t pos )
+    {
+        const uint32_t upos = (uint32_t)pos;
+        if( upos > arr.size )
+            return;
+
+        if( upos != arr.size - 1 )
+        {
+            arr.data[upos] = back( arr );
+        }
+        pop_back( arr );
+    }
+
+    template< typename T, uint32_t MAX > void erase( static_array_t<T, MAX>& arr, uint32_t pos )
+    {
+        const uint32_t upos = (uint32_t)pos;
+        if( upos > arr.size )
+            return;
+
+        for( uint32_t i = upos + 1; i < arr.size; ++i )
+        {
+            arr.data[i - 1] = arr.data[i];
+        }
+        pop_back( arr );
+    }
+
+    template< typename T, uint32_t MAX > void resize( static_array_t<T, MAX>& arr, uint32_t newSize )
+    {
+        SYS_ASSERT( newSize <= MAX );
+        arr.size = newSize;
+    }
+}//
+
+
 namespace gfx_internal
 {
+    static void RefreshPendingMaterials( GFXSystem* gfx, RSM* rsm )
+    {
+        GFXMaterialContainer& mc = gfx->_material;
+        {
+            static_array_t<id_t, MAX_MATERIALS> to_queue;
+            
+            scope_mutex_t guard( mc.to_refresh_lock );
+            while( !array::empty( mc.to_refresh ) )
+            {
+                const id_t id = array::back( mc.to_refresh );
+                array::pop_back( mc.to_refresh );
+
+                if( !mc.IsAlive( id ) )
+                    continue;
+
+                const GFXMaterialTexture& textures = mc.textures[id.index];
+                uint32_t nb_loaded = 0;
+                RDITextureRO* rdi_tex[GFXMaterialTexture::_COUNT_] = {};
+                for( uint32_t i = 0; i < GFXMaterialTexture::_COUNT_; ++i )
+                {
+                    RSMEState::E state = rsm->State( textures.id[i] );
+                    if( state == RSMEState::READY )
+                    {
+                        rdi_tex[i] = (RDITextureRO*)rsm->Get( textures.id[i] );
+                        SYS_ASSERT( rdi_tex[i] != nullptr );
+                        ++nb_loaded;
+                    }
+                    else if( state == RSMEState::LOADING )
+                    {
+                        array::push_back( to_queue, id );
+                        break;
+                    }
+                    else
+                    {
+                        nb_loaded = UINT32_MAX;
+                        break;
+                    }
+                }
+
+                if( nb_loaded == GFXMaterialTexture::_COUNT_ )
+                {
+                    RDIXResourceBinding* binding = mc.binding[id.index];
+                    SetResourceRO( binding, "tex_material_base_color", rdi_tex[GFXMaterialTexture::BASE_COLOR] );
+                    SetResourceRO( binding, "tex_material_normal"    , rdi_tex[GFXMaterialTexture::NORMAL] );
+                    SetResourceRO( binding, "tex_material_roughness" , rdi_tex[GFXMaterialTexture::ROUGHNESS] );
+                    SetResourceRO( binding, "tex_material_metalness" , rdi_tex[GFXMaterialTexture::METALNESS] );
+                }
+                else if( nb_loaded == UINT32_MAX )
+                {
+                    // fallback
+                }
+            }
+
+            for( uint32_t i = 0; i < to_queue.size; ++i )
+            {
+                array::push_back( mc.to_refresh, to_queue[i] );
+            }
+        }
+    }
+
     static void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst, RSM* rsm )
     {
         if( !sc->IsMeshAlive( idscene, idinst ) )
@@ -411,7 +558,18 @@ namespace gfx_internal
             id_t fallback_id = { gfx->_fallback_idmaterial.i };
             return gfx->_material.binding[fallback_id.index];
         }
-        return gfx->_material.binding[id.index];
+        return  gfx->_material.binding[id.index];
+    }
+    static RDIXPipeline* GetMaterialPipeline( GFXSystem* gfx, id_t id )
+    {
+        if( !IsMaterialAlive( gfx, id ) )
+        {
+            return gfx->_material.pipeline.base;
+        }
+
+        const uint8_t flags = gfx->_material.flags[id.index];
+        SYS_ASSERT( flags & (GFXEMaterialFlag::PIPELINE_BASE | GFXEMaterialFlag::PIPELINE_FULL) );
+        return (flags & GFXEMaterialFlag::PIPELINE_BASE) ? gfx->_material.pipeline.base : gfx->_material.pipeline.full;
     }
 }
 
@@ -465,6 +623,7 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
         GFXMaterialContainer& materials = gfx->_material;
         materials.pipeline.base             = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "base" );
         materials.pipeline.base_with_skybox = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "base_with_skybox" );
+        materials.pipeline.full             = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "full" );
         materials.pipeline.skybox           = helper.CreatePipeline( "shader/hlsl/bin/skybox.shader", "skybox" );
 
         materials.frame_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::MaterialFrameData ) );
@@ -546,7 +705,7 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
         const char* names[] = { "sphere", "box" };
 
         poly_shape_t shapes[GFXSystem::NUM_DEFAULT_MESHES] = {};
-        poly_shape::createShpere( &shapes[0], 8, allocator );
+        poly_shape::createShpere( &shapes[0], 10, allocator );
         poly_shape::createBox( &shapes[1], 4, allocator );
         const uint32_t n_shapes = (uint32_t)sizeof_array( shapes );
         for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MESHES; ++i )
@@ -610,6 +769,7 @@ void GFX::ShutDown( GFX** gfx_interface_handle, RSM* rsm )
         ::Destroy( &gfx->_material.frame_data_gpu );
         DestroyPipeline( dev, &gfx->_material.pipeline.base );
         DestroyPipeline( dev, &gfx->_material.pipeline.base_with_skybox );
+        DestroyPipeline( dev, &gfx->_material.pipeline.full );
         DestroyPipeline( dev, &gfx->_material.pipeline.skybox );
     }
 
@@ -649,10 +809,28 @@ GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc
     id = id_table::create( mc.idtable );
     mc.lock.unlock();
 
+    mc.data[id.index] = desc.data;
+    mc.textures[id.index] = desc.textures;
     mc.data_gpu[id.index] = CreateConstantBuffer( dev, sizeof( gfx_shader::Material ) );
+    mc.flags[id.index] = GFXEMaterialFlag::PIPELINE_BASE;
 
     RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
-    RDIXResourceBinding* binding = CloneResourceBinding( ResourceBinding( mc.pipeline.base ), allocator );
+    
+    RDIXResourceBinding* binding = nullptr;
+    if( IsAlive( desc.textures.id[0] ) )
+    {
+        binding = CloneResourceBinding( ResourceBinding( mc.pipeline.full ), allocator );
+        mc.flags[id.index] = GFXEMaterialFlag::PIPELINE_FULL;
+        {
+            scope_mutex_t guard( mc.to_refresh_lock );
+            array::push_back( mc.to_refresh, id );
+        }
+    }
+    else
+    {
+       binding = CloneResourceBinding( ResourceBinding( mc.pipeline.base ), allocator );
+    }
+     
     
     gfx_internal::UploadMaterial( gfx, id, desc.data );
     SetConstantBuffer( binding, "MaterialData", cbuffer );
@@ -907,7 +1085,9 @@ const GFXSkyParams& GFX::SkyParams( GFXSceneID idscene ) const
 
 GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq, RSM* rsm )
 {
+    gfx_internal::RefreshPendingMaterials( gfx, rsm );
     gfx_internal::RemovePendingObjects( gfx, rsm );
+    
 
     ClearState( cmdq );
     SetSamplers( cmdq, (RDISampler*)&gfx->_samplers._point, 0, 4, RDIEPipeline::ALL_STAGES_MASK );
@@ -984,7 +1164,8 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
     const array_span_t<mat44_t> matrix_array( sc.mesh_data[scene_index]->world_matrix, num_meshes );
     
     const bool skybox_enabled = sc.sky_data[scene_index].flag_enabled != 0;
-    RDIXPipeline* pipeline = (skybox_enabled) ? gfx->_material.pipeline.base_with_skybox : gfx->_material.pipeline.base;
+    SYS_ASSERT( skybox_enabled == true );
+    //RDIXPipeline* pipeline = (skybox_enabled) ? gfx->_material.pipeline.base_with_skybox : gfx->_material.pipeline.base;
 
     array_span_t<uint32_t> instance_buffer_index_array( sc.mesh_data[scene_index]->transform_buffer_instance_index, num_meshes );
 
@@ -995,10 +1176,13 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
 
         RDIXCommandChain chain( cmdbuffer, nullptr );
 
+        RDIXResourceBinding* binding = MaterialBinding( idmat_array[i] );
+        RDIXPipeline* pipeline = gfx_internal::GetMaterialPipeline( gfx, { idmat_array[i].i } );
+
         const uint32_t data_size = (uint32_t)sizeof( uint32_t );
         chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( data_size, GetInstanceOffsetCBuffer( transform_buffer ), &instance_offset, data_size );
         chain.AppendCmd<RDIXSetPipelineCmd>( pipeline, false );
-        chain.AppendCmd<RDIXSetResourcesCmd>( MaterialBinding( idmat_array[i] ) );
+        chain.AppendCmd<RDIXSetResourcesCmd>( binding );
         
         if( RDIXDrawRenderSourceCmd* draw_cmd = chain.AppendCmd<RDIXDrawRenderSourceCmd>() )
         {

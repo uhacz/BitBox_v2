@@ -37,6 +37,7 @@ struct RSMPendingResource
 {
     id_t id;
     BXFileHandle hfile;
+    void* user_system;
 };
 
 template< typename T, typename Tlock >
@@ -108,7 +109,7 @@ static void BackgroundThread( RSM::RSMImpl* rsm )
         RSMPendingResource pending = {};
         while( PopFrontQueue( &pending, rsm->to_load, rsm->to_load_lock ) )
         {
-            bool load_ok = false;
+            bool should_delete_file_data = false;
             if( rsm->IsAlive( pending.id ) )
             {
                 BXFile file = {};
@@ -119,7 +120,7 @@ static void BackgroundThread( RSM::RSMImpl* rsm )
 
                 const uint32_t loader_index = rsm->rloader_index[pending.id.index];
                 RSMLoader* loader = rsm->loader[loader_index];
-                load_ok = loader->Load( data, file.pointer, file.size, file.allocator );
+                const bool load_ok = loader->Load( data, file.pointer, file.size, file.allocator, pending.user_system );
                 if( load_ok )
                 {
                     rsm->rstate[pending.id.index] = RSMEState::READY;
@@ -129,8 +130,10 @@ static void BackgroundThread( RSM::RSMImpl* rsm )
                     SYS_LOG_ERROR( "Resource failed to load (%s)", rsm->rname[pending.id.index].c_str() );
                     rsm->rstate[pending.id.index] = RSMEState::FAIL;
                 }
+
+                should_delete_file_data = !load_ok || (data->pointer != file.pointer);
             }
-            rsm->filesystem->CloseFile( pending.hfile, !load_ok );
+            rsm->filesystem->CloseFile( pending.hfile, should_delete_file_data );
         }
 
         while( PopFrontQueue( &pending, rsm->to_unload, rsm->to_unload_lock ) )
@@ -144,7 +147,10 @@ static void BackgroundThread( RSM::RSMImpl* rsm )
                 
                 RSMResourceData* data = &rsm->rdata[pending.id.index];                
                 loader->Unload( data );
-                BX_FREE( data->allocator, (void*)data->pointer );
+                if( data->allocator )
+                {
+                    BX_FREE( data->allocator, (void*)data->pointer );
+                }
 
                 string::free( &rsm->rname[pending.id.index] );
                 rsm->rhash[pending.id.index]         = { 0 };
@@ -214,6 +220,7 @@ static void FileLoadCallback( BXIFilesystem* fs, BXFileHandle fhandle, BXEFileSt
 
     RSMPendingResource pending = {};
     pending.id = id;
+    pending.user_system = user_data2;
 
     if( file_status == BXEFileStatus::READY )
     {
@@ -267,7 +274,7 @@ static id_t LookupFind( RSM::RSMImpl* rsm, RSMResourceHash rhash )
     return result;
 }
 
-RSMResourceID RSM::Load( const char* relative_path )
+RSMResourceID RSM::Load( const char* relative_path, void* system )
 {
     RSMResourceID result = { 0 };
     
@@ -299,7 +306,7 @@ RSMResourceID RSM::Load( const char* relative_path )
         SYS_ASSERT( _rsm->rdata[index].pointer == nullptr );
 
         {
-            BXPostLoadCallback post_load_cb( FileLoadCallback, _rsm, (void*)(uintptr_t)id.hash );
+            BXPostLoadCallback post_load_cb( FileLoadCallback, _rsm, (void*)(uintptr_t)id.hash, system );
 
             RSMLoader* loader = _rsm->loader[loader_index];
             BXIFilesystem::EMode mode = (loader->IsBinary()) ? BXIFilesystem::FILE_MODE_BIN : BXIFilesystem::FILE_MODE_TXT;
@@ -369,6 +376,12 @@ RSMResourceID RSM::Find( RSMResourceHash rhash ) const
 {
     id_t id = LookupFind( _rsm, rhash );
     return { id.hash };
+}
+
+RSMEState::E RSM::State( RSMResourceID id ) const
+{
+    id_t iid = { id.i };
+    return _rsm->IsAlive( iid ) ? _rsm->rstate[iid.index] : RSMEState::UNLOADED;
 }
 
 const void* RSM::Get( RSMResourceID id ) const
