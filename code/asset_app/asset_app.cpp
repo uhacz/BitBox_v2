@@ -49,7 +49,7 @@ struct GroundMesh
 void CreateGroundMesh( GroundMesh* mesh, GFX* gfx, GFXSceneID scene_id, RSM* rsm, const vec3_t& scale = vec3_t( 100.f, 0.5f, 100.f ), const mat44_t& pose = mat44_t::identity() )
 {
     GFXMeshInstanceDesc desc = {};
-    desc.idmaterial = gfx->FindMaterial( "rough" );
+    desc.idmaterial = gfx->FindMaterial( "checkboard" );
     desc.idmesh_resource = rsm->Find( "box" );
     const mat44_t final_pose = append_scale( pose, scale );
 
@@ -195,9 +195,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
 	}
 
 	g_camera_world = CameraMovementFPP( g_camera_input_ctx, g_camera_world, delta_time_sec * 10.f );
-
 	ComputeMatrices( &g_camera_matrices, g_camera_params, g_camera_world );
-    _gfx->SetCamera( g_camera_params, g_camera_matrices );
 
     {
         ENTSystemInfo ent_sys_info = {};
@@ -229,7 +227,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
     ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );
 	
-    _gfx->BindMaterialFrame( frame_ctx );
+    //_gfx->BindMaterialFrame( frame_ctx );
     _gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
 
     //_gfx->PostProcess( frame_ctx, g_camera_params, g_camera_matrices );

@@ -77,13 +77,18 @@
     <ClInclude Include="dll_interface.h" />
     <ClInclude Include="gfx.h" />
     <ClInclude Include="gfx_camera.h" />
+    <ClInclude Include="gfx_forward_decl.h" />
+    <ClInclude Include="gfx_internal.h" />
     <ClInclude Include="gfx_resource_loader.h" />
     <ClInclude Include="gfx_shader_interop.h" />
+    <ClInclude Include="gfx_shadow.h" />
+    <ClInclude Include="gfx_type.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gfx.cpp" />
     <ClCompile Include="gfx_camera.cpp" />
     <ClCompile Include="gfx_resource_loader.cpp" />
+    <ClCompile Include="gfx_shadow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\foundation\foundation.vcxproj">

@@ -287,6 +287,11 @@ struct RTTI_EXPORT RTTI
     }
 
 
+    static uint32_t _SerializeTxt( uint8_t* buffer, uint32_t buffer_capacity, const RTTITypeInfo& tinfo, const void* obj );
+    static uint32_t _UnserializeTxt( void* obj, const RTTITypeInfo& tinfo, const uint8_t* buffer, uint32_t buffer_size, BXIAllocator* allocator );
+
+
+
     template< typename T >
     static uint32_t Serialize( uint8_t* buffer, uint32_t buffer_capacity, const T& obj )
     {

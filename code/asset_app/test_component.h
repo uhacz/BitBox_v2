@@ -14,8 +14,8 @@ struct TestComponent : ENTIComponent
     virtual void Initialize( ENTEntityID entity_id, ENTSystemInfo* sys ) override;
     virtual void Deinitialize( ENTEntityID entity_id, ENTSystemInfo* sys ) override;
 
-    virtual void ParallelStep( ENTEntityID entity_id, ENTSystemInfo* sys, uint64_t dt_us );
-    virtual void SerialStep( ENTEntityID entity_id, ENTIComponent* parent, ENTSystemInfo*, uint64_t dt_us );
+    virtual void ParallelStep( ENTEntityID entity_id, ENTSystemInfo* sys, uint64_t dt_us ) override;
+    virtual void SerialStep( ENTEntityID entity_id, ENTIComponent* parent, ENTSystemInfo*, uint64_t dt_us ) override;
 
     mat44_t _mesh_pose = mat44_t::identity();
     uint32_t _shape_type = 1;

@@ -26,7 +26,7 @@ struct RSMResourceID
 {
     uint32_t i;
 
-    static constexpr RSMResourceID Null() { return { 0 }; };
+    static constexpr RSMResourceID Null() { return { 0 }; }
 };
 
 inline bool IsAlive( RSMResourceID id ) { return id.i != 0; }
@@ -52,7 +52,6 @@ struct RSM_EXPORT RSM
         return IsAlive( rid ) ? Get( rid ) : nullptr;
     }
 
-
     // --- private
     static RSM* StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator );
     static void ShutDown( RSM** ptr );
@@ -61,4 +60,32 @@ struct RSM_EXPORT RSM
     RSMImpl* _rsm;
 };
 
+struct RSMLoadState
+{
+    uint32_t nb_loaded = 0;
+    uint32_t nb_failed = 0;
+};
+template< typename T >
+RSMLoadState GetLoadState( RSM* rsm, T** resources, const RSMResourceID* ids, uint32_t count )
+{
+    RSMLoadState result = {};
+    for( uint32_t i = 0; i < count; ++i )
+    {
+        RSMEState::E state = rsm->State( ids[i] );
+        if( state == RSMEState::READY )
+            result.nb_loaded += 1;
+        else if( state == RSMEState::FAIL )
+            result.nb_failed += 1;
+    }
 
+    if( resources && (count == result.nb_loaded) )
+    {
+        for( uint32_t i = 0; i < count; ++i )
+        {
+            resources[i] = (T*)rsm->Get( ids[i] );
+            SYS_ASSERT( resources[i] != nullptr );
+        }
+    }
+
+    return result;
+}

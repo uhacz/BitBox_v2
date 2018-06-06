@@ -99,6 +99,7 @@
     <ClInclude Include="math\vec4.h" />
     <ClInclude Include="math\vmath.h" />
     <ClInclude Include="math\xform.h" />
+    <ClInclude Include="static_array.h" />
     <ClInclude Include="thread\mutex.h" />
     <ClInclude Include="queue.h" />
     <ClInclude Include="tag.h" />

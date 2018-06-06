@@ -43,7 +43,7 @@ void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* 
 
     GFXMeshInstanceDesc mesh_desc = {};
     mesh_desc.idmaterial = _mat_id;
-    mesh_desc.idmesh_resource = rsm->Find( "box" );
+    mesh_desc.idmesh_resource = rsm->Find( "sphere" );
     _mesh_id = gfx->AddMeshToScene( scene_id, mesh_desc, mat44_t::identity() );
 
     _folder = "material/";

@@ -183,6 +183,8 @@ RTTIAttr* RTTI::AllocateAttribute( uint32_t size )
     return (RTTIAttr*)AllocateAttributeData( size );
 }
 
+
+
 RTTIAttr* RTTIAttr::SetDefaultData( const void* value, uint32_t data_size, const std::type_info& data_type_info )
 {
 #if ASSERTION_ENABLED
@@ -243,6 +245,26 @@ const uint8_t* RTTIAttr::MaxPtr() const
 const uint8_t* RTTIAttr::ValuePtr( const void* obj ) const
 {
     return (uint8_t*)obj + _offset;
+}
+
+#include <3rd_party/pugixml/pugixml.hpp>
+uint32_t RTTI::_SerializeTxt( uint8_t* buffer, uint32_t buffer_capacity, const RTTITypeInfo& tinfo, const void* obj )
+{
+    pugi::xml_document doc;
+    pugi::xml_node root = doc.root();
+    root.set_name( tinfo.type_name );
+
+    for( uint32_t i = 0; i < tinfo.nb_attributes; ++i )
+    {
+        
+    }
+
+    return 0;
+}
+
+uint32_t RTTI::_UnserializeTxt( void* obj, const RTTITypeInfo& tinfo, const uint8_t* buffer, uint32_t buffer_size, BXIAllocator* allocator )
+{
+    return 0;
 }
 
 struct RTTIBlobHeader

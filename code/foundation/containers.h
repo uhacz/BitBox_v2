@@ -4,7 +4,9 @@
 #include "debug.h"
 #include <memory/memory.h>
 
-
+//
+// dynamic array
+//
 template< typename T >
 struct array_t
 {
@@ -34,6 +36,28 @@ struct array_t
     const T* end  () const { return data + size; }
 };
 
+//
+// static array
+//
+template< typename T, uint32_t MAX >
+struct static_array_t
+{
+    T data[MAX];
+    uint32_t size = 0;
+
+    T &operator[]( int i ) { return data[i]; }
+    const T &operator[]( int i ) const { return data[i]; }
+
+    T* begin() { return data; }
+    T* end() { return data + size; }
+
+    const T* begin() const { return data; }
+    const T* end() const { return data + size; }
+};
+
+//
+// array span
+//
 template< class T >
 struct array_span_t
 {
@@ -43,6 +67,15 @@ struct array_span_t
 
     array_span_t( T* b, T* e )
         : _begin( b ), _size( (uint32_t)(ptrdiff_t)(e - b) )
+    {}
+
+    explicit array_span_t( const array_t<T>& arr )
+        : _begin( arr.begin() ), _size( arr.size )
+    {}
+
+    template< uint32_t MAX>
+    explicit array_span_t( const static_array_t<T, MAX>& arr )
+        : _begin( arr.begin() ), _size( arr.size )
     {}
 
     T* begin() { return _begin; }

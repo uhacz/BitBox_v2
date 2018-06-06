@@ -220,8 +220,8 @@ LitData ComputeSkyBox( in LitData lit_data, in LitInput lin, in Material materia
     float3 lambert_color = (1.0 - F) * (lit_data.diffuse) * PI_RCP;
 
     LitData lit_output;
-    lit_output.diffuse = diffuse_env * lambert_color * (1.0 - F); // *_ldata.sky_intensity;
-    lit_output.specular = specular_env * F; // *_ldata.sky_intensity;
+    lit_output.diffuse = diffuse_env * lambert_color * (1.0 - F) * _ldata.sky_intensity;
+    lit_output.specular = specular_env * F *_ldata.sky_intensity;
 
     return lit_output;
 }
@@ -294,10 +294,10 @@ float3 PerturbNormal_ref( in float3 N, in float3 T, in float3 B, in float2 texco
 
 OUT_PS ps_full( IN_PS input )
 {
-    const float3 light_pos = float3(-5.f, 5.f, 0.f);
-    const float3 light_color = float3(1, 1, 1);
+    //const float3 light_pos = float3(-5.f, 5.f, 0.f);
+    const float3 light_color = _ldata.sun_color;// float3(1, 1, 1);
     const float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
-    const float3 L = normalize( light_pos - input.pos_ws );
+    const float3 L = _ldata.sun_L;//  normalize( light_pos - input.pos_ws );
     const float3 N_input = normalize( input.nrm_ws );
     
 #if USE_TANGENTS == 1
