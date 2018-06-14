@@ -10,6 +10,10 @@
     depth_write = "0" />
 </pass>
 
+<pass name="shadow_depth" vertex = "vs_shadow_depth" pixel = "ps_shadow_depth" >
+<hwstate depth_test = "1" depth_write = "1" color_mask = "" />
+</pass>
+
 #~header
 
 #define SHADER_IMPLEMENTATION
@@ -108,4 +112,40 @@ float4 ps_shadow_combine( IN_PS input ) : SV_Target0
     float4 color = color_tex.Load( position_ss );
 
     return color * shadow;
+}
+
+
+// --- tansform buffer
+#include "transform_instance_data.h"
+
+struct IN_VS_SHADOW_DEPTH
+{
+    uint   instanceID : SV_InstanceID;
+    float3 pos	  	  : POSITION;
+};
+struct IN_PS_SHADOW_DEPTH
+{
+    float4 pos_hs	: SV_Position;
+};
+struct OUT_PS_SHADOW_DEPTH
+{};
+
+IN_PS_SHADOW_DEPTH vs_shadow_depth( in IN_VS_SHADOW_DEPTH input )
+{
+    IN_PS_SHADOW_DEPTH output = (IN_PS_SHADOW_DEPTH)0;
+
+    float4 world_0, world_1, world_2;
+    LoadWorld( world_0, world_1, world_2, input.instanceID );
+    float4 pos_ls = float4(input.pos, 1.0);
+    float3 pos_ws = TransformPosition( world_0, world_1, world_2, pos_ls );
+
+    output.pos_hs = mul( _fdata.camera_view_proj, float4(pos_ws, 1.0) );
+    return output;
+}
+
+[earlydepthstencil]
+OUT_PS_SHADOW_DEPTH ps_shadow_depth( IN_PS_SHADOW_DEPTH input ) 
+{
+    OUT_PS_SHADOW_DEPTH output;
+    return output;
 }

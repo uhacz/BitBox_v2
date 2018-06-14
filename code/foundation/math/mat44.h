@@ -1,6 +1,6 @@
 #pragma once
 
-inline mat44_t::mat44_t( const quat_t& q )
+VEC_FORCE_INLINE mat44_t::mat44_t( const quat_t& q )
 {
     const float x = q.x;
     const float y = q.y;
@@ -29,7 +29,7 @@ inline mat44_t::mat44_t( const quat_t& q )
     c3 = vec4_t( 0.0f, 0.0f, 0.0f, 1.0f );
 }
 
-inline mat44_t::mat44_t( const xform_t& xf )
+VEC_FORCE_INLINE mat44_t::mat44_t( const xform_t& xf )
 {
     const float x = xf.rot.x;
     const float y = xf.rot.y;
@@ -58,12 +58,12 @@ inline mat44_t::mat44_t( const xform_t& xf )
     c3 = vec4_t( xf.pos, 1.0f );
 }
 
-inline mat44_t::mat44_t( const quat_t& rot, const vec3_t& pos )
+VEC_FORCE_INLINE mat44_t::mat44_t( const quat_t& rot, const vec3_t& pos )
 {
 	*this = mat44_t( mat33_t( rot ), pos );
 }
 
-inline mat44_t transpose( const mat44_t& m )
+VEC_FORCE_INLINE mat44_t transpose( const mat44_t& m )
 {
     return mat44_t(
         vec4_t( m.c0.x, m.c1.x, m.c2.x, m.c3.x ),
@@ -72,7 +72,7 @@ inline mat44_t transpose( const mat44_t& m )
         vec4_t( m.c0.w, m.c1.w, m.c2.w, m.c3.w ) );
 }
 
-inline mat44_t inverse( const mat44_t& m )
+VEC_FORCE_INLINE mat44_t inverse( const mat44_t& m )
 {
     const float mA = m.c0.x;
     const float mB = m.c0.y;
@@ -145,27 +145,27 @@ inline mat44_t inverse( const mat44_t& m )
     );
 }
 
-inline vec3_t mul_as_point( const mat44_t& m, const vec3_t& other )
+VEC_FORCE_INLINE vec3_t mul_as_point( const mat44_t& m, const vec3_t& other )
 {
     return ( m * vec4_t( other, 1.f ) ).xyz();
 }
 
-inline vec4_t rotate( const mat44_t& m, const vec4_t& other )
+VEC_FORCE_INLINE vec4_t rotate( const mat44_t& m, const vec4_t& other )
 {
     return m.c0 * other.x + m.c1 * other.y + m.c2 * other.z;
 }
 
 
-inline vec3_t rotate( const mat44_t& m, const vec3_t& other )
+VEC_FORCE_INLINE vec3_t rotate( const mat44_t& m, const vec3_t& other )
 {
     return rotate( m, vec4_t( other, 1.0f ) ).xyz();
 }
 
-inline mat44_t mat44_t::translation( const vec3_t& v )
+VEC_FORCE_INLINE mat44_t mat44_t::translation( const vec3_t& v )
 {
     return mat44_t( vec4_t::ax(), vec4_t::ay(), vec4_t::az(), vec4_t( v, 1.0f ) );
 }
-inline mat44_t mat44_t::rotationx( float rad )
+VEC_FORCE_INLINE mat44_t mat44_t::rotationx( float rad )
 {
     const float s = ::sinf( rad );
     const float c = ::cosf( rad );
@@ -176,7 +176,7 @@ inline mat44_t mat44_t::rotationx( float rad )
         vec4_t::aw()
     );
 }
-inline mat44_t mat44_t::rotationy( float rad )
+VEC_FORCE_INLINE mat44_t mat44_t::rotationy( float rad )
 {
     float s, c;
     s = ::sinf( rad );
@@ -188,7 +188,7 @@ inline mat44_t mat44_t::rotationy( float rad )
         vec4_t::aw()
     );
 }
-inline mat44_t mat44_t::rotationz( float rad )
+VEC_FORCE_INLINE mat44_t mat44_t::rotationz( float rad )
 {
     const float s = sinf( rad );
     const float c = cosf( rad );
@@ -199,7 +199,7 @@ inline mat44_t mat44_t::rotationz( float rad )
         vec4_t::aw()
     );
 }
-inline mat44_t mat44_t::rotationzyx( const vec3_t& radxyz )
+VEC_FORCE_INLINE mat44_t mat44_t::rotationzyx( const vec3_t& radxyz )
 {
     const float sX = sinf( radxyz.x );
     const float cX = cosf( radxyz.x );
@@ -216,7 +216,7 @@ inline mat44_t mat44_t::rotationzyx( const vec3_t& radxyz )
         vec4_t::aw()
     );
 }
-inline mat44_t mat44_t::rotation( float rad, const vec3_t& axis )
+VEC_FORCE_INLINE mat44_t mat44_t::rotation( float rad, const vec3_t& axis )
 {
     const float s = sinf( rad );
     const float c = cosf( rad );
@@ -234,7 +234,7 @@ inline mat44_t mat44_t::rotation( float rad, const vec3_t& axis )
         vec4_t::aw()
     );
 }
-inline mat44_t mat44_t::scale( const vec3_t& v )
+VEC_FORCE_INLINE mat44_t mat44_t::scale( const vec3_t& v )
 {
     return mat44_t(
         vec4_t( v.x, 0.0f, 0.0f, 0.0f ),
@@ -244,7 +244,7 @@ inline mat44_t mat44_t::scale( const vec3_t& v )
     );
 }
 
-inline const mat44_t append_scale( const mat44_t& mat, const vec3_t& scale )
+VEC_FORCE_INLINE const mat44_t append_scale( const mat44_t& mat, const vec3_t& scale )
 {
     return mat44_t(
         (mat.c0 * scale.x),
@@ -254,7 +254,7 @@ inline const mat44_t append_scale( const mat44_t& mat, const vec3_t& scale )
     );
 }
 
-inline const mat44_t prependScale( const vec3_t& scale, const mat44_t& mat )
+VEC_FORCE_INLINE const mat44_t prependScale( const vec3_t& scale, const mat44_t& mat )
 {
     const vec4_t scale4( scale, 1.0f );
     return mat44_t(

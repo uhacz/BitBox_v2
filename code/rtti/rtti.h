@@ -4,6 +4,7 @@
 #include <foundation/type.h>
 #include <foundation/debug.h>
 #include <typeinfo>
+#include <string.h>
 
 struct BXIAllocator;
 
@@ -266,6 +267,7 @@ struct RTTI_EXPORT RTTI
         
         return attr;
     }
+
 
     template< typename T >
     static const RTTIAttr* Find( const char* name )

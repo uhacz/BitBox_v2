@@ -200,6 +200,24 @@ namespace gfx_internal
 
     static void RemovePendingObjects( GFXSystem* gfx, RSM* rsm )
     {
+        {// cameras
+            GFXCameraContainer& cc = gfx->_camera;
+            scope_mutex_t guard( cc.to_remove_lock );
+            while( !array::empty( cc.to_remove ) )
+            {
+                id_t id = array::back( cc.to_remove );
+                array::pop_back( cc.to_remove );
+
+                const uint32_t data_index = cc.DataIndex( id );
+                string::free( &cc.names[data_index] );
+
+                {
+                    scope_mutex_t id_guard( cc.id_lock );
+                    id_array::destroy( cc.id_alloc, id );
+                }
+            }
+        }
+
         {// mesh instances
             GFXSceneContainer& sc = gfx->_scene;
             std::lock_guard<mutex_t> lock_guard( sc.mesh_to_remove_lock );
@@ -255,7 +273,7 @@ namespace gfx_internal
                 mc.idself[id.index] = makeInvalidHandle<id_t>();
 
                 DestroyResourceBinding( &mc.binding[id.index] );
-                Destroy( &mc.data_gpu[id.index] );
+                //Destroy( &mc.data_gpu[id.index] );
                 
                 for( uint32_t itex = 0; itex < GFXEMaterialTextureSlot::_COUNT_; ++itex )
                     rsm->Release( mc.textures[id.index].id[itex] );
@@ -289,9 +307,8 @@ namespace gfx_internal
     static void UploadMaterial( GFXSystem* gfx, id_t id, const gfx_shader::Material& data )
     {
         GFXMaterialContainer& mc = gfx->_material;
-        RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
-
-        UpdateCBuffer( GetImmediateCommandQueue( gfx->_rdidev ), *cbuffer, &data );
+        //RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
+        //UpdateCBuffer( GetImmediateCommandQueue( gfx->_rdidev ), *cbuffer, &data );
         mc.data[id.index] = data;
     }
 
@@ -348,6 +365,7 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
     GFX* gfx_interface = GFXAllocate( allocator );
     GFXSystem* gfx = gfx_interface->gfx;
 
+    gfx->_camera._names_allocator = allocator;
     gfx->_allocator = allocator;
     gfx->_rdidev = dev;
 
@@ -361,24 +379,10 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
         render_target_desc.Depth( RDIEType::DEPTH32F );
         gfx->_framebuffer = CreateRenderTarget( dev, render_target_desc, allocator );
     }
-
-    GFXShaderLoadHelper helper( dev, filesystem, allocator );
-    {// --- material
-        GFXMaterialContainer& materials = gfx->_material;
-        materials.pipeline.base             = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "base" );
-        materials.pipeline.base_with_skybox = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "base_with_skybox" );
-        materials.pipeline.full             = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "full" );
-        materials.pipeline.skybox           = helper.CreatePipeline( "shader/hlsl/bin/skybox.shader", "skybox" );
-
-        materials.frame_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::MaterialFrameData ) );
-        materials.lighting_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::LightningFrameData ) );
-    }
-
-    { // --- post process
-        GFXPostProcess& pp = gfx->_postprocess;
-        pp.shadow.pipeline_ss = helper.CreatePipeline( "shader/hlsl/bin/shadow.shader", "shadow_ss" );
-        pp.shadow.pipeline_combine = helper.CreatePipeline( "shader/hlsl/bin/shadow.shader", "shadow_combine" );
-        pp.shadow.cbuffer_fdata = CreateConstantBuffer( dev, sizeof( gfx_shader::ShadowData ) );
+    {
+        gfx->_gpu_camera_buffer = CreateConstantBuffer( dev, sizeof( gfx_shader::CameraData ), nullptr );
+        gfx->_gpu_frame_data_buffer = CreateConstantBuffer( dev, sizeof( gfx_shader::GlobalFrameData ), nullptr );
+        gfx->_gpu_material_data_buffer = CreateConstantBuffer( dev, sizeof( gfx_shader::Material ) * GFX_MAX_MATERIALS, nullptr );
     }
 
     {// --- samplers
@@ -397,6 +401,26 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
         gfx->_samplers._trilinear = CreateSampler( dev, desc );
     }
     
+    GFXShaderLoadHelper helper( dev, filesystem, allocator );
+    {// --- material
+        GFXMaterialContainer& materials = gfx->_material;
+        materials.pipeline.base = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "base" );
+        materials.pipeline.base_with_skybox = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "base_with_skybox" );
+        materials.pipeline.full = helper.CreatePipeline( "shader/hlsl/bin/material.shader", "full" );
+        materials.pipeline.skybox = helper.CreatePipeline( "shader/hlsl/bin/skybox.shader", "skybox" );
+        materials.pipeline.shadow_depth = helper.CreatePipeline( "shader/hlsl/bin/shadow.shader", "shadow_depth" );
+
+        //materials.frame_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::MaterialFrameData ) );
+        materials.lighting_data_gpu = CreateConstantBuffer( dev, sizeof( gfx_shader::LightningFrameData ) );
+    }
+
+    { // --- post process
+        GFXPostProcess& pp = gfx->_postprocess;
+        pp.shadow.pipeline_ss = helper.CreatePipeline( "shader/hlsl/bin/shadow.shader", "shadow_ss" );
+        pp.shadow.pipeline_combine = helper.CreatePipeline( "shader/hlsl/bin/shadow.shader", "shadow_combine" );
+        pp.shadow.cbuffer_fdata = CreateConstantBuffer( dev, sizeof( gfx_shader::ShadowData ) );
+    }
+
     { // fallback material
         GFXMaterialDesc material_desc;
         material_desc.data.diffuse_albedo = vec3_t( 1.0, 0.0, 0.0 );
@@ -477,6 +501,10 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
         }
     }
 
+    
+
+    
+
     return gfx_interface;
 }
 
@@ -488,6 +516,26 @@ void GFX::ShutDown( GFX** gfx_interface_handle, RSM* rsm )
 
     GFX* gfx_interface = gfx_interface_handle[0];
     GFXSystem* gfx = gfx_interface->gfx;
+    RDIDevice* dev = gfx->_rdidev;
+    BXIAllocator* allocator = gfx->_allocator;
+
+
+    {// --- postprocess
+        DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_ss );
+        DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_combine );
+        ::Destroy( &gfx->_postprocess.shadow.cbuffer_fdata );
+
+    }
+
+    {// --- material
+        ::Destroy( &gfx->_material.lighting_data_gpu );
+        //::Destroy( &gfx->_material.frame_data_gpu );
+        DestroyPipeline( dev, &gfx->_material.pipeline.base );
+        DestroyPipeline( dev, &gfx->_material.pipeline.base_with_skybox );
+        DestroyPipeline( dev, &gfx->_material.pipeline.full );
+        DestroyPipeline( dev, &gfx->_material.pipeline.skybox );
+        DestroyPipeline( dev, &gfx->_material.pipeline.shadow_depth );
+    }
 
     for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MESHES; ++i )
     {
@@ -503,9 +551,6 @@ void GFX::ShutDown( GFX** gfx_interface_handle, RSM* rsm )
     }
     gfx_internal::RemovePendingObjects( gfx, rsm );
 
-    RDIDevice* dev = gfx->_rdidev;
-    BXIAllocator* allocator = gfx->_allocator;
-
     SYS_ASSERT( gfx->_frame_ctx.Valid() == false );
 
     {// --- samplers
@@ -515,21 +560,9 @@ void GFX::ShutDown( GFX** gfx_interface_handle, RSM* rsm )
         ::Destroy( &gfx->_samplers._point );
     }
 
-    {// --- postprocess
-        DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_ss );
-        DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_combine );
-        ::Destroy( &gfx->_postprocess.shadow.cbuffer_fdata );
-
-    }
-
-    {// --- material
-        ::Destroy( &gfx->_material.lighting_data_gpu );
-        ::Destroy( &gfx->_material.frame_data_gpu );
-        DestroyPipeline( dev, &gfx->_material.pipeline.base );
-        DestroyPipeline( dev, &gfx->_material.pipeline.base_with_skybox );
-        DestroyPipeline( dev, &gfx->_material.pipeline.full );
-        DestroyPipeline( dev, &gfx->_material.pipeline.skybox );
-    }
+    ::Destroy( &gfx->_gpu_material_data_buffer );
+    ::Destroy( &gfx->_gpu_frame_data_buffer );
+    ::Destroy( &gfx->_gpu_camera_buffer );
 
     DestroyRenderTarget( dev, &gfx->_framebuffer );
    
@@ -552,6 +585,104 @@ RDIDevice* GFX::Device()
     return gfx->_rdidev;
 }
 
+GFXCameraID GFX::CreateCamera( const char* name, const GFXCameraParams& params, const mat44_t& world )
+{
+    GFXCameraContainer& cc = gfx->_camera;
+
+    id_t id = {};
+    {
+        scope_mutex_t guard( cc.id_lock );
+        id = id_array::create( cc.id_alloc );
+    }
+
+    const uint32_t data_index = cc.DataIndex( id );
+    cc.params[data_index] = params;
+    cc.matrices[data_index].world = world;
+    string::create( &cc.names[data_index], name, cc._names_allocator );
+
+    return { id.hash };
+}
+
+void GFX::DestroyCamera( GFXCameraID idcam )
+{
+    id_t id = { idcam.i };
+
+    GFXCameraContainer& cc = gfx->_camera;
+    if( !cc.IsAlive( id ) )
+        return;
+
+    {
+        scope_mutex_t guard( cc.id_lock );
+        id = id_array::invalidate( cc.id_alloc, id );
+    }
+    {
+        scope_mutex_t guard( cc.to_remove_lock );
+        array::push_back( cc.to_remove, id );
+    }
+}
+
+GFXCameraID GFX::FindCamera( const char* name ) const
+{
+    GFXCameraContainer& cc = gfx->_camera;
+    
+    uint32_t n = 0;
+    {
+        scope_mutex_t guard( cc.id_lock );
+        n = id_array::size( cc.id_alloc );
+    }
+
+    for( uint32_t i = 0; i < n; ++i )
+    {
+        if( string::equal( cc.names[i].c_str(), name ) )
+        {
+            return { id_array::id( cc.id_alloc, i ).hash };
+        }
+    }
+    return { 0 };
+}
+
+bool GFX::IsCameraAlive( GFXCameraID idcam )
+{
+    return gfx->_camera.IsAlive( { idcam.i } );
+}
+
+const GFXCameraParams& GFX::CameraParams( GFXCameraID idcam ) const
+{
+    const uint32_t index = gfx->_camera.DataIndex( { idcam.i } );
+    return gfx->_camera.params[index];
+}
+
+const GFXCameraMatrices& GFX::CameraMatrices( GFXCameraID idcam ) const
+{
+    const uint32_t index = gfx->_camera.DataIndex( { idcam.i } );
+    return gfx->_camera.matrices[index];
+}
+
+void GFX::SetCameraParams( GFXCameraID idcam, const GFXCameraParams& params )
+{
+    const uint32_t index = gfx->_camera.DataIndex( { idcam.i } );
+    gfx->_camera.params[index] = params;
+}
+
+void GFX::SetCameraWorld( GFXCameraID idcam, const mat44_t& world )
+{
+    const uint32_t index = gfx->_camera.DataIndex( { idcam.i } );
+    gfx->_camera.matrices[index].world = world;
+}
+
+void GFX::ComputeCamera( GFXCameraID idcam, GFXCameraMatrices* output )
+{
+    const uint32_t index = gfx->_camera.DataIndex( { idcam.i } );
+
+    const GFXCameraParams& params = gfx->_camera.params[index];
+    const GFXCameraMatrices& matrices = gfx->_camera.matrices[index];
+
+    if( !output )
+        output = &gfx->_camera.matrices[index];
+
+    ComputeMatrices( output, params, matrices.world );
+}
+
 GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc )
 {
     id_t id = gfx_internal::FindMaterial( gfx, name );
@@ -569,10 +700,10 @@ GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc
 
     mc.data[id.index] = desc.data;
     mc.textures[id.index] = desc.textures;
-    mc.data_gpu[id.index] = CreateConstantBuffer( dev, sizeof( gfx_shader::Material ) );
+   // mc.data_gpu[id.index] = CreateConstantBuffer( dev, sizeof( gfx_shader::Material ) );
     mc.flags[id.index] = GFXEMaterialFlag::PIPELINE_BASE;
 
-    RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
+    //RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
     
     RDIXResourceBinding* binding = nullptr;
     if( IsAlive( desc.textures.id[0] ) )
@@ -588,10 +719,9 @@ GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc
     {
        binding = CloneResourceBinding( ResourceBinding( mc.pipeline.base ), allocator );
     }
-     
     
-    gfx_internal::UploadMaterial( gfx, id, desc.data );
-    SetConstantBuffer( binding, "MaterialData", cbuffer );
+    //gfx_internal::UploadMaterial( gfx, id, desc.data );
+    //SetConstantBuffer( binding, "MaterialData", cbuffer );
 
     mc.binding[id.index] = binding;
     
@@ -660,7 +790,7 @@ GFXSceneID GFX::CreateScene( const GFXSceneDesc& desc )
     
     container_soa_desc_t cnt_desc;
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, world_matrix );
-    container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, transform_buffer_instance_index );
+    container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, instance_data );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmesh_resource );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmat );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idinstance );
@@ -850,6 +980,36 @@ GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq, RSM* rsm )
     ClearState( cmdq );
     SetSamplers( cmdq, (RDISampler*)&gfx->_samplers._point, 0, 4, RDIEPipeline::ALL_STAGES_MASK );
 
+    {// cameras
+        GFXCameraContainer& cc = gfx->_camera;
+        gfx_shader::CameraData cdata;// = (gfx_shader::CameraData*)Map( cmdq, gfx->_gpu_camera_buffer, 0 );
+        const uint32_t n = cc.Size();
+        for( uint32_t i = 0; i < n; ++i )
+        {
+            const GFXCameraParams& camerap = cc.params[i];
+            const GFXCameraMatrices& cameram = cc.matrices[i];
+
+            const mat44_t camera_view_proj = cameram.proj_api * cameram.view;
+
+            cdata.world[i] = cameram.world;
+            cdata.view[i] = cameram.view;
+            cdata.view_proj[i] = camera_view_proj;
+            cdata.view_proj_inv[i] = inverse( camera_view_proj );
+            cdata.eye[i] = vec4_t( cameram.eye(), 1.f );
+            cdata.dir[i] = vec4_t( cameram.dir(), 0.f );
+        }
+        UpdateCBuffer( cmdq, gfx->_gpu_camera_buffer, &cdata );
+    }
+    { // materials
+        const GFXMaterialContainer& mc = gfx->_material;
+        UpdateCBuffer( cmdq, gfx->_gpu_material_data_buffer, mc.data );
+    }
+   
+    SetCbuffers( cmdq, &gfx->_gpu_frame_data_buffer, GLOBAL_FRAME_DATA_SLOT, 1, RDIEPipeline::ALL_STAGES_MASK );
+    SetCbuffers( cmdq, &gfx->_gpu_camera_buffer, CAMERA_DATA_SLOT, 1, RDIEPipeline::ALL_STAGES_MASK );
+    SetCbuffers( cmdq, &gfx->_gpu_material_data_buffer, MATERIAL_DATA_SLOT, 1, RDIEPipeline::ALL_STAGES_MASK );
+
+
     SYS_ASSERT( !gfx->_frame_ctx.Valid() );
     gfx->_frame_ctx.cmdq = cmdq;
     gfx->_frame_ctx.rsm = rsm;
@@ -864,22 +1024,17 @@ void GFX::EndFrame( GFXFrameContext* fctx )
     fctx->cmdq = nullptr;
     fctx->rsm = nullptr;
 }
-void GFX::RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect )
+void GFX::RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, GFXCameraID idcamera )
 {
+    const float aspect = CameraParams( idcamera ).aspect();
     utils->CopyTexture( cmdq, nullptr, Texture( gfx->_framebuffer, texture_index), aspect );
 }
 
-static void SetupFrameData( gfx_shader::MaterialFrameData* fdata, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram, const RDITextureInfo& render_target_info )
+static void SetupFrameData( gfx_shader::GlobalFrameData* fdata, const RDITextureInfo& render_target_info )
 {
-    fdata->camera_world = cameram.world;
-    fdata->camera_view = cameram.view;
-    fdata->camera_view_proj = cameram.proj_api * cameram.view;
-    fdata->camera_view_proj_inv = inverse( fdata->camera_view_proj );
-    fdata->camera_eye = vec4_t( cameram.eye(), 1.f );
-    fdata->camera_dir = vec4_t( cameram.dir(), 0.f );
-
     fdata->rtarget_size = vec2_t( (float)render_target_info.width, (float)render_target_info.height );
     fdata->rtarget_size_rcp = vec2_t( 1.f / fdata->rtarget_size.x, 1.f / fdata->rtarget_size.y );
+    fdata->main_camera_index = 0;
 }
 
 namespace GFXEDrawLayer
@@ -913,12 +1068,20 @@ union GFXSortKey
 };
 
 
-void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram )
+void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, GFXCameraID idcamera )
 {
-
     GFXSceneContainer& sc = gfx->_scene;
     if( !sc.IsSceneAlive( { idscene.i } ) )
         return;
+
+    GFXCameraContainer& cc = gfx->_camera;
+    if( !cc.IsAlive( { idcamera.i } ) )
+        return;
+
+    ComputeCamera( idcamera, nullptr );
+    const uint32_t camera_index = cc.DataIndex( { idcamera.i } );
+    const GFXCameraParams& camerap = cc.params[camera_index];
+    const GFXCameraMatrices& cameram = cc.matrices[camera_index];
 
     const uint32_t scene_index = make_id( idscene.i ).index;
 
@@ -932,7 +1095,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
     RDIXTransformBufferBindInfo bind_info;
     bind_info.instance_offset_slot = TRANSFORM_INSTANCE_DATA_SLOT;
     bind_info.matrix_start_slot = TRANSFORM_INSTANCE_WORLD_SLOT;
-    bind_info.stage_mask = RDIEPipeline::VERTEX_MASK;
+    bind_info.stage_mask = RDIEPipeline::ALL_STAGES_MASK;
 
     const uint32_t num_meshes = container_soa::size( sc.mesh_data[scene_index] );
     const array_span_t<RSMResourceID> idmesh_array( sc.mesh_data[scene_index]->idmesh_resource, num_meshes );
@@ -943,23 +1106,59 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
     SYS_ASSERT( skybox_enabled == true );
     //RDIXPipeline* pipeline = (skybox_enabled) ? gfx->_material.pipeline.base_with_skybox : gfx->_material.pipeline.base;
 
-    array_span_t<uint32_t> instance_buffer_index_array( sc.mesh_data[scene_index]->transform_buffer_instance_index, num_meshes );
+    { // frame data
+        const RDITextureInfo framebuffer_info = Texture( gfx->_framebuffer, 0 ).info;
+        gfx_shader::GlobalFrameData fdata;
+        fdata.main_camera_index = camera_index;
+        fdata.rtarget_size = vec2_t( (float)framebuffer_info.width, (float)framebuffer_info.height );
+        fdata.rtarget_size_rcp = vec2_t( 1.f / (float)framebuffer_info.width, 1.f / (float)framebuffer_info.height );
+        UpdateCBuffer( fctx->cmdq, gfx->_gpu_frame_data_buffer, &fdata );
+    }
 
+    array_span_t<gfx_shader::InstanceData> idata_array( sc.mesh_data[scene_index]->instance_data, num_meshes );
+    {// transform buffer
+        for( uint32_t i = 0; i < num_meshes; ++i )
+        {
+            const mat44_t& instance_matrix = matrix_array[i];
+            const id_t mat_id = { idmat_array[i].i };
+
+            const uint32_t instance_offset = AppendMatrix( transform_buffer, instance_matrix );
+            gfx_shader::InstanceData& idata = idata_array[i];
+            idata.offset = instance_offset;
+            idata.camera_index = camera_index;
+            idata.material_index = gfx->MaterialDataIndex( mat_id );
+        }
+
+        GFXSortKey sort_key;
+        sort_key.layer = GFXEDrawLayer::GEOMETRY;
+        sort_key.stage = GFXEDrawStage::UPLOAD_GLOBALS;
+
+        RDIXTransformBufferCommands transform_buff_cmds = UploadAndSetTransformBuffer( cmdbuffer, nullptr, transform_buffer, bind_info );
+        SubmitCommand( cmdbuffer, transform_buff_cmds.first, sort_key.key );
+    }
+
+    { //shadows
+        RDIXCommandBuffer* shadow_cmdbuff = sc.sun_shadow[scene_index].cmd_buffer;
+        for( uint32_t i = 0; i < num_meshes; ++i )
+        {
+            
+        }
+
+    }
+
+    // color pass
     for( uint32_t i = 0; i < num_meshes; ++i )
     {
-        const mat44_t& instance_matrix = matrix_array[i];
         const id_t mat_id = { idmat_array[i].i };
-        
-        const uint32_t instance_offset = AppendMatrix( transform_buffer, instance_matrix );
-        instance_buffer_index_array[i] = instance_offset;
+        const gfx_shader::InstanceData& idata = idata_array[i];
         
         RDIXCommandChain chain( cmdbuffer, nullptr );
 
         RDIXResourceBinding* binding = MaterialBinding( idmat_array[i] );
         RDIXPipeline* pipeline = gfx_internal::GetMaterialPipeline( gfx, mat_id);
 
-        const uint32_t data_size = (uint32_t)sizeof( uint32_t );
-        chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( data_size, GetInstanceOffsetCBuffer( transform_buffer ), &instance_offset, data_size );
+        const uint32_t data_size = (uint32_t)sizeof( gfx_shader::InstanceData );
+        chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( data_size, GetInstanceOffsetCBuffer( transform_buffer ), &idata, data_size );
         chain.AppendCmd<RDIXSetPipelineCmd>( pipeline, false );
         chain.AppendCmd<RDIXSetResourcesCmd>( binding );
         
@@ -976,36 +1175,8 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, cons
         sort_key.stage = GFXEDrawStage::DRAW;
 
         chain.Submit( sort_key.key );
-
     }
     
-    // frame data
-    {
-        gfx_shader::MaterialFrameData fdata;
-        SetupFrameData( &fdata, camerap, cameram, Texture( gfx->_framebuffer, 0 ).info );
-
-        const RDIConstantBuffer& cbuffer = gfx->_material.frame_data_gpu;
-        const uint32_t fdata_size = cbuffer.size_in_bytes;
-        RDIXCommandChain chain( cmdbuffer, nullptr );
-        RDIXUpdateConstantBufferCmd* cmd1 = chain.AppendCmdWithData<RDIXUpdateConstantBufferCmd>( fdata_size, cbuffer, &fdata, fdata_size );
-        RDIXSetConstantBufferCmd* cmd2 = chain.AppendCmd<RDIXSetConstantBufferCmd>( cbuffer, MATERIAL_FRAME_DATA_SLOT, RDIEPipeline::ALL_STAGES_MASK );
-
-        GFXSortKey sort_key;
-        sort_key.layer = GFXEDrawLayer::SKYBOX;
-        sort_key.stage = GFXEDrawStage::UPLOAD_GLOBALS;
-        chain.Submit( sort_key.key );
-    }
-
-    // transform buffer
-    {
-        GFXSortKey sort_key;
-        sort_key.layer = GFXEDrawLayer::GEOMETRY;
-        sort_key.stage = GFXEDrawStage::UPLOAD_GLOBALS;
-
-        RDIXTransformBufferCommands transform_buff_cmds = UploadAndSetTransformBuffer( cmdbuffer, nullptr, transform_buffer, bind_info );
-        SubmitCommand( cmdbuffer, transform_buff_cmds.first, sort_key.key );
-    }
-
     if( sc.sky_data[scene_index].flag_enabled )
     {
         const GFXSceneContainer::SkyData& sky = sc.sky_data[scene_index];
@@ -1051,8 +1222,16 @@ void GFX::SubmitCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene )
     ::SubmitCommandBuffer( fctx->cmdq, cmdbuffer );
 }
 
-void GFX::PostProcess( GFXFrameContext* fctx, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram )
+void GFX::PostProcess( GFXFrameContext* fctx, const GFXCameraID idcamera )
 {
+    GFXCameraContainer& cc = gfx->_camera;
+    if( !cc.IsAlive( { idcamera.i } ) )
+        return;
+
+    const uint32_t camera_index = cc.DataIndex( { idcamera.i } );
+    const GFXCameraParams& camerap = cc.params[camera_index];
+    const GFXCameraMatrices& cameram = cc.matrices[camera_index];
+
     GFXPostProcess& pp = gfx->_postprocess;
     {// shadows
         gfx_shader::ShadowData sdata;

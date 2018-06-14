@@ -1,7 +1,8 @@
 #pragma once
 
-#include <foundation/type.h>
 #include "dll_interface.h"
+#include <foundation/type.h>
+#include <foundation/containers.h>
 #include <gfx/gfx.h>
 
 struct BXIAllocator;

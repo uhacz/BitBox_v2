@@ -57,7 +57,7 @@ struct OUT_PS
 // --- tansform buffer
 #include "transform_instance_data.h"
 // --- frame
-#include "material_frame_data.h"
+#include "frame_data.h"
 // --- material
 #include "material_data.h"
 // --- samplers
@@ -78,7 +78,9 @@ IN_PS vs_base( IN_VS input )
 	float3 nrm_ls = input.nrm;
     float3 pos_ws = TransformPosition( world_0, world_1, world_2, pos_ls );
 
-    output.pos_hs = mul( _fdata.camera_view_proj, float4(pos_ws, 1.0) );
+    uint camera_index = _idata.camera_index;
+
+    output.pos_hs = mul( _camera.view_proj[camera_index], float4(pos_ws, 1.0) );
     output.pos_ws = pos_ws;
     output.nrm_ws = TransformNormal( world_it_0, world_it_1, world_it_2, nrm_ls );
 
@@ -231,21 +233,25 @@ OUT_PS ps_base( IN_PS input )
 {
 	const float3 light_pos = float3(-5.f, 5.f, 0.f);
 	const float3 light_color = float3(1, 1, 1);
-    const float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
+
+    const uint camera_index = _idata.camera_index;
+    const float3 V = normalize( _camera.eye[camera_index].xyz - input.pos_ws );
 	const float3 L = normalize( light_pos - input.pos_ws );
 	const float3 N = normalize( input.nrm_ws );
 	
+    Material mat = _material[_idata.material_index];
+
     LitInput lit_input = ComputeLitInput( N, L, V );
-    LitData lit_data = CalcDirectionalLighting( lit_input, _material );
+    LitData lit_data = CalcDirectionalLighting( lit_input, mat );
    
     const float3 base_color = float3(1, 1, 1);
 
     LitData lit_sky = (LitData)0;
 #if USE_SKYBOX
-    lit_sky = ComputeSkyBox( lit_data, lit_input, _material );
+    lit_sky = ComputeSkyBox( lit_data, lit_input, mat );
 #else
     float alpha = WrappedNdotL( N, L, 1.1f );
-    float3 indirect = 0.1f * _material.diffuse_albedo * (alpha)* PI_RCP;
+    float3 indirect = 0.1f * mat.diffuse_albedo * (alpha)* PI_RCP;
     lit_sky.diffuse = max( lit_data.diffuse, indirect );
 #endif
 
@@ -294,9 +300,10 @@ float3 PerturbNormal_ref( in float3 N, in float3 T, in float3 B, in float2 texco
 
 OUT_PS ps_full( IN_PS input )
 {
+    const uint camera_index = _idata.camera_index;
     //const float3 light_pos = float3(-5.f, 5.f, 0.f);
     const float3 light_color = _ldata.sun_color;// float3(1, 1, 1);
-    const float3 V = normalize( _fdata.camera_eye.xyz - input.pos_ws );
+    const float3 V = normalize( _camera.eye[camera_index].xyz - input.pos_ws.xyz );
     const float3 L = _ldata.sun_L;//  normalize( light_pos - input.pos_ws );
     const float3 N_input = normalize( input.nrm_ws );
     
@@ -310,10 +317,10 @@ OUT_PS ps_full( IN_PS input )
 
     LitInput lit_input = ComputeLitInput( N, L, V );
     
-    Material mat = _material;
+    Material mat = _material[_idata.material_index];
     mat.roughness *= tex_material_roughness.Sample( _samp_point, input.uv0 ).r;
     mat.metal *= tex_material_metalness.Sample( _samp_point, input.uv0 ).r;
-    mat.specular_albedo = lerp( 0.04, _material.specular_albedo, mat.metal );
+    mat.specular_albedo = lerp( 0.04, mat.specular_albedo, mat.metal );
     
     const float3 base_color = tex_material_base_color.Sample( _samp_trilinear, input.uv0 ) * saturate( 1.f - mat.metal );
 

@@ -64,12 +64,13 @@ void DestroyGroundMesh( GroundMesh* mesh, GFX* gfx )
 namespace
 {
 	// camera
-	static mat44_t g_camera_world = mat44_t::identity();
-	static GFXCameraParams g_camera_params = {};
-	static GFXCameraMatrices g_camera_matrices = {};
+	//static mat44_t g_camera_world = mat44_t::identity();
+	//static GFXCameraParams g_camera_params = {};
+	//static GFXCameraMatrices g_camera_matrices = {};
 
     GFXCameraInputContext g_camera_input_ctx = {};
 
+    GFXCameraID g_idcamera = { 0 };
     GFXSceneID g_idscene = { 0 };
     GroundMesh g_ground_mesh;
 
@@ -131,8 +132,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
         _filesystem->CloseFile( filewait.handle );
 
     }
-
-	g_camera_world = mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) );
+    g_idcamera = _gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) ) );
 
     g_mat_editor.StartUp( _gfx, g_idscene, _rsm, allocator );
 
@@ -154,6 +154,7 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 
     DestroyGroundMesh( &g_ground_mesh, _gfx );
     _gfx->DestroyScene( g_idscene );
+    _gfx->DestroyCamera( g_idcamera );
 
     GFX::ShutDown( &_gfx, _rsm );
 
@@ -193,9 +194,11 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
 			sensitivity_in_pix,
 			delta_time_sec );
 	}
+    const GFXCameraMatrices& current_camera_matrices = _gfx->CameraMatrices( g_idcamera );
 
-	g_camera_world = CameraMovementFPP( g_camera_input_ctx, g_camera_world, delta_time_sec * 10.f );
-	ComputeMatrices( &g_camera_matrices, g_camera_params, g_camera_world );
+	const mat44_t new_camera_world = CameraMovementFPP( g_camera_input_ctx, current_camera_matrices.world, delta_time_sec * 10.f );
+    _gfx->SetCameraWorld( g_idcamera, new_camera_world );
+    _gfx->ComputeCamera( g_idcamera );
 
     {
         ENTSystemInfo ent_sys_info = {};
@@ -214,7 +217,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     //static bool tmp = false;
     //if( !tmp )
     {
-        _gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_camera_params, g_camera_matrices );
+        _gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_idcamera );
        // tmp = true;
     }
 
@@ -227,12 +230,11 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
     ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );
 	
-    //_gfx->BindMaterialFrame( frame_ctx );
     _gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
 
-    //_gfx->PostProcess( frame_ctx, g_camera_params, g_camera_matrices );
+    _gfx->PostProcess( frame_ctx, g_idcamera );
 
-    _gfx->RasterizeFramebuffer( _rdicmdq, 0, g_camera_params.aspect() );
+    _gfx->RasterizeFramebuffer( _rdicmdq, 1, g_idcamera );
 
     GUI::Draw();
 

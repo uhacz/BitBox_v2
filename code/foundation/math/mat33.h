@@ -1,6 +1,6 @@
 #pragma once
 
-inline mat33_t::mat33_t( const quat_t& q )
+VEC_FORCE_INLINE mat33_t::mat33_t( const quat_t& q )
 {
     const float x = q.x;
     const float y = q.y;
@@ -28,12 +28,12 @@ inline mat33_t::mat33_t( const quat_t& q )
     c2 = vec3_t( xz + yw, yz - xw, 1.0f - xx - yy );
 }
 
-inline float determinant( const mat33_t& m )
+VEC_FORCE_INLINE float determinant( const mat33_t& m )
 {
     return dot( m.c0, cross( m.c1, m.c2 ) );
 }
 
-inline mat33_t transpose( const mat33_t& m )
+VEC_FORCE_INLINE mat33_t transpose( const mat33_t& m )
 {
     const vec3_t v0( m.c0.x, m.c1.x, m.c2.x );
     const vec3_t v1( m.c0.y, m.c1.y, m.c2.y );
@@ -42,7 +42,7 @@ inline mat33_t transpose( const mat33_t& m )
     return mat33_t( v0, v1, v2 );
 }
 
-inline mat33_t inverse( const mat33_t& m )
+VEC_FORCE_INLINE mat33_t inverse( const mat33_t& m )
 {
     const float det = determinant( m );
     mat33_t minv;

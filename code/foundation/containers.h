@@ -164,6 +164,8 @@ struct id_array_t
         }
     }
     
+    uint32_t capacity() const { return MAX; }
+
     uint16_t _freelist;
     uint16_t _next_id;
     uint16_t _size;

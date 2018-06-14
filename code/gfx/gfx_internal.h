@@ -25,7 +25,8 @@
 
 static constexpr uint32_t GFX_MAX_SCENES = 4;
 static constexpr uint32_t GFX_MAX_MESH_INSTANCES = 1024 * 64;
-static constexpr uint32_t GFX_MAX_MATERIALS = 64;
+static constexpr uint32_t GFX_MAX_MATERIALS = SHADER_MAX_MATERIALS;
+static constexpr uint32_t GFX_MAX_CAMERAS = SHADER_MAX_CAMERAS;
 
 namespace GFXEFramebuffer
 {
@@ -52,6 +53,30 @@ namespace GFXEMaterialFlag
 
 using IDArray = array_t<id_t>;
 
+struct GFXCameraContainer
+{
+    id_array_t<GFX_MAX_CAMERAS> id_alloc;
+    mutex_t id_lock;
+
+    mutex_t to_remove_lock;
+    IDArray to_remove;
+
+    GFXCameraParams params[GFX_MAX_CAMERAS] = {};
+    GFXCameraMatrices matrices[GFX_MAX_CAMERAS] = {};
+    string_t names[GFX_MAX_CAMERAS] = {};
+
+    BXIAllocator* _names_allocator = nullptr;
+
+    bool IsAlive( id_t id ) const { return id_array::has( id_alloc, id );  }
+    uint32_t DataIndex( id_t id ) const { return id_array::index( id_alloc, id ); }
+    uint32_t Size()
+    {
+        scope_mutex_t guard( id_lock );
+        return id_array::size( id_alloc );
+    }
+};
+
+
 struct GFXMaterialContainer
 {
     struct
@@ -60,17 +85,18 @@ struct GFXMaterialContainer
         RDIXPipeline* base_with_skybox = nullptr;
         RDIXPipeline* full = nullptr;
         RDIXPipeline* skybox = nullptr;
+        RDIXPipeline* shadow_depth = nullptr;
     } pipeline;
 
 
-    RDIConstantBuffer frame_data_gpu = {};
+    //RDIConstantBuffer frame_data_gpu = {};
     RDIConstantBuffer lighting_data_gpu = {};
 
     mutex_t                   lock;
     id_table_t<GFX_MAX_MATERIALS> idtable;
     gfx_shader::Material      data[GFX_MAX_MATERIALS] = {};
     GFXMaterialTexture        textures[GFX_MAX_MATERIALS] = {};
-    RDIConstantBuffer         data_gpu[GFX_MAX_MATERIALS] = {};
+    //RDIConstantBuffer         data_gpu[GFX_MAX_MATERIALS] = {};
     RDIXResourceBinding*      binding[GFX_MAX_MATERIALS] = {};
     string_t                  name[GFX_MAX_MATERIALS] = {};
     uint8_t                   flags[GFX_MAX_MATERIALS] = {};
@@ -83,6 +109,7 @@ struct GFXMaterialContainer
     IDArray to_refresh;
 
     bool IsAlive( id_t id ) const { return id_table::has( idtable, id ); }
+    uint32_t DataIndex( id_t id ) const { return id.index; }
 };
 
 
@@ -92,7 +119,7 @@ struct GFXSceneContainer
     struct MeshData
     {
         mat44_t* world_matrix;
-        uint32_t* transform_buffer_instance_index;
+        gfx_shader::InstanceData* instance_data;
         RSMResourceID* idmesh_resource;
         GFXMaterialID* idmat;
         id_t* idinstance;
@@ -177,21 +204,30 @@ struct GFXSystem
     RDIXRenderTarget* _framebuffer = nullptr;
     uint32_t _sync_interval = 0;
 
-    GFXMaterialContainer _material;
-    GFXSceneContainer    _scene;
-    GFXSceneID           _scene_lookup[GFX_MAX_SCENES][GFX_MAX_MESH_INSTANCES] = {};
-    GFXPostProcess       _postprocess;
+    gfx_shader::ShaderSamplers _samplers;
+    RDIConstantBuffer _gpu_camera_buffer;
+    RDIConstantBuffer _gpu_frame_data_buffer;
+    RDIConstantBuffer _gpu_material_data_buffer;
 
     static constexpr uint32_t NUM_DEFAULT_MESHES = 2;
     RSMResourceID     _default_meshes[NUM_DEFAULT_MESHES];
     RDIXRenderSource* _fallback_mesh = nullptr;
 
-
     static constexpr uint32_t NUM_DEFAULT_MATERIALS = 5;
     GFXMaterialID _default_materials[NUM_DEFAULT_MATERIALS];
     GFXMaterialID _fallback_idmaterial;
 
-    gfx_shader::ShaderSamplers _samplers;
-
     GFXFrameContext _frame_ctx = {};
+
+    GFXCameraContainer   _camera;
+    GFXMaterialContainer _material;
+    GFXSceneContainer    _scene;
+    GFXSceneID           _scene_lookup[GFX_MAX_SCENES][GFX_MAX_MESH_INSTANCES] = {};
+    GFXPostProcess       _postprocess;
+
+    uint32_t MaterialDataIndex( id_t idmat ) const
+    {
+        const id_t fallback_id = { _fallback_idmaterial.i };
+        return _material.IsAlive( idmat ) ? _material.DataIndex( idmat ) : _material.DataIndex( fallback_id );
+    }
 };

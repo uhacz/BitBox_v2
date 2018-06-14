@@ -905,33 +905,10 @@ RDIXTransformBufferCommands UploadAndSetTransformBuffer( RDIXCommandBuffer * cmd
 
     RDIXCommandChain chain( cmdbuff, parentcmd );
 	RDIXUpdateBufferCmd* cmd1 = chain.AppendCmdWithData<RDIXUpdateBufferCmd>( data_size1, buffer->gpu_buffer_matrix, buffer->MatrixData(), data_size1 );
-    RDIXUpdateBufferCmd* cmd2 = chain.AppendCmdWithData<RDIXUpdateBufferCmd>( data_size2, buffer->gpu_buffer_matrix_it, buffer->MatrixITData(), data_size2 ); // AllocateCommand<RDIXUpdateBufferCmd>( cmdbuff, data_size1, cmd1 );
+    RDIXUpdateBufferCmd* cmd2 = chain.AppendCmdWithData<RDIXUpdateBufferCmd>( data_size2, buffer->gpu_buffer_matrix_it, buffer->MatrixITData(), data_size2 );
     RDIXSetResourceROCmd* cmd3 = chain.AppendCmd<RDIXSetResourceROCmd>( buffer->gpu_buffer_matrix, bind_info.matrix_start_slot, bind_info.stage_mask );
     RDIXSetResourceROCmd* cmd4 = chain.AppendCmd<RDIXSetResourceROCmd>( buffer->gpu_buffer_matrix_it, bind_info.matrix_start_slot + 1, bind_info.stage_mask );
     RDIXSetConstantBufferCmd* cmd5 = chain.AppendCmd<RDIXSetConstantBufferCmd>( buffer->gpu_instance_offset, bind_info.instance_offset_slot, bind_info.stage_mask );
-
-    //if( cmd1 && cmd2 && cmd3 && cmd4 && cmd5 )
-    //{
-    //    cmd1->resource = buffer->gpu_buffer_matrix;
-    //    cmd1->size = data_size1;
-    //    memcpy( cmd1->DataPtr(), buffer->MatrixData(), data_size1 );
-
-    //    cmd2->resource = buffer->gpu_buffer_matrix_it;
-    //    cmd2->size = data_size2;
-    //    memcpy( cmd2->DataPtr(), buffer->MatrixITData(), data_size2 );
-
-    //    cmd3->resource = buffer->gpu_buffer_matrix;
-    //    cmd3->slot = bind_info.matrix_start_slot;
-    //    cmd3->stage_mask = bind_info.stage_mask;
-
-    //    cmd4->resource = buffer->gpu_buffer_matrix_it;
-    //    cmd4->slot = bind_info.matrix_start_slot + 1;
-    //    cmd4->stage_mask = bind_info.stage_mask;
-
-    //    cmd5->resource = buffer->gpu_instance_offset;
-    //    cmd5->slot = bind_info.instance_offset_slot;
-    //    cmd5->stage_mask = bind_info.stage_mask;
-    //}
 	return { cmd1, cmd5 };
 }
 

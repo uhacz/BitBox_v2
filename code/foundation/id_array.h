@@ -91,6 +91,19 @@ namespace id_array
     }
 
     template <BX_ID_ARRAY_T_DEF>
+    inline id_t id( const id_array_t<BX_ID_ARRAY_T_ARG>& a, uint32_t dense_index )
+    {
+        SYS_ASSERT_TXT( dense_index < a._size, "Invalid index" );
+        const uint16_t sparse_index = a._dense_to_sparse[dense_index];
+        SYS_ASSERT_TXT( sparse_index < a.capacity(), "sparse index out of range" );
+
+        const id_t result = a._sparse[sparse_index];
+        SYS_ASSERT_TXT( has( a, result ), "id is dead" );
+
+        return result;
+    }
+
+    template <BX_ID_ARRAY_T_DEF>
     inline bool has( const id_array_t<BX_ID_ARRAY_T_ARG>& a, Tid id )
     {
         return id.index < MAX && a._sparse[id.index].id == id.id;

@@ -2,6 +2,7 @@
 
 #include "dll_interface.h"
 #include "gfx_type.h"
+#include "gfx_camera.h"
 #include <resource_manager/resource_manager.h>
 
 struct GFXUtilsData;
@@ -23,6 +24,17 @@ struct GFX_EXPORT GFX
     RDIXRenderTarget* Framebuffer();
     RDIXPipeline*     MaterialBase();
     RDIDevice*        Device();
+
+    // --- camera system
+    GFXCameraID         CreateCamera( const char* name, const GFXCameraParams& params, const mat44_t& world = mat44_t::identity() );
+    void                DestroyCamera( GFXCameraID idcam );
+    GFXCameraID         FindCamera( const char* name ) const;
+    bool                IsCameraAlive( GFXCameraID idcam );
+    const GFXCameraParams&   CameraParams( GFXCameraID idcam ) const;
+    const GFXCameraMatrices& CameraMatrices( GFXCameraID idcam ) const;
+    void                SetCameraParams( GFXCameraID idcam, const GFXCameraParams& params );
+    void                SetCameraWorld( GFXCameraID idcam, const mat44_t& world );
+    void                ComputeCamera( GFXCameraID idcam, GFXCameraMatrices* output = nullptr );
 
     // --- material system
     GFXMaterialID        CreateMaterial( const char* name, const GFXMaterialDesc& desc );
@@ -50,12 +62,12 @@ struct GFX_EXPORT GFX
     // --- frame
     GFXFrameContext* BeginFrame( RDICommandQueue* cmdq, RSM* rsm );
     void             EndFrame( GFXFrameContext* fctx );
-    void             RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, float aspect );
+    void             RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, GFXCameraID idcamera );
 
-    void GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
+    void GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, GFXCameraID idcamera );
     void SubmitCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene );
 
-    void PostProcess( GFXFrameContext* fctx, const GFXCameraParams& camerap, const GFXCameraMatrices& cameram );
+    void PostProcess( GFXFrameContext* fctx, GFXCameraID idcamera );
 
     // --- private data
     GFXSystem* gfx;

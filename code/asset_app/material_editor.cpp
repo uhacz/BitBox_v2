@@ -1,6 +1,8 @@
 #include "material_editor.h"
 #include <3rd_party/imgui/imgui.h>
-#include "util/file_system_name.h"
+#include <util/file_system_name.h>
+#include <gfx/gfx_type.h>
+#include <foundation/common.h>
 
 static constexpr char MATERIAL_FILE_EXT[] = ".material";
 
@@ -31,10 +33,10 @@ void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* 
         //"texture/bathroom_tile/metalness.DDS",
     };
 
-    _mat_tex.id[GFXMaterialTexture::BASE_COLOR] = rsm->Load( tex_names[0], gfx );
-    _mat_tex.id[GFXMaterialTexture::NORMAL]     = rsm->Load( tex_names[1], gfx );
-    _mat_tex.id[GFXMaterialTexture::ROUGHNESS]  = rsm->Load( tex_names[2], gfx );
-    _mat_tex.id[GFXMaterialTexture::METALNESS]  = rsm->Load( tex_names[3], gfx );
+    _mat_tex.id[GFXEMaterialTextureSlot::BASE_COLOR] = rsm->Load( tex_names[0], gfx );
+    _mat_tex.id[GFXEMaterialTextureSlot::NORMAL]     = rsm->Load( tex_names[1], gfx );
+    _mat_tex.id[GFXEMaterialTextureSlot::ROUGHNESS]  = rsm->Load( tex_names[2], gfx );
+    _mat_tex.id[GFXEMaterialTextureSlot::METALNESS]  = rsm->Load( tex_names[3], gfx );
 
     GFXMaterialDesc desc;
     desc.data = _mat_data;
@@ -55,7 +57,7 @@ void MATEditor::ShutDown( GFX* gfx, RSM* rsm )
     string::free( &_file_list );
     gfx->RemoveMeshFromScene( _mesh_id );
     gfx->DestroyMaterial( _mat_id );
-    for( uint32_t i = 0; i < GFXMaterialTexture::_COUNT_; ++i )
+    for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
     {
         rsm->Release( _mat_tex.id[i] );
     }

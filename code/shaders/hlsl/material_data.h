@@ -17,9 +17,9 @@ struct
 };
 
 #ifdef SHADER_IMPLEMENTATION
-shared cbuffer MaterialData
+shared cbuffer _MaterialData
 {
-	Material _material;
+	Material _material[SHADER_MAX_MATERIALS];
 };
 
 Texture2D tex_material_base_color;

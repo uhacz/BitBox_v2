@@ -6,23 +6,25 @@
 #define TRANSFORM_INSTANCE_WORLD_SLOT 0
 #define TRANSFORM_INSTANCE_WORLD_IT_SLOT 1
 
-struct TransformInstanceData
+struct InstanceData
 {
 	uint offset;
-	uint _padding[3];
+    uint camera_index;
+    uint material_index;
+    uint __padding[1];
 };
 
 #ifdef SHADER_IMPLEMENTATION
-shared cbuffer _InstanceOffset : register(BSLOT( TRANSFORM_INSTANCE_DATA_SLOT ))
+shared cbuffer _InstanceData : register(BSLOT( TRANSFORM_INSTANCE_DATA_SLOT ))
 {
-	TransformInstanceData _instance_data;
+    InstanceData _idata;
 };
 Buffer<float4> _instance_world   : register(TSLOT( TRANSFORM_INSTANCE_WORLD_SLOT ));
 Buffer<float3> _instance_worldIT : register(TSLOT( TRANSFORM_INSTANCE_WORLD_IT_SLOT ));
 
 void LoadWorld( out float4 row0, out float4 row1, out float4 row2, uint instanceID )
 {
-	uint row0Index = (_instance_data.offset + instanceID) * 3;
+	uint row0Index = (_idata.offset + instanceID) * 3;
 	row0 = _instance_world[row0Index];
 	row1 = _instance_world[row0Index + 1];
 	row2 = _instance_world[row0Index + 2];
@@ -30,7 +32,7 @@ void LoadWorld( out float4 row0, out float4 row1, out float4 row2, uint instance
 
 void LoadWorldIT( out float3 row0IT, out float3 row1IT, out float3 row2IT, uint instanceID )
 {
-	uint row0Index = (_instance_data.offset + instanceID) * 3;
+	uint row0Index = (_idata.offset + instanceID) * 3;
 	row0IT = _instance_worldIT[row0Index];
 	row1IT = _instance_worldIT[row0Index + 1];
 	row2IT = _instance_worldIT[row0Index + 2];

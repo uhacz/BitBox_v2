@@ -2,6 +2,7 @@
 #include <util/random/random.h>
 #include <util/grid.h>
 #include <foundation/time.h>
+#include <foundation/math/vmath.h>
 
 
 RTTI_DEFINE_TYPE_DERIVED( TestComponent, ENTIComponent, {

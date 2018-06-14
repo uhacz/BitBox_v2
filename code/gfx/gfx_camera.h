@@ -18,7 +18,7 @@ struct GFX_EXPORT GFXCameraParams
     float fov() const;
 };
 
-struct GFX_EXPORT GFXCameraMatrices
+struct GFXCameraMatrices
 {
     mat44_t world;
     mat44_t view;

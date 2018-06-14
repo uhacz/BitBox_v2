@@ -7,7 +7,7 @@
 struct RDIXCommandBuffer;
 struct GFXShadowData
 {
-    GFXCameraMatrices camera_matrices = {};
+    GFXCameraID id_camera{ 0 };
     RDITextureRW shadow_map = {};
     RDIXCommandBuffer* cmd_buffer = nullptr;
 
@@ -18,4 +18,4 @@ struct GFXShadowData
     };
     Setup setup;
 };
-void GenerateCommandBuffer( GFXShadowData* sdata, GFXSceneID idscene, const vec3_t& light_dir );
+void GenerateCommandBuffer( GFXShadowData* sdata, GFXSystem* gfx, GFXSceneID idscene, const vec3_t& light_dir );
