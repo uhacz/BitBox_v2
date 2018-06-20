@@ -3,22 +3,27 @@
 #include <util/file_system_name.h>
 #include <gfx/gfx_type.h>
 #include <foundation/common.h>
+#include "foundation/data_buffer.h"
+#include "rtti/serializer.h"
 
 static constexpr char MATERIAL_FILE_EXT[] = ".material";
 
-void MATEditor::SetDefault( gfx_shader::Material* mat )
+void MATEditor::SetDefault( GFXMaterialResource* mat )
 {
-    mat->diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
-    mat->specular_albedo = vec3_t( 1.f, 1.f, 1.f );
-    mat->metal = 0.f;
-    mat->roughness = 1.f;
+    mat->data.diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
+    mat->data.specular_albedo = vec3_t( 1.f, 1.f, 1.f );
+    mat->data.metal = 0.f;
+    mat->data.roughness = 1.f;
+
+    for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
+        string::free( &mat->textures[i] );
 }
 
 void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* allocator )
 {
     _allocator = allocator;
 
-    SetDefault( &_mat_data );
+    SetDefault( &_mat_resource );
 
     static const char* tex_names[] =
     {
@@ -26,20 +31,15 @@ void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* 
         "texture/2/n.DDS",
         "texture/2/r.DDS",
         "texture/not_metal.DDS",
-
-        //"texture/bathroom_tile/basecolor.DDS",
-        //"texture/bathroom_tile/normal.DDS",
-        //"texture/bathroom_tile/roughness.DDS",
-        //"texture/bathroom_tile/metalness.DDS",
     };
 
-    _mat_tex.id[GFXEMaterialTextureSlot::BASE_COLOR] = rsm->Load( tex_names[0], gfx );
-    _mat_tex.id[GFXEMaterialTextureSlot::NORMAL]     = rsm->Load( tex_names[1], gfx );
-    _mat_tex.id[GFXEMaterialTextureSlot::ROUGHNESS]  = rsm->Load( tex_names[2], gfx );
-    _mat_tex.id[GFXEMaterialTextureSlot::METALNESS]  = rsm->Load( tex_names[3], gfx );
+    //_mat_tex.id[GFXEMaterialTextureSlot::BASE_COLOR] = rsm->Load( tex_names[0], gfx );
+    //_mat_tex.id[GFXEMaterialTextureSlot::NORMAL]     = rsm->Load( tex_names[1], gfx );
+    //_mat_tex.id[GFXEMaterialTextureSlot::ROUGHNESS]  = rsm->Load( tex_names[2], gfx );
+    //_mat_tex.id[GFXEMaterialTextureSlot::METALNESS]  = rsm->Load( tex_names[3], gfx );
 
     GFXMaterialDesc desc;
-    desc.data = _mat_data;
+    desc.data = _mat_resource.data;
     desc.textures = _mat_tex;
     _mat_id = gfx->CreateMaterial( "editable", desc );
 
@@ -49,6 +49,7 @@ void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* 
     _mesh_id = gfx->AddMeshToScene( scene_id, mesh_desc, mat44_t::identity() );
 
     _folder = "material/";
+    _texture_folder = "texture/";
 }
 
 void MATEditor::ShutDown( GFX* gfx, RSM* rsm )
@@ -63,16 +64,42 @@ void MATEditor::ShutDown( GFX* gfx, RSM* rsm )
     }
 }
 
+static void RefreshFiles( string_buffer_t* flist, const char* folder, BXIFilesystem* fs, BXIAllocator* allocator )
+{
+    const uint32_t initial_capacity = max_of_2( 32u, flist->_capacity );
+    string::create( flist, initial_capacity, allocator );
+    fs->ListFiles( fs, flist, folder, true, allocator );
+}
+
+
+static string_buffer_it MenuFileSelector( const string_buffer_t& file_list )
+{
+    string_buffer_it file_it = string::iterate( file_list, string_buffer_it() );
+    while( !file_it.null() )
+    {
+        bool selected = false;
+        if( ImGui::MenuItem( file_it.pointer, nullptr, &selected ) )
+        {
+            if( selected )
+            {
+                break;
+            }
+        }
+        file_it = string::iterate( file_list, file_it );
+    }
+
+    return file_it;
+}
+
 void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
 {
-    
     if( ImGui::Begin( "Material" ) )
     {
         if( ImGui::BeginMenu( "File" ) )
         {
             if( ImGui::MenuItem( "New" ) )
             {
-                SetDefault( &_mat_data );
+                SetDefault( &_mat_resource );
                 _flags.refresh_material = 1;
                 string::free( &_current_file );
             }
@@ -83,18 +110,11 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
                 {
                     _flags.refresh_files = 1;
                 }
-                bool selected = false;
-                string_buffer_it file_it = string::iterate( _file_list, string_buffer_it() );
-                while( !file_it.null() )
+                
+                string_buffer_it selected_it = MenuFileSelector( _file_list );
+                if( !selected_it.null() )
                 {
-                    if( ImGui::MenuItem( file_it.pointer, nullptr, &selected ) )
-                    {
-                        if( selected )
-                        {
-                            _Load( file_it.pointer, fs );
-                        }
-                    }
-                    file_it = string::iterate( _file_list, file_it );
+                    _Load( selected_it.pointer, fs );
                 }
                 ImGui::EndMenu();
             }
@@ -123,23 +143,57 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
         ImGui::Text( "Current file: %s", _current_file.c_str() );
         
         ImGui::Separator();
-        _flags.refresh_material |= ImGui::ColorEdit3( "Diffuse albedo", _mat_data.diffuse_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
-        _flags.refresh_material |= ImGui::ColorEdit3( "Specular albedo", _mat_data.specular_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
-        _flags.refresh_material |= ImGui::SliderFloat( "Roughness", &_mat_data.roughness, 0.f, 1.f, "%.4f" );
+        _flags.refresh_material |= ImGui::ColorEdit3( "Diffuse albedo", _mat_resource.data.diffuse_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
+        _flags.refresh_material |= ImGui::ColorEdit3( "Specular albedo", _mat_resource.data.specular_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
+        _flags.refresh_material |= ImGui::SliderFloat( "Roughness", &_mat_resource.data.roughness, 0.f, 1.f, "%.4f" );
+        ImGui::Separator();
+        
+
+        //if( ImGui::BeginMenu() )
+        {
+            ImGui::Text( "Base  : %s", _mat_resource.textures[0].c_str() );
+            ImGui::SameLine();
+            if( ImGui::BeginMenu( "file..." ) )
+            {
+                if( _texture_file_list.null() )
+                {
+                    _flags.refresh_files_texture = 1;
+                }
+
+                string_buffer_it selected_it = MenuFileSelector( _file_list );
+                if( !selected_it.null() )
+                {
+                    string::create( &_mat_resource.textures[0], selected_it.pointer, _allocator );
+                }
+                ImGui::EndMenu();
+            }
+
+            ImGui::Text( "Normal: %s", _mat_resource.textures[1].c_str() );
+            ImGui::Text( "Roughness: %s", _mat_resource.textures[2].c_str() );
+            ImGui::Text( "Metalness: %s", _mat_resource.textures[3].c_str() );
+        }
+
+
+        //ImGui::InputText
+
+
     }
     ImGui::End();
 
     if( _flags.refresh_material )
     {
         _flags.refresh_material = 0;
-        gfx->SetMaterialData( _mat_id, _mat_data );
+        gfx->SetMaterialData( _mat_id, _mat_resource.data );
     }
     if( _flags.refresh_files )
     {
         _flags.refresh_files = 0;
-        const uint32_t initial_capacity = max_of_2( 32u, _file_list._capacity );
-        string::create( &_file_list, initial_capacity, _allocator );
-        fs->ListFiles( fs, &_file_list, _folder.c_str(), false, _allocator );
+        RefreshFiles( &_file_list, _folder.c_str(), fs, _allocator );
+    }
+    if( _flags.refresh_files_texture )
+    {
+        _flags.refresh_files_texture = 0;
+        RefreshFiles( &_texture_file_list, _texture_folder.c_str(), fs, _allocator );
     }
 }
 
@@ -157,13 +211,18 @@ void MATEditor::_CreateRelativePath( FSName* fs_name, const char* filename )
 void MATEditor::_Save( const char* filename, BXIFilesystem* fs )
 {
     static constexpr uint32_t DATA_SIZE = 2048;
-    uint8_t data_buff[DATA_SIZE] = {};
-    uint32_t data_bytes = RTTI::Serialize( data_buff, DATA_SIZE, _mat_data );
-    if( data_bytes )
+    uint8_t data[DATA_SIZE] = {};
+
+    SRLInstance srl = SRLInstance::CreateWriterStatic( 0, data, DATA_SIZE, _allocator );
+    Serialize( &srl, &_mat_resource );
+
+    //uint8_t data_buff[DATA_SIZE] = {};
+    //uint32_t data_bytes = RTTI::Serialize( data_buff, DATA_SIZE, _mat_data );
+    if( data_buffer::size( srl.data ) )
     {
         FSName relative_filename;
         _CreateRelativePath( &relative_filename, filename );
-        fs->WriteFileSync( fs, relative_filename.AbsolutePath(), data_buff, data_bytes );
+        fs->WriteFileSync( fs, relative_filename.AbsolutePath(), srl.data.begin(), data_buffer::size( srl.data ) );
         _flags.refresh_files = 1;
     }
 }
@@ -176,11 +235,14 @@ void MATEditor::_Load( const char* filename, BXIFilesystem* fs )
     BXFileWaitResult wait = fs->LoadFileSync( fs, relative_filename.AbsolutePath(), BXIFilesystem::FILE_MODE_BIN, _allocator );
     if( wait.status == BXEFileStatus::READY )
     {
-        if( RTTI::Unserialize( &_mat_data, wait.file.bin, wait.file.size, _allocator ) )
-        {
-            string::create( &_current_file, filename, _allocator );
-            _flags.refresh_material = 1;
-        }
+        SRLInstance srl = SRLInstance::CreateReader( 0, wait.file.pointer, wait.file.size, _allocator );
+        Serialize( &srl, &_mat_resource );
+        _flags.refresh_material = 1;
+        //if( RTTI::Unserialize( &_mat_data, wait.file.bin, wait.file.size, _allocator ) )
+        //{
+        //    string::create( &_current_file, filename, _allocator );
+        //    _flags.refresh_material = 1;
+        //}
     }
     fs->CloseFile( wait.handle );
 

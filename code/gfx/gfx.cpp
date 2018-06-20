@@ -1,6 +1,6 @@
 #include "gfx.h"
 #include "gfx_internal.h"
-
+#include "rtti/serializer.h"
 //#include "gfx_camera.h"
 //
 //#include <rdi_backend/rdi_backend.h>
@@ -16,6 +16,7 @@ namespace gfx_shader
 {
 #include <shaders/hlsl/shadow_data.h>
 
+
     RTTI_DEFINE_TYPE( Material, {
         RTTI_ATTR( Material, diffuse_albedo, "DiffuseAlbedo" ),
         RTTI_ATTR( Material, specular_albedo, "SpecularAlbedo" ),
@@ -24,6 +25,20 @@ namespace gfx_shader
     } );
 
 }//
+
+void Serialize( SRLInstance* srl, gfx_shader::Material* obj )
+{
+    SRL_ADD( 0, obj->diffuse_albedo );
+    SRL_ADD( 0, obj->roughness );
+    SRL_ADD( 0, obj->specular_albedo );
+    SRL_ADD( 0, obj->metal );
+}
+void Serialize( SRLInstance* srl, GFXMaterialResource* obj )
+{
+    Serialize( srl, &obj->data );
+    for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
+        SRL_ADD( 0, obj->textures[i] );
+}
 
 //////////////////////////////////////////////////////////////////////////
 struct GFXUtilsData
@@ -311,7 +326,42 @@ namespace gfx_internal
         //UpdateCBuffer( GetImmediateCommandQueue( gfx->_rdidev ), *cbuffer, &data );
         mc.data[id.index] = data;
     }
+    static void ChangeTextures( GFXSystem* gfx, id_t id, const GFXMaterialTexture& tex )
+    {
+        GFXMaterialContainer& mc = gfx->_material;
+        const uint32_t index = mc.DataIndex( id );
 
+        bool hasTextures = false;
+        for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_ && !hasTextures; ++i )
+            hasTextures |= IsAlive( tex.id[i] );
+
+        if( hasTextures )
+        {
+            if( mc.flags[index] == GFXEMaterialFlag::PIPELINE_BASE || mc.flags[index] == 0 )
+            {
+                DestroyResourceBinding( &mc.binding[index] );
+                mc.binding[index] = CloneResourceBinding( ResourceBinding( mc.pipeline.full ), gfx->_allocator );
+                mc.flags[index] = GFXEMaterialFlag::PIPELINE_FULL;
+            }
+
+            mc.textures[index] = tex;
+            {
+                scope_mutex_t guard( mc.to_refresh_lock );
+                array::push_back( mc.to_refresh, id );
+            }
+        }
+        else
+        {
+            if( mc.flags[index] == GFXEMaterialFlag::PIPELINE_FULL || mc.flags[index] == 0 )
+            {
+                DestroyResourceBinding( &mc.binding[index] );
+                mc.binding[index] = CloneResourceBinding( ResourceBinding( mc.pipeline.base_with_skybox ), gfx->_allocator );
+                mc.flags[index] = GFXEMaterialFlag::PIPELINE_BASE;
+            }
+
+            mc.textures[index] = {};
+        }
+    }
     static RDIXResourceBinding* GetMaterialBinding( GFXSystem* gfx, id_t id )
     {
         if( !IsMaterialAlive( gfx, id ) )
@@ -330,7 +380,7 @@ namespace gfx_internal
 
         const uint8_t flags = gfx->_material.flags[id.index];
         SYS_ASSERT( flags & (GFXEMaterialFlag::PIPELINE_BASE | GFXEMaterialFlag::PIPELINE_FULL) );
-        return (flags & GFXEMaterialFlag::PIPELINE_BASE) ? gfx->_material.pipeline.base : gfx->_material.pipeline.full;
+        return (flags & GFXEMaterialFlag::PIPELINE_BASE) ? gfx->_material.pipeline.base_with_skybox : gfx->_material.pipeline.full;
     }
 }
 
@@ -699,31 +749,26 @@ GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc
     mc.lock.unlock();
 
     mc.data[id.index] = desc.data;
-    mc.textures[id.index] = desc.textures;
-   // mc.data_gpu[id.index] = CreateConstantBuffer( dev, sizeof( gfx_shader::Material ) );
-    mc.flags[id.index] = GFXEMaterialFlag::PIPELINE_BASE;
+    mc.flags[id.index] = 0;
 
     //RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
-    
-    RDIXResourceBinding* binding = nullptr;
-    if( IsAlive( desc.textures.id[0] ) )
-    {
-        binding = CloneResourceBinding( ResourceBinding( mc.pipeline.full ), allocator );
-        mc.flags[id.index] = GFXEMaterialFlag::PIPELINE_FULL;
-        {
-            scope_mutex_t guard( mc.to_refresh_lock );
-            array::push_back( mc.to_refresh, id );
-        }
-    }
-    else
-    {
-       binding = CloneResourceBinding( ResourceBinding( mc.pipeline.base ), allocator );
-    }
-    
-    //gfx_internal::UploadMaterial( gfx, id, desc.data );
-    //SetConstantBuffer( binding, "MaterialData", cbuffer );
+    gfx_internal::ChangeTextures( gfx, id, desc.textures );
+    //RDIXResourceBinding* binding = nullptr;
+    //if( IsAlive( desc.textures.id[0] ) )
+    //{
+    //    binding = CloneResourceBinding( ResourceBinding( mc.pipeline.full ), allocator );
+    //    mc.flags[id.index] = GFXEMaterialFlag::PIPELINE_FULL;
+    //    {
+    //        scope_mutex_t guard( mc.to_refresh_lock );
+    //        array::push_back( mc.to_refresh, id );
+    //    }
+    //}
+    //else
+    //{
+    //   binding = CloneResourceBinding( ResourceBinding( mc.pipeline.base ), allocator );
+    //}
 
-    mc.binding[id.index] = binding;
+    //mc.binding[id.index] = binding;
     
     string::create( &mc.name[id.index], name, allocator );
     mc.idself[id.index] = id;
@@ -754,6 +799,15 @@ void GFX::SetMaterialData( GFXMaterialID idmat, const gfx_shader::Material& data
         return;
     id_t id = { idmat.i };
     gfx_internal::UploadMaterial( gfx, id, data );
+}
+
+void GFX::SetMaterialTextures( GFXMaterialID idmat, const GFXMaterialTexture& tex )
+{
+    if( !IsMaterialAlive( idmat ) )
+        return;
+    
+    const id_t id = { idmat.i };
+    gfx_internal::ChangeTextures( gfx, id, tex );
 }
 
 GFXMaterialID GFX::FindMaterial( const char* name )

@@ -103,6 +103,8 @@ void FilesystemWindows::CloseFile( BXFileHandle fhandle, bool freeData )
 		_to_unload_lock.unlock();
 		_semaphore.signal();
 	}
+
+    _files[id.index] = {};
 }
 
 BXEFileStatus::E FilesystemWindows::File( BXFile* file, BXFileHandle fhandle )

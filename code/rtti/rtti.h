@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dll_interface.h"
 #include <plugin/plugin_interface.h>
 #include <foundation/type.h>
 #include <foundation/debug.h>
@@ -75,11 +76,7 @@ struct BXIAllocator;
 #define RTTI_ATTR( type, field, name ) RTTI::Create( &type::field, name )
 
 
-#ifdef BX_DLL_rtti
-#define RTTI_EXPORT __declspec(dllexport)
-#else
-#define RTTI_EXPORT __declspec(dllimport)
-#endif
+
 
 union RTTITypeFlags
 {

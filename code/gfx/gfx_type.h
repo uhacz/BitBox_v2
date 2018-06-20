@@ -3,12 +3,25 @@
 #include "gfx_forward_decl.h"
 #include "gfx_shader_interop.h"
 #include <resource_manager/resource_manager.h>
+#include <foundation/string_util.h>
 
 struct GFXDesc
 {
     uint16_t framebuffer_width = 1920;
     uint16_t framebuffer_height = 1080;
 };
+
+struct GFXMaterialResource
+{
+    gfx_shader::Material data;
+    string_t textures[GFXEMaterialTextureSlot::_COUNT_] = {};
+};
+
+struct SRLInstance;
+void GFX_EXPORT Serialize( SRLInstance* srl, gfx_shader::Material* obj );
+void GFX_EXPORT Serialize( SRLInstance* srl, GFXMaterialResource* obj );
+
+
 
 struct GFXMaterialTexture
 {

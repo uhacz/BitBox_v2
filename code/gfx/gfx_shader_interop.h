@@ -16,7 +16,7 @@ namespace gfx_shader
 
 #include <shaders/hlsl/samplers.h>
 #include <shaders/hlsl/material_data.h>
-#include <shaders/hlsl/material_frame_data.h>
+#include <shaders/hlsl/frame_data.h>
 #include <shaders/hlsl/transform_instance_data.h>
 }//
 

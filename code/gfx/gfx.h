@@ -40,6 +40,7 @@ struct GFX_EXPORT GFX
     GFXMaterialID        CreateMaterial( const char* name, const GFXMaterialDesc& desc );
     void                 DestroyMaterial( GFXMaterialID idmat );
     void                 SetMaterialData( GFXMaterialID idmat, const gfx_shader::Material& data );
+    void                 SetMaterialTextures( GFXMaterialID idmat, const GFXMaterialTexture& tex );
     GFXMaterialID        FindMaterial( const char* name );
     bool                 IsMaterialAlive( GFXMaterialID idmat );
     RDIXResourceBinding* MaterialBinding( GFXMaterialID idmat );

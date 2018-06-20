@@ -132,6 +132,11 @@ string_t::string_t( const char* str )
 string_t::string_t()
 {}
 
+string_t::~string_t()
+{
+    string::free( this );
+}
+
 unsigned string_t::length() const
 {
     return (unsigned)strlen( c_str() );
@@ -157,6 +162,15 @@ namespace string
             strcpy( s->_static, data );
         }
     }
+    void string::reserve( string_t* s, uint32_t length, BXIAllocator* allocator )
+    {
+        string::free( s );
+        if( length > string_t::MAX_STATIC_LENGTH )
+        {
+            s->_dynamic = (char*)BX_MALLOC( allocator, length + 1, 1 );
+            s->_allocator = allocator;
+        }
+    }
 
     void free( string_t* s )
     {
@@ -171,7 +185,7 @@ namespace string
     {
         free( s );
 
-        s->_base = (char*)BX_MALLOC( allocator, capacity, 1 );
+        s->_base = (char*)BX_MALLOC( allocator, capacity, sizeof(void*) );
         memset( s->_base, 0x00, capacity );
 
         s->_offset = 0;
@@ -207,9 +221,11 @@ namespace string
                 new_capacity *= 2;
             }
 
+            BXIAllocator* allocator = s->_allocator;
+
             string_buffer_t new_s;
             memset( &new_s, 0x00, sizeof( string_buffer_t ) );
-            create( &new_s, new_capacity, s->_allocator );
+            create( &new_s, new_capacity, allocator );
 
             memcpy( new_s._base, s->_base, s->_offset );
             new_s._offset = s->_offset;
@@ -257,3 +273,7 @@ namespace string
     }
 }
 
+string_buffer_t::~string_buffer_t()
+{
+    string::free( this );
+}

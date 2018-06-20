@@ -130,6 +130,24 @@ public:
     array_t<Entry> _data;
 };
 
+struct data_buffer_t
+{
+    uint8_t* data = nullptr;
+    uint32_t write_offset = 0;
+    uint32_t read_offset = 0;
+    uint32_t capacity = 0;
+
+    uint32_t alignment = 0;
+    BXIAllocator* allocator = nullptr;
+
+    ~data_buffer_t();
+
+    const uint8_t* begin() const { return data; }
+    const uint8_t* end()   const { return data + write_offset; }
+
+    uint8_t* begin() { return data; }
+    uint8_t* end()   { return data + write_offset; }
+};
 
 #define BX_INVALID_ID UINT16_MAX
 union id_t

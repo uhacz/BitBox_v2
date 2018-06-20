@@ -231,12 +231,11 @@ LitData ComputeSkyBox( in LitData lit_data, in LitInput lin, in Material materia
 
 OUT_PS ps_base( IN_PS input )
 {
-	const float3 light_pos = float3(-5.f, 5.f, 0.f);
-	const float3 light_color = float3(1, 1, 1);
+    const float3 light_color = _ldata.sun_color;// float3(1, 1, 1);
+    const float3 L = _ldata.sun_L;
 
     const uint camera_index = _idata.camera_index;
     const float3 V = normalize( _camera.eye[camera_index].xyz - input.pos_ws );
-	const float3 L = normalize( light_pos - input.pos_ws );
 	const float3 N = normalize( input.nrm_ws );
 	
     Material mat = _material[_idata.material_index];
@@ -303,8 +302,8 @@ OUT_PS ps_full( IN_PS input )
     const uint camera_index = _idata.camera_index;
     //const float3 light_pos = float3(-5.f, 5.f, 0.f);
     const float3 light_color = _ldata.sun_color;// float3(1, 1, 1);
+    const float3 L = _ldata.sun_L;
     const float3 V = normalize( _camera.eye[camera_index].xyz - input.pos_ws.xyz );
-    const float3 L = _ldata.sun_L;//  normalize( light_pos - input.pos_ws );
     const float3 N_input = normalize( input.nrm_ws );
     
 #if USE_TANGENTS == 1

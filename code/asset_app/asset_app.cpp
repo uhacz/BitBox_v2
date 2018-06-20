@@ -2,6 +2,7 @@
 
 #include <memory\memory.h>
 #include <rtti\rtti.h>
+#include <rtti\serializer.h>
 #include <plugin\plugin_registry.h>
 #include <plugin\plugin_load.h>
 
@@ -63,23 +64,11 @@ void DestroyGroundMesh( GroundMesh* mesh, GFX* gfx )
 
 namespace
 {
-	// camera
-	//static mat44_t g_camera_world = mat44_t::identity();
-	//static GFXCameraParams g_camera_params = {};
-	//static GFXCameraMatrices g_camera_matrices = {};
-
     GFXCameraInputContext g_camera_input_ctx = {};
-
     GFXCameraID g_idcamera = { 0 };
     GFXSceneID g_idscene = { 0 };
     GroundMesh g_ground_mesh;
-
-    //static constexpr uint32_t NUM_ENTITIES = 4;
-    //ENTEntityID entity[NUM_ENTITIES];
 }
-
-
-
 
 
 
@@ -87,8 +76,38 @@ static MATEditor g_mat_editor;
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
-	_filesystem->SetRoot( "x:/dev/assets/" );
+    _filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
+    _filesystem->SetRoot( "x:/dev/assets/" );
+
+    //GFXMaterialResource mat_res;
+    //gfx_shader::Material& mat = mat_res.data;
+    //mat.diffuse_albedo = vec3_t( 1.f, 0.f, 1.f );
+    //mat.roughness = 0.2f;
+    //mat.specular_albedo = vec3_t( 0.f, 1.f, 0.f );
+    //mat.metal = 0.f;
+
+    //string::create( &mat_res.textures[0], "abc", allocator );
+    //string::create( &mat_res.textures[1], "defgh", allocator );
+    //string::create( &mat_res.textures[2], "ijklmno", allocator );
+    //string::create( &mat_res.textures[3], "pqrstuvwxfdsjklfdjsaklfjhsdauof", allocator );
+
+
+    //SRLInstance srl;
+    //data_buffer::create( &srl.data, 128, allocator );
+    //srl.version = 0;
+    //srl.is_writting = true;
+    //srl.allocator = allocator;
+
+    //Serialize( &srl, &mat_res );
+
+    //_filesystem->WriteFileSync( _filesystem, "material/test.material", srl.data.data.begin(), srl.data.data.size );
+
+    ////fopen_s( &srl.file, "test.material", "rb" );
+    //srl.is_writting = false;
+
+    //GFXMaterialResource mat_res1;
+    //Serialize( &srl, &mat_res1 );
+    //fclose( srl.file );
 
     _rsm = RSM::StartUp( _filesystem, allocator );
 
