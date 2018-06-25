@@ -309,7 +309,7 @@ RSMResourceID RSM::Load( const char* relative_path, void* system )
             BXPostLoadCallback post_load_cb( FileLoadCallback, _rsm, (void*)(uintptr_t)id.hash, system );
 
             RSMLoader* loader = _rsm->loader[loader_index];
-            BXIFilesystem::EMode mode = (loader->IsBinary()) ? BXIFilesystem::FILE_MODE_BIN : BXIFilesystem::FILE_MODE_TXT;
+            BXEFIleMode::E mode = (loader->IsBinary()) ? BXEFIleMode::BIN : BXEFIleMode::TXT;
             _rsm->filesystem->LoadFile( relative_path, mode, post_load_cb, _rsm->default_resource_allocator );
         }
 

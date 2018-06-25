@@ -185,7 +185,7 @@ namespace string
     {
         free( s );
 
-        s->_base = (char*)BX_MALLOC( allocator, capacity, sizeof(void*) );
+        s->_base = (char*)BX_MALLOC( allocator, capacity, 1 );
         memset( s->_base, 0x00, capacity );
 
         s->_offset = 0;
@@ -205,12 +205,12 @@ namespace string
         s->_capacity = 0;
         s->_allocator = nullptr;
     }
-    const char* append( string_buffer_t* s, const char* str )
+    const char* append( string_buffer_t* s, const char* str, char terminator )
     {
         const uint32_t len = string::length( str );
-        return append( s, str, len );
+        return appendn( s, str, len, terminator );
     }
-    const char* append( string_buffer_t* s, const char* str, unsigned len )
+    const char* appendn( string_buffer_t* s, const char* str, unsigned len, char terminator )
     {
         const uint32_t space_required = len + 1;
         if( s->_offset + space_required > s->_capacity )
@@ -223,20 +223,27 @@ namespace string
 
             BXIAllocator* allocator = s->_allocator;
 
-            string_buffer_t new_s;
-            memset( &new_s, 0x00, sizeof( string_buffer_t ) );
-            create( &new_s, new_capacity, allocator );
+            char* new_data = (char*)BX_MALLOC( allocator, new_capacity, 1 );
+            memcpy( new_data, s->_base, s->_offset );
 
-            memcpy( new_s._base, s->_base, s->_offset );
-            new_s._offset = s->_offset;
+            BX_FREE( allocator, s->_base );
+            s->_base = new_data;
+            s->_capacity = new_capacity;
 
-            free( s );
-            s[0] = new_s;
+            //string_buffer_t new_s;
+            //memset( &new_s, 0x00, sizeof( string_buffer_t ) );
+            //create( &new_s, new_capacity, allocator );
+
+            //memcpy( new_s._base, s->_base, s->_offset );
+            //new_s._offset = s->_offset;
+
+            //free( s );
+            //s[0] = new_s;
         }
 
         char* dst = s->_base + s->_offset;
         memcpy( dst, str, len );
-        dst[len] = 0;
+        dst[len] = terminator;
 
         s->_offset += space_required;
         return dst;
@@ -256,7 +263,9 @@ namespace string
             while( s._base[++search_offset] )
             {
                 if( search_offset >= s._offset )
+                {
                     break;
+                }
             }
 
             if( search_offset < s._offset )

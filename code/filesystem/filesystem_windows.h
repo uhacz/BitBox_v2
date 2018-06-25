@@ -16,7 +16,7 @@ namespace bx
     struct FileInputInfo
 	{
 		FSName _name;
-		BXIFilesystem::EMode _mode;
+		BXEFIleMode::E _mode;
         BXPostLoadCallback _callback;
         BXIAllocator* _allocator;
 	};
@@ -31,7 +31,7 @@ struct FilesystemWindows : BXIFilesystem
 	bool			 IsValid( BXFileHandle fhandle );
 	void			 SetRoot( const char* absoluteDirPath ) override final;
     const char*      GetRoot() const override;
-	BXFileHandle	 LoadFile( const char* relativePath, EMode mode, BXPostLoadCallback callback, BXIAllocator* allocator = nullptr ) override final;
+	BXFileHandle	 LoadFile( const char* relativePath, BXEFIleMode::E mode, BXPostLoadCallback callback, BXIAllocator* allocator = nullptr ) override final;
 	void			 CloseFile( BXFileHandle fhandle, bool freeData ) override final;
 	BXEFileStatus::E File( BXFile* file, BXFileHandle fhandle ) override final;
 

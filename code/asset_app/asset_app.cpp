@@ -140,7 +140,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     }
     
     {// sky
-        BXFileWaitResult filewait = _filesystem->LoadFileSync( _filesystem, "texture/sky_cubemap.dds", BXIFilesystem::FILE_MODE_BIN, allocator );
+        BXFileWaitResult filewait = _filesystem->LoadFileSync( _filesystem, "texture/sky_cubemap.dds", BXEFIleMode::BIN, allocator );
         if( filewait.file.pointer )
         {
             if( _gfx->SetSkyTextureDDS( g_idscene, filewait.file.pointer, filewait.file.size ) )

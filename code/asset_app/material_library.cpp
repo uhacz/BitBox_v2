@@ -8,7 +8,7 @@ MATLibrary::MATLibrary()
 
 void MATLibrary::Load( const char* filename, BXIFilesystem* filesystem, BXIAllocator* allocator )
 {
-    BXFileWaitResult fres = filesystem->LoadFileSync( filesystem, filename, BXIFilesystem::FILE_MODE_BIN, allocator );
+    BXFileWaitResult fres = filesystem->LoadFileSync( filesystem, filename, BXEFIleMode::BIN, allocator );
     if( fres.status == BXEFileStatus::READY )
     {
         array::clear( _materials );

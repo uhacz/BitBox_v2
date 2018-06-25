@@ -51,7 +51,7 @@ bool FilesystemWindows::IsValid( BXFileHandle fhandle )
 	return id_table::has( _ids, id );
 }
 
-BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, EMode mode, BXPostLoadCallback callback, BXIAllocator* allocator )
+BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, BXEFIleMode::E mode, BXPostLoadCallback callback, BXIAllocator* allocator )
 {
 	if( !allocator )
 		allocator = _allocator;
@@ -166,9 +166,9 @@ void FilesystemWindows::ThreadProc()
 				
 				file.allocator = info._allocator;
 
-				if( info._mode == BXIFilesystem::FILE_MODE_BIN )
+				if( info._mode == BXEFIleMode::BIN )
 					result = ReadFile( &file.bin, &file.size, path.AbsolutePath(), info._allocator );
-				else if( info._mode == BXIFilesystem::FILE_MODE_TXT )
+				else if( info._mode == BXEFIleMode::TXT )
 					result = ReadTextFile( &file.bin, &file.size, path.AbsolutePath(), info._allocator );
 
 				const BXEFileStatus::E file_status = (result == IO_OK) ? BXEFileStatus::READY : BXEFileStatus::NOT_FOUND;

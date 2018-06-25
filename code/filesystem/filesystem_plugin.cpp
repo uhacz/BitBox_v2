@@ -6,7 +6,7 @@
 #include <foundation/io.h>
 #include "dirent.h"
 
-static BXFileWaitResult LoadFileSync( BXIFilesystem* fs, const char * relativePath, BXIFilesystem::EMode mode, BXIAllocator* allocator )
+static BXFileWaitResult LoadFileSync( BXIFilesystem* fs, const char * relativePath, BXEFIleMode::E mode, BXIAllocator* allocator )
 {
 	BXFileWaitResult result;
 	result.handle = fs->LoadFile( relativePath, mode, allocator );
@@ -27,8 +27,19 @@ static int32_t WriteFileSync( BXIFilesystem* fs, const char* relative_path, cons
     return WriteFile( abs_path.AbsolutePath(), data, data_size );
 }
 
+static void AppendRelativePath( string_buffer_t* s, const char* relative_path )
+{
+    uint32_t len = string::length( relative_path );
+    if( len > 0 )
+    {
+        if( relative_path[len - 1] == '/' || relative_path[len - 1] == '\\' )
+            len -= 1;
+    
+        string::appendn( s, relative_path, len, '/' );
+    }
+}
 
-static void ListFiles( BXIFilesystem* fs, string_buffer_t* s, const char* relative_path, bool recurse, BXIAllocator* allocator )
+static void ListFiles( BXIFilesystem* fs, string_buffer_t* s, const char* relative_path, uint32_t flags, BXIAllocator* allocator )
 {
     FSName abs_path;
     abs_path.Append( fs->GetRoot() );
@@ -37,13 +48,40 @@ static void ListFiles( BXIFilesystem* fs, string_buffer_t* s, const char* relati
     DIR *dir;
     struct dirent *ent;
 
+    const bool append_relative_name = (flags & BXEFileListFlag::ONLY_NAMES) == 0;
+
     if( dir = opendir( abs_path.AbsolutePath() ) )
     {
         while( ent = readdir( dir ) )
         {
-            if( ent->d_type == DT_REG || ent->d_type == DT_DIR )
+            const bool dot = ent->d_namlen == 1 && ent->d_name[0] == '.';
+            const bool dotdot = ent->d_namlen == 2 && string::equal( ent->d_name, ".." );
+            if( dot || dotdot )
+                continue;
+
+            if( ent->d_type == DT_REG )
             {
-                string::append( s, ent->d_name );
+                string::append( s, "F" );
+                if( append_relative_name )
+                {
+                    AppendRelativePath( s, relative_path );
+                }
+                string::appendn( s, ent->d_name, (uint32_t)ent->d_namlen );
+            }
+            else if( ent->d_type == DT_DIR )
+            {
+                string::append( s, "D" );
+                if( append_relative_name )
+                {
+                    AppendRelativePath( s, relative_path );
+                }
+                string::appendn( s, ent->d_name, (uint32_t)ent->d_namlen );
+                if( flags & BXEFileListFlag::RECURSE )
+                {
+                    char child_relative_path[256] = {};
+                    sprintf_s( child_relative_path, 255, "%s%s/", relative_path, ent->d_name );
+                    ListFiles( fs, s, child_relative_path, flags, allocator );
+                }
             }
         }
     

@@ -68,7 +68,7 @@ static void RefreshFiles( string_buffer_t* flist, const char* folder, BXIFilesys
 {
     const uint32_t initial_capacity = max_of_2( 32u, flist->_capacity );
     string::create( flist, initial_capacity, allocator );
-    fs->ListFiles( fs, flist, folder, true, allocator );
+    fs->ListFiles( fs, flist, folder, BXEFileListFlag::RECURSE, allocator );
 }
 
 
@@ -77,6 +77,12 @@ static string_buffer_it MenuFileSelector( const string_buffer_t& file_list )
     string_buffer_it file_it = string::iterate( file_list, string_buffer_it() );
     while( !file_it.null() )
     {
+        char type = file_it.pointer[0];
+        
+        file_it = string::iterate( file_list, file_it );
+        if( file_it.null() )
+            break;
+
         bool selected = false;
         if( ImGui::MenuItem( file_it.pointer, nullptr, &selected ) )
         {
@@ -90,7 +96,22 @@ static string_buffer_it MenuFileSelector( const string_buffer_t& file_list )
 
     return file_it;
 }
-
+static bool ShowTextureMenu( string_t* value,  const char* label, const string_buffer_t& file_list, BXIAllocator* allocator )
+{
+    const bool opened = ImGui::BeginMenu( label );
+    if( opened )
+    {
+        string_buffer_it selected_it = MenuFileSelector( file_list );
+        if( !selected_it.null() )
+        {
+            string::create( value, selected_it.pointer, allocator );
+        }
+        ImGui::EndMenu();
+    }
+    ImGui::SameLine();
+    ImGui::Text( "%s", value->c_str() );
+    return opened;
+}
 void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
 {
     if( ImGui::Begin( "Material" ) )
@@ -149,29 +170,35 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
         ImGui::Separator();
         
 
+        _flags.refresh_files_texture |= ShowTextureMenu( &_mat_resource.textures[0], "Base color", _texture_file_list, _allocator );
+        _flags.refresh_files_texture |= ShowTextureMenu( &_mat_resource.textures[1], "Normal", _texture_file_list, _allocator );
+        _flags.refresh_files_texture |= ShowTextureMenu( &_mat_resource.textures[2], "Roughness", _texture_file_list, _allocator );
+        _flags.refresh_files_texture |= ShowTextureMenu( &_mat_resource.textures[3], "Metalness", _texture_file_list, _allocator );
+
         //if( ImGui::BeginMenu() )
-        {
-            ImGui::Text( "Base  : %s", _mat_resource.textures[0].c_str() );
-            ImGui::SameLine();
-            if( ImGui::BeginMenu( "file..." ) )
-            {
-                if( _texture_file_list.null() )
-                {
-                    _flags.refresh_files_texture = 1;
-                }
+        //{
+        //    if( ImGui::BeginMenu( "->" ) )
+        //    {
+        //        //if( _texture_file_list.null() )
+        //        {
+        //            _flags.refresh_files_texture = 1;
+        //        }
 
-                string_buffer_it selected_it = MenuFileSelector( _file_list );
-                if( !selected_it.null() )
-                {
-                    string::create( &_mat_resource.textures[0], selected_it.pointer, _allocator );
-                }
-                ImGui::EndMenu();
-            }
+        //        string_buffer_it selected_it = MenuFileSelector( _texture_file_list );
+        //        if( !selected_it.null() )
+        //        {
+        //            string::create( &_mat_resource.textures[0], selected_it.pointer, _allocator );
+        //        }
+        //        ImGui::EndMenu();
+        //    }
+        //    ImGui::SameLine();
+        //    ImGui::LabelText( "Base", "%s", _mat_resource.textures[0].c_str() );
 
-            ImGui::Text( "Normal: %s", _mat_resource.textures[1].c_str() );
-            ImGui::Text( "Roughness: %s", _mat_resource.textures[2].c_str() );
-            ImGui::Text( "Metalness: %s", _mat_resource.textures[3].c_str() );
-        }
+
+        //    ImGui::Text( "Normal: %s", _mat_resource.textures[1].c_str() );
+        //    ImGui::Text( "Roughness: %s", _mat_resource.textures[2].c_str() );
+        //    ImGui::Text( "Metalness: %s", _mat_resource.textures[3].c_str() );
+        //}
 
 
         //ImGui::InputText
@@ -232,7 +259,7 @@ void MATEditor::_Load( const char* filename, BXIFilesystem* fs )
     FSName relative_filename;
     _CreateRelativePath( &relative_filename, filename );
 
-    BXFileWaitResult wait = fs->LoadFileSync( fs, relative_filename.AbsolutePath(), BXIFilesystem::FILE_MODE_BIN, _allocator );
+    BXFileWaitResult wait = fs->LoadFileSync( fs, relative_filename.AbsolutePath(), BXEFIleMode::BIN, _allocator );
     if( wait.status == BXEFileStatus::READY )
     {
         SRLInstance srl = SRLInstance::CreateReader( 0, wait.file.pointer, wait.file.size, _allocator );

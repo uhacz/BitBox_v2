@@ -65,8 +65,8 @@ namespace string
     void create( string_buffer_t* s, unsigned capacity, BXIAllocator* allocator );
     void free( string_buffer_t* s );
 
-    const char* append( string_buffer_t* s, const char* str );
-    const char* append( string_buffer_t* s, const char* str, unsigned len );
+    const char* append( string_buffer_t* s, const char* str, char terminator = '\0' );
+    const char* appendn( string_buffer_t* s, const char* str, unsigned len, char terminator = '\0' );
 
     string_buffer_it iterate( const string_buffer_t& s, const string_buffer_it current = string_buffer_it() );
 }
