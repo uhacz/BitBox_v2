@@ -8,10 +8,11 @@ struct FSName;
 struct MATEditor
 {
     static void SetDefault( GFXMaterialResource* mat );
+    static void SetDefault( GFXMaterialTexture* tex, RSM* rsm );
 
     void StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* allocator );
     void ShutDown( GFX* gfx, RSM* rsm );
-    void Tick( GFX* gfx, BXIFilesystem* fs );
+    void Tick( GFX* gfx, RSM* rsm, BXIFilesystem* fs );
 
     void _CreateRelativePath( FSName* fs_name, const char* filename );
     void _Save( const char* filename, BXIFilesystem* fs );
@@ -37,7 +38,9 @@ struct MATEditor
         uint32_t all = 0;
         struct
         {
-            uint32_t refresh_material : 1;
+            uint32_t refresh_material_data : 1;
+            uint32_t refresh_material_textures : 1;
+            uint32_t load_material_textures : 1;
             uint32_t refresh_files : 1;
             uint32_t refresh_files_texture : 1;
         };

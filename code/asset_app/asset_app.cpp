@@ -230,7 +230,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         _ent->Step( &ent_sys_info, deltaTimeUS );
     }
 
-    g_mat_editor.Tick( _gfx, _filesystem );
+    g_mat_editor.Tick( _gfx, _rsm, _filesystem );
 
     GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq, _rsm );
     //static bool tmp = false;

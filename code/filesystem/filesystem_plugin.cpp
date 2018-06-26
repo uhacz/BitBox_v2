@@ -70,7 +70,7 @@ static void ListFiles( BXIFilesystem* fs, string_buffer_t* s, const char* relati
             }
             else if( ent->d_type == DT_DIR )
             {
-                string::append( s, "D" );
+                string::append( s, "D+" );
                 if( append_relative_name )
                 {
                     AppendRelativePath( s, relative_path );
@@ -82,6 +82,7 @@ static void ListFiles( BXIFilesystem* fs, string_buffer_t* s, const char* relati
                     sprintf_s( child_relative_path, 255, "%s%s/", relative_path, ent->d_name );
                     ListFiles( fs, s, child_relative_path, flags, allocator );
                 }
+                string::append( s, "D-" );
             }
         }
     

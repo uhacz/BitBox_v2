@@ -6,7 +6,7 @@
 
 data_buffer_t::~data_buffer_t()
 {
-    data_buffer::destroy( this );
+    BX_FREE( allocator, data );
 }
 
 namespace data_buffer
@@ -36,10 +36,7 @@ namespace data_buffer
 
     void destroy( data_buffer_t* buff )
     {
-        if( buff->allocator )
-        {
-            BX_FREE( buff->allocator, buff->data );
-        }
+        BX_FREE( buff->allocator, buff->data );
         buff[0] = {};
     }
 
@@ -90,6 +87,11 @@ namespace data_buffer
 
         buff->write_offset += space_required;
         return space_required;
+    }
+
+    void seek_write( data_buffer_t* buff, uint32_t offset )
+    {
+        buff->write_offset = min_of_2( offset, buff->capacity );
     }
 
 }//

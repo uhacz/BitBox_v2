@@ -5,6 +5,7 @@ SRLInstance SRLInstance::CreateReader( uint32_t v, const void* data, uint32_t da
     SRLInstance srl;
     srl.version = v;
     data_buffer::create( &srl.data, (void*)data, data_size );
+    data_buffer::seek_write( &srl.data, data_size );
     srl.allocator = allocator;
     srl.is_writting = 0;
 

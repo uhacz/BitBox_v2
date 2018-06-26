@@ -188,6 +188,16 @@ namespace gfx_internal
                 array::push_back( mc.to_refresh, to_queue[i] );
             }
         }
+        {
+            scope_mutex_t guard( mc.resource_to_release_lock );
+            while( !array::empty( mc.resource_to_release ) )
+            {
+                RSMResourceID resource_id = array::back( mc.resource_to_release );
+                array::pop_back( mc.resource_to_release );
+
+                rsm->Release( resource_id );
+            }
+        }
     }
 
     static void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst, RSM* rsm )
@@ -326,6 +336,16 @@ namespace gfx_internal
         //UpdateCBuffer( GetImmediateCommandQueue( gfx->_rdidev ), *cbuffer, &data );
         mc.data[id.index] = data;
     }
+
+    static void QueueResourceToRelease( GFXMaterialContainer* mc, array_span_t<RSMResourceID> ids )
+    {
+        scope_mutex_t guard( mc->resource_to_release_lock );
+        for( RSMResourceID id : ids )
+        {
+            if( IsAlive( id ) )
+                array::push_back( mc->resource_to_release, id );
+        }
+    }
     static void ChangeTextures( GFXSystem* gfx, id_t id, const GFXMaterialTexture& tex )
     {
         GFXMaterialContainer& mc = gfx->_material;
@@ -343,7 +363,7 @@ namespace gfx_internal
                 mc.binding[index] = CloneResourceBinding( ResourceBinding( mc.pipeline.full ), gfx->_allocator );
                 mc.flags[index] = GFXEMaterialFlag::PIPELINE_FULL;
             }
-
+            QueueResourceToRelease( &mc, array_span_t<RSMResourceID>( mc.textures[index].id, GFXEMaterialTextureSlot::_COUNT_ ) );
             mc.textures[index] = tex;
             {
                 scope_mutex_t guard( mc.to_refresh_lock );
@@ -354,6 +374,7 @@ namespace gfx_internal
         {
             if( mc.flags[index] == GFXEMaterialFlag::PIPELINE_FULL || mc.flags[index] == 0 )
             {
+                QueueResourceToRelease( &mc, array_span_t<RSMResourceID>( mc.textures[index].id, GFXEMaterialTextureSlot::_COUNT_ ) );
                 DestroyResourceBinding( &mc.binding[index] );
                 mc.binding[index] = CloneResourceBinding( ResourceBinding( mc.pipeline.base_with_skybox ), gfx->_allocator );
                 mc.flags[index] = GFXEMaterialFlag::PIPELINE_BASE;

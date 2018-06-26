@@ -149,6 +149,10 @@ namespace string
         const uint32_t len = length( data );
         if( len > string_t::MAX_STATIC_LENGTH )
         {
+            if( !s->_allocator )
+            {
+                memset( s->_static, 0x00, string_t::MAX_STATIC_SIZE );
+            }
             s->_dynamic = string::duplicate( s->_dynamic, data, allocator );
             s->_allocator = allocator;
         }

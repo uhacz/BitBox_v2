@@ -4,6 +4,7 @@
 #include <gfx/gfx_type.h>
 #include <foundation/common.h>
 #include "foundation/data_buffer.h"
+#include <foundation/static_array.h>
 #include "rtti/serializer.h"
 
 static constexpr char MATERIAL_FILE_EXT[] = ".material";
@@ -16,7 +17,18 @@ void MATEditor::SetDefault( GFXMaterialResource* mat )
     mat->data.roughness = 1.f;
 
     for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
+    {
         string::free( &mat->textures[i] );
+    }
+}
+
+void MATEditor::SetDefault( GFXMaterialTexture* tex, RSM* rsm )
+{
+    for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
+    {
+        if( IsAlive( tex->id[i] ) )
+            rsm->Release( tex->id[i] );
+    }
 }
 
 void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* allocator )
@@ -74,24 +86,54 @@ static void RefreshFiles( string_buffer_t* flist, const char* folder, BXIFilesys
 
 static string_buffer_it MenuFileSelector( const string_buffer_t& file_list )
 {
+    static_array_t<uint8_t, 255> menu_enter_stack;
+    
     string_buffer_it file_it = string::iterate( file_list, string_buffer_it() );
     while( !file_it.null() )
     {
-        char type = file_it.pointer[0];
-        
-        file_it = string::iterate( file_list, file_it );
-        if( file_it.null() )
-            break;
+        const uint8_t last_menu_entered = (array::empty(menu_enter_stack)) ? 1 : array::back( menu_enter_stack );
 
-        bool selected = false;
-        if( ImGui::MenuItem( file_it.pointer, nullptr, &selected ) )
+        const char* type = file_it.pointer;
+        if( string::equal( type, "D+" ) )
         {
-            if( selected )
+            file_it = string::iterate( file_list, file_it );
+
+            const uint8_t entered = ImGui::BeginMenu( file_it.pointer );
+            array::push_back( menu_enter_stack, entered );
+        }
+        else if( string::equal( type, "D-" ) )
+        {
+            array::pop_back( menu_enter_stack );
+            if( last_menu_entered )
             {
-                break;
+                ImGui::EndMenu();
+            }
+        }
+        else if( string::equal( type, "F" ) && last_menu_entered )
+        {
+            file_it = string::iterate( file_list, file_it );
+
+            bool selected = false;
+            if( ImGui::MenuItem( file_it.pointer, nullptr, &selected ) )
+            {
+                if( selected )
+                {
+                    break;
+                }
             }
         }
         file_it = string::iterate( file_list, file_it );
+    }
+
+    while( !array::empty( menu_enter_stack ) )
+    {
+        const uint8_t entered = array::back( menu_enter_stack );
+        array::pop_back( menu_enter_stack );
+
+        if( entered )
+        {
+            ImGui::EndMenu();
+        }
     }
 
     return file_it;
@@ -112,7 +154,7 @@ static bool ShowTextureMenu( string_t* value,  const char* label, const string_b
     ImGui::Text( "%s", value->c_str() );
     return opened;
 }
-void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
+void MATEditor::Tick( GFX* gfx, RSM* rsm, BXIFilesystem* fs )
 {
     if( ImGui::Begin( "Material" ) )
     {
@@ -121,7 +163,9 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
             if( ImGui::MenuItem( "New" ) )
             {
                 SetDefault( &_mat_resource );
-                _flags.refresh_material = 1;
+                SetDefault( &_mat_tex, rsm );
+                _flags.refresh_material_data = 1;
+                _flags.refresh_material_textures = 1;
                 string::free( &_current_file );
             }
             ImGui::Separator();
@@ -164,17 +208,28 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
         ImGui::Text( "Current file: %s", _current_file.c_str() );
         
         ImGui::Separator();
-        _flags.refresh_material |= ImGui::ColorEdit3( "Diffuse albedo", _mat_resource.data.diffuse_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
-        _flags.refresh_material |= ImGui::ColorEdit3( "Specular albedo", _mat_resource.data.specular_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
-        _flags.refresh_material |= ImGui::SliderFloat( "Roughness", &_mat_resource.data.roughness, 0.f, 1.f, "%.4f" );
+        _flags.refresh_material_data |= ImGui::ColorEdit3( "Diffuse albedo", _mat_resource.data.diffuse_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
+        _flags.refresh_material_data |= ImGui::ColorEdit3( "Specular albedo", _mat_resource.data.specular_albedo.xyz, ImGuiColorEditFlags_NoAlpha );
+        _flags.refresh_material_data |= ImGui::SliderFloat( "Roughness", &_mat_resource.data.roughness, 0.f, 1.f, "%.4f" );
         ImGui::Separator();
         
-
         _flags.refresh_files_texture |= ShowTextureMenu( &_mat_resource.textures[0], "Base color", _texture_file_list, _allocator );
         _flags.refresh_files_texture |= ShowTextureMenu( &_mat_resource.textures[1], "Normal", _texture_file_list, _allocator );
         _flags.refresh_files_texture |= ShowTextureMenu( &_mat_resource.textures[2], "Roughness", _texture_file_list, _allocator );
         _flags.refresh_files_texture |= ShowTextureMenu( &_mat_resource.textures[3], "Metalness", _texture_file_list, _allocator );
-
+        if( ImGui::Button( "Apply textures" ) )
+        {
+            bool valid = true;
+            for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_ && valid; ++i )
+            {
+                valid &= string::length( _mat_resource.textures[i].c_str() ) > 0;
+            }
+            if( valid )
+            {
+                _flags.load_material_textures = 1;
+                _flags.refresh_material_textures = 1;
+            }
+        }
         //if( ImGui::BeginMenu() )
         //{
         //    if( ImGui::BeginMenu( "->" ) )
@@ -207,11 +262,25 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
     }
     ImGui::End();
 
-    if( _flags.refresh_material )
+    if( _flags.refresh_material_data )
     {
-        _flags.refresh_material = 0;
+        _flags.refresh_material_data = 0;
         gfx->SetMaterialData( _mat_id, _mat_resource.data );
     }
+    if( _flags.load_material_textures )
+    {
+        _flags.load_material_textures = 0;
+        for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
+        {
+            _mat_tex.id[i] = rsm->Load( _mat_resource.textures[i].c_str(), gfx );
+        }
+    }
+    if( _flags.refresh_material_textures )
+    {
+        _flags.refresh_material_textures = 0;
+        gfx->SetMaterialTextures( _mat_id, _mat_tex );
+    }
+
     if( _flags.refresh_files )
     {
         _flags.refresh_files = 0;
@@ -226,7 +295,11 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
 
 void MATEditor::_CreateRelativePath( FSName* fs_name, const char* filename )
 {
-    fs_name->Append( _folder.c_str() );
+    if( string::find( filename, _folder.c_str() ) != filename )
+    {
+        fs_name->Append( _folder.c_str() );
+    }
+    
     fs_name->Append( filename );
 
     if( !string::find( filename, MATERIAL_FILE_EXT ) )
@@ -243,8 +316,6 @@ void MATEditor::_Save( const char* filename, BXIFilesystem* fs )
     SRLInstance srl = SRLInstance::CreateWriterStatic( 0, data, DATA_SIZE, _allocator );
     Serialize( &srl, &_mat_resource );
 
-    //uint8_t data_buff[DATA_SIZE] = {};
-    //uint32_t data_bytes = RTTI::Serialize( data_buff, DATA_SIZE, _mat_data );
     if( data_buffer::size( srl.data ) )
     {
         FSName relative_filename;
@@ -264,12 +335,9 @@ void MATEditor::_Load( const char* filename, BXIFilesystem* fs )
     {
         SRLInstance srl = SRLInstance::CreateReader( 0, wait.file.pointer, wait.file.size, _allocator );
         Serialize( &srl, &_mat_resource );
-        _flags.refresh_material = 1;
-        //if( RTTI::Unserialize( &_mat_data, wait.file.bin, wait.file.size, _allocator ) )
-        //{
-        //    string::create( &_current_file, filename, _allocator );
-        //    _flags.refresh_material = 1;
-        //}
+        _flags.refresh_material_data = 1;
+        _flags.load_material_textures = 1;
+        _flags.refresh_material_textures = 1;
     }
     fs->CloseFile( wait.handle );
 

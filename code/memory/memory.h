@@ -8,7 +8,7 @@
 
 #define BX_MALLOC( a, siz, align ) a->Alloc( a, siz, align )
 #define BX_ALLOCATE( a, typ ) (typ*)( a->Alloc( a, sizeof(typ), ALIGNOF(typ)) )
-#define BX_FREE( a, ptr ) (a->Free( a, ptr ) )
+#define BX_FREE( a, ptr ) { if( a ) a->Free( a, ptr ); }
 #define BX_FREE0( a, ptr ) { BX_FREE(a, ptr); ptr = 0; }
 
 #include <new>
