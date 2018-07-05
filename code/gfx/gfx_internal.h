@@ -202,6 +202,7 @@ struct GFXSystem
 {
     BXIAllocator* _allocator = nullptr;
     RDIDevice*	  _rdidev = nullptr;
+    RSM*          _rsm = nullptr;
 
     RDIXRenderTarget* _framebuffer = nullptr;
     uint32_t _sync_interval = 0;

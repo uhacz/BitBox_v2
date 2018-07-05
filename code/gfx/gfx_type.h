@@ -11,7 +11,7 @@ struct GFXDesc
     uint16_t framebuffer_height = 1080;
 };
 
-struct GFXMaterialResource
+struct  GFXMaterialResource
 {
     gfx_shader::Material data;
     string_t textures[GFXEMaterialTextureSlot::_COUNT_] = {};
@@ -20,8 +20,6 @@ struct GFXMaterialResource
 struct SRLInstance;
 void GFX_EXPORT Serialize( SRLInstance* srl, gfx_shader::Material* obj );
 void GFX_EXPORT Serialize( SRLInstance* srl, GFXMaterialResource* obj );
-
-
 
 struct GFXMaterialTexture
 {

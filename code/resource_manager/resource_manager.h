@@ -29,8 +29,6 @@ struct RSMResourceID
     static constexpr RSMResourceID Null() { return { 0 }; }
 };
 
-inline bool IsAlive( RSMResourceID id ) { return id.i != 0; }
-
 struct RSM_EXPORT RSM
 {
     static RSMResourceHash CreateHash( const char* relative_path );
@@ -41,6 +39,7 @@ struct RSM_EXPORT RSM
 
     RSMResourceID Find( const char* relative_path ) const;
     RSMResourceID Find( RSMResourceHash hash ) const;
+    bool IsAlive( RSMResourceID id ) const;
 
     RSMEState::E State( RSMResourceID id ) const;
     const void* Get( RSMResourceID id ) const;
@@ -51,6 +50,10 @@ struct RSM_EXPORT RSM
         RSMResourceID rid = Find( relative_path );
         return IsAlive( rid ) ? Get( rid ) : nullptr;
     }
+
+    void Acquire( RSMResourceID id );
+
+   
 
     // --- private
     static RSM* StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator );

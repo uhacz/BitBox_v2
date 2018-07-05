@@ -66,8 +66,3 @@ static void Serialize<string_t>( SRLInstance* srl, string_t* p )
         data_buffer::read( p->c_str(), len, 1, &srl->data );
     }
 }
-
-struct SRL
-{
-    static uint32_t RegisterSerializable(  );
-};

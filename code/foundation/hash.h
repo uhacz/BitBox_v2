@@ -101,3 +101,7 @@ inline unsigned char pearson_hash( const unsigned char* buf, unsigned n )
 
 	return h;
 }
+
+
+unsigned crc32n( const unsigned char* data, unsigned len, unsigned init );
+unsigned crc32( const char* data, unsigned init );

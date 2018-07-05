@@ -26,8 +26,8 @@ void MATEditor::SetDefault( GFXMaterialTexture* tex, RSM* rsm )
 {
     for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
     {
-        if( IsAlive( tex->id[i] ) )
-            rsm->Release( tex->id[i] );
+        //rsm->Release( tex->id[i] );
+        tex->id[i] = RSMResourceID::Null();
     }
 }
 
@@ -70,10 +70,10 @@ void MATEditor::ShutDown( GFX* gfx, RSM* rsm )
     string::free( &_file_list );
     gfx->RemoveMeshFromScene( _mesh_id );
     gfx->DestroyMaterial( _mat_id );
-    for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
-    {
-        rsm->Release( _mat_tex.id[i] );
-    }
+    //for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
+    //{
+    //    rsm->Release( _mat_tex.id[i] );
+    //}
 }
 
 static void RefreshFiles( string_buffer_t* flist, const char* folder, BXIFilesystem* fs, BXIAllocator* allocator )

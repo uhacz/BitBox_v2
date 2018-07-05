@@ -1,16 +1,6 @@
 #include "gfx.h"
 #include "gfx_internal.h"
 #include "rtti/serializer.h"
-//#include "gfx_camera.h"
-//
-//#include <rdi_backend/rdi_backend.h>
-//#include <rdix/rdix.h>
-//#include <rdix/rdix_command_buffer.h>
-//
-
-//
-//#include <util/bbox.h>
-//
 
 namespace gfx_shader
 {
@@ -145,6 +135,21 @@ struct GFXShaderLoadHelper
 
 namespace gfx_internal
 {
+    static void ClearTextures( RDIXResourceBinding* binding )
+    {
+        SetResourceRO( binding, "tex_material_base_color", nullptr );
+        SetResourceRO( binding, "tex_material_normal"    , nullptr );
+        SetResourceRO( binding, "tex_material_roughness" , nullptr );
+        SetResourceRO( binding, "tex_material_metalness" , nullptr );
+    }
+    static void ApplyTextures( RDIXResourceBinding* binding, RDITextureRO* rdi_tex[GFXEMaterialTextureSlot::_COUNT_] )
+    {
+        SetResourceRO( binding, "tex_material_base_color", rdi_tex[GFXEMaterialTextureSlot::BASE_COLOR] );
+        SetResourceRO( binding, "tex_material_normal"    , rdi_tex[GFXEMaterialTextureSlot::NORMAL] );
+        SetResourceRO( binding, "tex_material_roughness" , rdi_tex[GFXEMaterialTextureSlot::ROUGHNESS] );
+        SetResourceRO( binding, "tex_material_metalness" , rdi_tex[GFXEMaterialTextureSlot::METALNESS] );
+    }
+
     static void RefreshPendingMaterials( GFXSystem* gfx, RSM* rsm )
     {
         GFXMaterialContainer& mc = gfx->_material;
@@ -166,15 +171,11 @@ namespace gfx_internal
                 const RSMLoadState state = GetLoadState( rsm, rdi_tex, textures.id, GFXEMaterialTextureSlot::_COUNT_ );
                 if( state.nb_loaded == GFXEMaterialTextureSlot::_COUNT_ )
                 {
-                    RDIXResourceBinding* binding = mc.binding[id.index];
-                    SetResourceRO( binding, "tex_material_base_color", rdi_tex[GFXEMaterialTextureSlot::BASE_COLOR] );
-                    SetResourceRO( binding, "tex_material_normal"    , rdi_tex[GFXEMaterialTextureSlot::NORMAL] );
-                    SetResourceRO( binding, "tex_material_roughness" , rdi_tex[GFXEMaterialTextureSlot::ROUGHNESS] );
-                    SetResourceRO( binding, "tex_material_metalness" , rdi_tex[GFXEMaterialTextureSlot::METALNESS] );
+                    ApplyTextures( mc.binding[id.index], rdi_tex );
                 }
                 else if( state.nb_failed )
                 {
-                    // fallback
+                    ClearTextures( mc.binding[id.index] );
                     break;
                 }
                 else
@@ -332,8 +333,6 @@ namespace gfx_internal
     static void UploadMaterial( GFXSystem* gfx, id_t id, const gfx_shader::Material& data )
     {
         GFXMaterialContainer& mc = gfx->_material;
-        //RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
-        //UpdateCBuffer( GetImmediateCommandQueue( gfx->_rdidev ), *cbuffer, &data );
         mc.data[id.index] = data;
     }
 
@@ -342,7 +341,7 @@ namespace gfx_internal
         scope_mutex_t guard( mc->resource_to_release_lock );
         for( RSMResourceID id : ids )
         {
-            if( IsAlive( id ) )
+            if( id.i != RSMResourceID::Null().i )
                 array::push_back( mc->resource_to_release, id );
         }
     }
@@ -353,7 +352,7 @@ namespace gfx_internal
 
         bool hasTextures = false;
         for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_ && !hasTextures; ++i )
-            hasTextures |= IsAlive( tex.id[i] );
+            hasTextures |= gfx->_rsm->IsAlive( tex.id[i] );
 
         if( hasTextures )
         {
@@ -365,6 +364,8 @@ namespace gfx_internal
             }
             QueueResourceToRelease( &mc, array_span_t<RSMResourceID>( mc.textures[index].id, GFXEMaterialTextureSlot::_COUNT_ ) );
             mc.textures[index] = tex;
+
+            ClearTextures( mc.binding[index] );
             {
                 scope_mutex_t guard( mc.to_refresh_lock );
                 array::push_back( mc.to_refresh, id );
@@ -439,6 +440,7 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
     gfx->_camera._names_allocator = allocator;
     gfx->_allocator = allocator;
     gfx->_rdidev = dev;
+    gfx->_rsm = rsm;
 
     gfx_interface->utils->StartUp( dev, filesystem, allocator );
 

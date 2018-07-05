@@ -9,7 +9,7 @@ struct RSM;
 struct GFX;
 struct ENT;
 struct BXIFilesystem;
-struct BXAssetApp : BXIApplication
+struct SnakeApp : BXIApplication
 {
     bool Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator ) override;
     void Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator ) override;
@@ -25,4 +25,4 @@ private:
     RSM* _rsm = nullptr;
 };
 
-BX_APPLICATION_PLUGIN_DECLARE( asset_app )
+BX_APPLICATION_PLUGIN_DECLARE( snake_app )

@@ -91,6 +91,8 @@ union RTTITypeFlags
         uint32_t _is_integral : 1;
         uint32_t _is_enum : 1;
         uint32_t _is_signed : 1;
+        uint32_t _is_string : 1;
+        uint32_t _is_filename : 1;
     };
 
     template< typename T >
@@ -130,6 +132,8 @@ struct RTTI_EXPORT RTTIAttr
     
     template< typename T >
     RTTIAttr* SetMax( const T& value ) { return SetMaxData( &value, (uint32_t)sizeof( T ), typeid(std::decay<T>::type) ); }
+
+    RTTIAttr* EnableFilename() { _flags._is_filename = 1; return this; }
 
     // --- getters
     const char*    TypeName() const;
@@ -261,7 +265,8 @@ struct RTTI_EXPORT RTTI
         attr->_defaults_storage_hashcode = 0;
 
         attr->_flags = RTTITypeFlags::ReadType<T>();
-        
+        attr->_flags._is_string = attr->_type_info == typeid(string_t);
+                
         return attr;
     }
 

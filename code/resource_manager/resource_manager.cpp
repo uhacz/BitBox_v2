@@ -189,11 +189,13 @@ RSMResourceHash RSM::CreateHash( const char* relative_path )
         string::token( str, type, TYPE_SIZE - 1, " .\n" );
     }
 
+    const uint32_t name_len = string::length( name );
     
-
     RSMResourceHashDecoder hash_decoder;
     hash_decoder.type = ResourceTypeHash( type );
-    hash_decoder.name = murmur3_hash32( name, (uint32_t)strlen( name ), hash_decoder.type );
+
+    const uint32_t crc = crc32n( (uint8_t*)name, name_len, hash_decoder.type );
+    hash_decoder.name = murmur3_hash32( name, name_len, hash_decoder.type + name_len ) ^ crc;
     
     return { hash_decoder.hash };
 }
@@ -259,6 +261,18 @@ static bool LookupRemove( RSM::RSMImpl* rsm, RSMResourceHash rhash )
         return true;
     }
     return false;
+}
+
+static void LookupAcquire( RSM::RSMImpl* rsm, RSMResourceHash rhash, id_t id )
+{
+    scope_mutex_t guard( rsm->lookup_lock );
+
+    const id_t null_id{ 0 };
+    const id_t found_id = hash::get( rsm->lookup, rhash.h, null_id );
+    if( found_id == id )
+    {
+        rsm->rrefcount[id.index] += 1;
+    }
 }
 
 static id_t LookupFind( RSM::RSMImpl* rsm, RSMResourceHash rhash )
@@ -378,6 +392,11 @@ RSMResourceID RSM::Find( RSMResourceHash rhash ) const
     return { id.hash };
 }
 
+bool RSM::IsAlive( RSMResourceID id ) const
+{
+    return _rsm->IsAlive( { id.i } );
+}
+
 RSMEState::E RSM::State( RSMResourceID id ) const
 {
     id_t iid = { id.i };
@@ -412,6 +431,15 @@ void RSM::Release( RSMResourceID id )
             }
             _rsm->sema.signal();
         }
+    }
+}
+
+void RSM::Acquire( RSMResourceID id )
+{
+    id_t iid = { id.i };
+    if( _rsm->IsAlive( iid ) )
+    {
+        LookupAcquire( _rsm, _rsm->rhash[iid.index], iid );
     }
 }
 

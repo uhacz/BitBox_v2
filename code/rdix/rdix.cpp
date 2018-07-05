@@ -308,7 +308,7 @@ namespace
 		SYS_ASSERT( binding.binding_type == B );
 
 		T* resource_data = (T*)(impl->Data() + binding.data_offset);
-		resource_data[0] = *resourcePtr;
+        resource_data[0] = (resourcePtr) ? *resourcePtr : T();
 	}
 	template< RDIXResourceSlot::EType B, typename T >
 	bool _SetResource2( RDIXResourceBinding* impl, const char* name, const T* resourcePtr )
