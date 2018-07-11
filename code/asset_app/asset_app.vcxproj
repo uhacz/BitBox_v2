@@ -91,6 +91,9 @@
     <ProjectReference Include="..\3rd_party\imgui\imgui.vcxproj">
       <Project>{3420b694-89a1-4e00-814e-c8da87b0143d}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\common\common.vcxproj">
+      <Project>{817299b1-a2f0-4915-865b-28f5560619ef}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\entity\entity.vcxproj">
       <Project>{ece75f49-497f-4b51-98df-eb5c82a87a4c}</Project>
     </ProjectReference>
