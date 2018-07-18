@@ -586,7 +586,7 @@ struct RDIXRenderSource
 RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc& desc, BXIAllocator* allocator )
 {
 	const uint32_t num_streams = desc.vertex_layout.count;
-	const uint32_t num_draw_ranges = max_of_2( 1u, desc.num_draw_ranges );
+    const uint32_t num_draw_ranges = desc.num_draw_ranges + 1; // max_of_2( 1u, desc.num_draw_ranges );
 
 	uint32_t mem_size = sizeof( RDIXRenderSource );
 	mem_size += (num_streams) * sizeof( RDIVertexBuffer );
@@ -610,7 +610,7 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
 		impl->vertex_buffers[i] = CreateVertexBuffer( dev, desc.vertex_layout.descs[i], desc.num_vertices, data );
 	}
 
-	RDIXRenderSourceRange& default_range = impl->draw_ranges[0];
+	RDIXRenderSourceRange& default_range = impl->draw_ranges[impl->num_draw_ranges-1];
 	if( desc.index_type != RDIEType::UNKNOWN )
 	{
 		impl->index_buffer = CreateIndexBuffer( dev, desc.index_type, desc.num_indices, desc.index_data );
@@ -628,9 +628,9 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
 		default_range.count = desc.num_vertices;
 	}
 
-	for( uint32_t i = 1; i < num_draw_ranges; ++i )
+	for( uint32_t i = 0; i < desc.num_draw_ranges; ++i )
 	{
-		impl->draw_ranges[i] = desc.draw_ranges[i - 1];
+		impl->draw_ranges[i] = desc.draw_ranges[i];
 	}
 
     impl->allocator = allocator;

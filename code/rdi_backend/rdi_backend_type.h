@@ -525,11 +525,12 @@ union RDIVertexBufferDesc
         uint16_t numElements : 4;
     };
 
-	static RDIVertexBufferDesc POS() { return RDIVertexBufferDesc( RDIEVertexSlot::POSITION ).DataType( RDIEType::FLOAT, 3 ); }
-	static RDIVertexBufferDesc NRM() { return RDIVertexBufferDesc( RDIEVertexSlot::NORMAL ).DataType( RDIEType::FLOAT, 3 ); }
-	static RDIVertexBufferDesc UV0() { return RDIVertexBufferDesc( RDIEVertexSlot::TEXCOORD0 ).DataType( RDIEType::FLOAT, 2 ); }
-    static RDIVertexBufferDesc TAN() { return RDIVertexBufferDesc( RDIEVertexSlot::TANGENT ).DataType( RDIEType::FLOAT, 3 ); }
-    static RDIVertexBufferDesc BIN() { return RDIVertexBufferDesc( RDIEVertexSlot::BINORMAL ).DataType( RDIEType::FLOAT, 3 ); }
+	static RDIVertexBufferDesc POS()  { return RDIVertexBufferDesc( RDIEVertexSlot::POSITION ).DataType( RDIEType::FLOAT, 3 ); }
+    static RDIVertexBufferDesc POS4() { return RDIVertexBufferDesc( RDIEVertexSlot::POSITION ).DataType( RDIEType::FLOAT, 4 ); }
+	static RDIVertexBufferDesc NRM()  { return RDIVertexBufferDesc( RDIEVertexSlot::NORMAL ).DataType( RDIEType::FLOAT, 3 ); }
+	static RDIVertexBufferDesc UV0()  { return RDIVertexBufferDesc( RDIEVertexSlot::TEXCOORD0 ).DataType( RDIEType::FLOAT, 2 ); }
+    static RDIVertexBufferDesc TAN()  { return RDIVertexBufferDesc( RDIEVertexSlot::TANGENT ).DataType( RDIEType::FLOAT, 3 ); }
+    static RDIVertexBufferDesc BIN()  { return RDIVertexBufferDesc( RDIEVertexSlot::BINORMAL ).DataType( RDIEType::FLOAT, 3 ); }
 };
 
 struct RDIVertexLayout

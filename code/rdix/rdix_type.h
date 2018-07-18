@@ -37,6 +37,11 @@ struct RDIXPipelineDesc
 	RDIHardwareStateDesc* hw_state_desc_override = nullptr;
 	RDIETopology::Enum topology = RDIETopology::TRIANGLES;
 
+    RDIXPipelineDesc() = default;
+    RDIXPipelineDesc( RDIXShaderFile* f, const char* pass_name )
+        : shader_file( f ), shader_pass_name( pass_name )
+    {}
+
 	RDIXPipelineDesc& Shader( RDIXShaderFile* f, const char* pass_name )
 	{
 		shader_file = f;
@@ -131,6 +136,10 @@ struct RDIXRenderSourceRange
 {
 	uint32_t begin = 0;
 	uint32_t count = 0;
+
+    RDIXRenderSourceRange() {}
+    RDIXRenderSourceRange( uint32_t b, uint32_t c )
+        : begin( b ), count( c ) {}
 };
 
 struct RDIXRenderSourceDesc

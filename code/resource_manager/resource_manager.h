@@ -54,6 +54,8 @@ struct RSM_EXPORT RSM
     void Acquire( RSMResourceID id );
 
    
+    // 
+    BXIFilesystem* Filesystem();
 
     // --- private
     static RSM* StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator );

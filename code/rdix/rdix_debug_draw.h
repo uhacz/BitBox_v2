@@ -3,41 +3,41 @@
 #include <foundation/math/vmath_type.h>
 #include <foundation/type.h>
 
-namespace RDIXDebugDraw
+namespace RDIXDebug
 {
     enum EFlag : uint32_t
     {
-        DEPTH = BIT_OFFSET( 1 ),
-        SOLID = BIT_OFFSET( 2 ),
+        DEPTH = BIT_OFFSET( 0 ),
+        SOLID = BIT_OFFSET( 1 ),
     };
 }//
 
-struct RDIXDDrawParams
+struct RDIXDebugParams
 {
     uint32_t color = 0xFFFFFFFF;
-    uint32_t flag = RDIXDebugDraw::DEPTH;
+    uint32_t flag = RDIXDebug::DEPTH;
     float scale = 1.f;
 
-    RDIXDDrawParams( uint32_t c = 0xFFFFFFFF ) : color( c ) {}
-    RDIXDDrawParams& NoDepth() { flag &= ~RDIXDebugDraw::DEPTH; return *this; }
-    RDIXDDrawParams& Solid() { flag |= RDIXDebugDraw::SOLID; return *this; }
-    RDIXDDrawParams& Scale( float v ) { scale = v; }
+    RDIXDebugParams( uint32_t c = 0xFFFFFFFF ) : color( c ) {}
+    RDIXDebugParams& NoDepth()  { flag &= ~RDIXDebug::DEPTH; return *this; }
+    RDIXDebugParams& Solid()    { flag |=  RDIXDebug::SOLID; return *this; }
+    RDIXDebugParams& Scale( float v ) { scale = v; }
 };
 
+struct BXIAllocator;
 struct RDIDevice;
 struct RDICommandQueue;
 struct RSM;
 
-namespace RDIXDebugDraw
+namespace RDIXDebug
 {
-    void StartUp( RDIDevice* dev, RSM* rsm );
+    void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator );
     void ShutDown( RDIDevice* dev );
     
-    void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDDrawParams& params = {} );
-    void AddSphere( const vec3_t& pos, float radius, const RDIXDDrawParams& params = {} );
-    void AddLine( const vec3_t& start, const vec3_t& end, const RDIXDDrawParams& params = {} );
-    void AddArrow( const vec3_t& start, const vec3_t& end, const RDIXDDrawParams& params = {} );
-    void AddAxes( const mat44_t& pose, const RDIXDDrawParams& params = {} );
+    void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams& params = {} );
+    void AddSphere( const vec3_t& pos, float radius, const RDIXDebugParams& params = {} );
+    void AddLine( const vec3_t& start, const vec3_t& end, const RDIXDebugParams& params = {} );
+    void AddAxes( const mat44_t& pose, const RDIXDebugParams& params = {} );
 
     void Flush( RDICommandQueue& cmdq, const mat44_t& viewproj );
 }//

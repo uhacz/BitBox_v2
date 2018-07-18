@@ -443,6 +443,11 @@ void RSM::Acquire( RSMResourceID id )
     }
 }
 
+BXIFilesystem* RSM::Filesystem()
+{
+    return _rsm->filesystem;
+}
+
 RSM* RSM::StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator )
 {
     uint32_t mem_size = 0;

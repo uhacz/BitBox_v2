@@ -8,6 +8,7 @@
 #include <window\window_interface.h>
 
 #include <rdi_backend\rdi_backend.h>
+#include <rdix\rdix_debug_draw.h>
 
 #include <resource_manager\resource_manager.h>
 #include <gui\gui.h>
@@ -29,6 +30,8 @@ bool Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegistry* plugi
     GUI::StartUp( win_plugin, rdidev );
 
     RSM* rsm = RSM::StartUp( filesystem, allocator );
+
+    RDIXDebug::StartUp( rdidev, rsm, allocator );
 
     GFXDesc gfxdesc = {};
     GFX* gfx = GFX::StartUp( rdidev, rsm, gfxdesc, filesystem, allocator );
@@ -56,6 +59,7 @@ void Shutdown( CMNEngine* e, BXIAllocator* allocator )
     }
 
     GFX::ShutDown( &e->_gfx, e->_rsm );
+    RDIXDebug::ShutDown( e->_rdidev );
     RSM::ShutDown( &e->_rsm );
     GUI::ShutDown();
     ::Shutdown( &e->_rdidev, &e->_rdicmdq, allocator );
