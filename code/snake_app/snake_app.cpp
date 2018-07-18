@@ -16,6 +16,7 @@
 #include <3rd_party/imgui/imgui.h>
 #include <foundation\time.h>
 #include <rdix\rdix.h>
+#include "rdix\rdix_debug_draw.h"
 
 static GFXSceneID g_idscene = { 0 };
 static GFXCameraID g_idcamera = {0};
@@ -121,6 +122,8 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
         ImGui::Text( "dt: %2.4f", delta_time_sec );
     }
     ImGui::End();
+
+    RDIXDebug::AddAABB( vec3_t( 0.f ), vec3_t( 0.5f ), RDIXDebugParams() );
 
     BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
     ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );

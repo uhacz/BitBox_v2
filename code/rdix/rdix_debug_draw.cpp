@@ -24,7 +24,8 @@ struct Cmd
         uint32_t key;
         struct  
         {
-            uint32_t rsource_index : 8;
+            uint32_t rsource_range_index : 4;
+            uint32_t rsource_index : 4;
             uint32_t pipeline_index : 8;
             uint32_t depth : 16;
         };
@@ -47,13 +48,36 @@ enum ERSource : uint32_t
 enum EPipeline : uint32_t
 {
     PIPELINE_OBJ_DEPTH_WIREFRAME = 0,
-    PIPELINE_OBJ_NDEPTH_WIREFRAME,
     PIPELINE_OBJ_DEPTH_SOLID,
+
+    PIPELINE_OBJ_NDEPTH_WIREFRAME,
     PIPELINE_OBJ_NDEPTH_SOLID,
+    
     PIPELINE_LINES_DEPTH,
     PIPELINE_LINES_NDEPTH,
+
     PIPELINE_COUNT,
 };
+
+static inline EPipeline SelectPipeline( const RDIXDebugParams& params, ERSource rsource_type )
+{
+    static const EPipeline router[RSOURCE_COUNT][2][2] =
+    {
+        {
+            { PIPELINE_OBJ_DEPTH_WIREFRAME, PIPELINE_OBJ_DEPTH_SOLID },
+            { PIPELINE_OBJ_NDEPTH_WIREFRAME, PIPELINE_OBJ_NDEPTH_SOLID }
+        },
+        {
+            { PIPELINE_LINES_DEPTH, PIPELINE_LINES_DEPTH },
+            { PIPELINE_LINES_NDEPTH, PIPELINE_LINES_NDEPTH }
+        }
+    };
+
+    const uint32_t depth_index = params.flag & DEPTH ? 0 : 1;
+    const uint32_t raster_index = params.flag & SOLID ? 1 : 0;
+
+    return router[rsource_type][depth_index][raster_index];
+}
 
 static constexpr uint32_t INITIAL_INSTANCE_CAPACITY = 128;
 static constexpr uint32_t INITIAL_VERTEX_CAPACITY = 512;
@@ -78,18 +102,29 @@ struct Array
             BX_FREE0( allocator, data );
         }
 
-        data = (T*)BX_MALLOC( allocator, initial_cap * sizeof(T), ALIGNOF( T ) );
+        data = (T*)BX_MALLOC( allocator, initial_cap * sizeof( T ), ALIGNOF( T ) );
         capacity = initial_cap;
         count = 0;
     }
 
-    T* Add( uint32_t amount )
+    T& operator[]( uint32_t i )
+    {
+        SYS_ASSERT( i < count );
+        return data[i];
+    }
+    const T& operator[]( uint32_t i ) const
+    {
+        SYS_ASSERT( i < count );
+        return data[i];
+    }
+    
+    uint32_t Add( uint32_t amount )
     {
         uint32_t index = count.fetch_add( amount, std::memory_order_acquire );
         if( (index + amount) > capacity )
-            return nullptr;
+            return UINT32_MAX;
 
-        return &data[index];
+        return index;
     }
 
     void Clear( BXIAllocator* allocator )
@@ -124,9 +159,7 @@ struct Data
     Array<mat44_t> instance_buffer;
     Array<Vertex>  vertex_buffer;
 
-    Array<Cmd> cmd_boxes;
-    Array<Cmd> cmd_spheres;
-    Array<Cmd> cmd_lines;
+    Array<Cmd> commands;
 };
 
 
@@ -225,18 +258,14 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
 
         g_data.instance_buffer.Init( INITIAL_INSTANCE_CAPACITY, allocator );
         g_data.vertex_buffer.Init( INITIAL_VERTEX_CAPACITY, allocator );
-        g_data.cmd_boxes.Init( INITIAL_CMD_CAPACITY, allocator );
-        g_data.cmd_spheres.Init( INITIAL_CMD_CAPACITY, allocator );
-        g_data.cmd_lines.Init( INITIAL_CMD_CAPACITY, allocator );
+        g_data.commands.Init( INITIAL_CMD_CAPACITY, allocator );
     }
 }
 void ShutDown( RDIDevice* dev )
 {
     g_data.instance_buffer.Free( g_data.allocator );
     g_data.vertex_buffer.Free( g_data.allocator );
-    g_data.cmd_boxes.Free( g_data.allocator );
-    g_data.cmd_spheres.Free( g_data.allocator );
-    g_data.cmd_lines.Free( g_data.allocator );
+    g_data.commands.Free( g_data.allocator );
 
     for( uint32_t i = 0; i < PIPELINE_COUNT; ++i )
     {
@@ -255,7 +284,21 @@ void ShutDown( RDIDevice* dev )
 }
 
 void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams& params )
-{}
+{
+    const uint32_t cmd_index = g_data.commands.Add( 1 );
+    const uint32_t data_index = g_data.instance_buffer.Add( 1 );
+    Cmd* cmd = &g_data.commands[cmd_index];
+    mat44_t* matrix = &g_data.instance_buffer[data_index];
+
+    cmd->data_offset = data_index;
+    cmd->data_count = 1;
+    cmd->rsource_index = RSOURCE_OBJ;
+    cmd->rsource_range_index = DRAW_RANGE_BOX;
+    cmd->pipeline_index = SelectPipeline( params, RSOURCE_OBJ );
+    cmd->depth = 0;
+
+    matrix[0] = append_scale( mat44_t::translation( center ), extents * params.scale );
+}
 void AddSphere( const vec3_t& pos, float radius, const RDIXDebugParams& params )
 {}
 void AddLine( const vec3_t& start, const vec3_t& end, const RDIXDebugParams& params )
