@@ -39,5 +39,5 @@ namespace RDIXDebug
     void AddLine( const vec3_t& start, const vec3_t& end, const RDIXDebugParams& params = {} );
     void AddAxes( const mat44_t& pose, const RDIXDebugParams& params = {} );
 
-    void Flush( RDICommandQueue& cmdq, const mat44_t& viewproj );
+    void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj );
 }//

@@ -15,7 +15,9 @@ void Shutdown( RDIDevice** dev, RDICommandQueue** cmdq, BXIAllocator* allocator 
 RDIVertexBuffer	  CreateVertexBuffer  ( RDIDevice* dev, const RDIVertexBufferDesc& desc, uint32_t numElements, const void* data = 0 );
 RDIIndexBuffer	  CreateIndexBuffer   ( RDIDevice* dev, RDIEType::Enum dataType, uint32_t numElements, const void* data = 0 );
 RDIConstantBuffer CreateConstantBuffer( RDIDevice* dev, uint32_t sizeInBytes, const void* data = nullptr );
-RDIBufferRO       CreateBufferRO      ( RDIDevice* dev, int numElements, RDIFormat format, unsigned cpuAccessFlag, unsigned gpuAccessFlag );
+RDIBufferRO       CreateBufferRO      ( RDIDevice* dev, int numElements, RDIFormat format, unsigned cpuAccessFlag );
+RDIBufferRO       CreateStructuredBufferRO( RDIDevice* dev, uint32_t numElements, uint32_t elementStride, unsigned cpuAccessFlag );
+
 
 RDIShaderPass	  CreateShaderPass	( RDIDevice* dev, const RDIShaderPassCreateInfo& info );
 

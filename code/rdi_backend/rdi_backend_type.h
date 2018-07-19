@@ -619,6 +619,7 @@ struct RDIBufferDesc
 	uint32_t sizeInBytes = 0;
 	uint32_t bind_flags = 0;
 	RDIFormat format = {};
+    uint16_t elementStride = 0;
 
 	uint32_t NumElements() const { return sizeInBytes / format.ByteWidth(); }
 };

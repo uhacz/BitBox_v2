@@ -5,7 +5,10 @@
 #include <util/poly_shape/poly_shape.h>
 #include <resource_manager/resource_manager.h>
 #include <rdi_backend/rdi_backend.h>
+
 #include <atomic>
+#include <algorithm>
+#include "util/range_splitter.h"
 
 namespace RDIXDebug
 {
@@ -24,13 +27,17 @@ struct Cmd
         uint32_t key;
         struct  
         {
+            uint32_t pipeline_index : 8;
             uint32_t rsource_range_index : 4;
             uint32_t rsource_index : 4;
-            uint32_t pipeline_index : 8;
             uint32_t depth : 16;
         };
     };
 };
+inline bool operator < ( const Cmd& a, const Cmd& b )
+{
+    return a.key < b.key;
+}
 
 enum EDrawRange : uint32_t
 {
@@ -83,6 +90,7 @@ static constexpr uint32_t INITIAL_INSTANCE_CAPACITY = 128;
 static constexpr uint32_t INITIAL_VERTEX_CAPACITY = 512;
 static constexpr uint32_t INITIAL_CMD_CAPACITY = 128;
 static constexpr uint32_t GPU_LINE_VBUFFER_CAPACITY = 1024 * 4; // number of vertices, NOT lines
+static constexpr uint32_t GPU_MATRIX_BUFFER_CAPACITY = 128;
 
 
 template<typename T>
@@ -91,6 +99,11 @@ struct Array
     T* data = nullptr;
     uint32_t capacity = 0;
     std::atomic_uint32_t count = 0;
+
+    T* begin() { return data; }
+    T* end() { return data + count; }
+
+    bool Empty() const { return count == 0; }
 
     void Init( uint32_t initial_cap, BXIAllocator* allocator )
     {
@@ -155,13 +168,24 @@ struct Data
 
     RDIConstantBuffer cbuffer_mdata;
     RDIConstantBuffer cbuffer_idata;
-
+    RDIBufferRO       buffer_matrices;
+    
     Array<mat44_t> instance_buffer;
     Array<Vertex>  vertex_buffer;
 
-    Array<Cmd> commands;
+    Array<Cmd> cmd_objects;
+    Array<Cmd> cmd_lines;
 };
 
+struct InstanceData
+{
+    uint32_t instance_batch_offset = 0;
+    uint32_t padding_[3];
+};
+struct MaterialData
+{
+    mat44_t view_proj_matrix = mat44_t::identity();
+};
 
 
 namespace
@@ -227,8 +251,9 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
     }
 
     {// constant buffer
-        g_data.cbuffer_mdata = CreateConstantBuffer( dev, sizeof( mat44_t ) );
-        g_data.cbuffer_idata = CreateConstantBuffer( dev, 16 );
+        g_data.cbuffer_mdata = CreateConstantBuffer( dev, sizeof( MaterialData ) );
+        g_data.cbuffer_idata = CreateConstantBuffer( dev, sizeof( InstanceData ) );
+        g_data.buffer_matrices = CreateStructuredBufferRO( dev, GPU_MATRIX_BUFFER_CAPACITY, sizeof( mat44_t ), RDIECpuAccess::WRITE );
     }
 
     {// shader
@@ -258,14 +283,16 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
 
         g_data.instance_buffer.Init( INITIAL_INSTANCE_CAPACITY, allocator );
         g_data.vertex_buffer.Init( INITIAL_VERTEX_CAPACITY, allocator );
-        g_data.commands.Init( INITIAL_CMD_CAPACITY, allocator );
+        g_data.cmd_objects.Init( INITIAL_CMD_CAPACITY, allocator );
+        g_data.cmd_lines.Init( INITIAL_CMD_CAPACITY, allocator );
     }
 }
 void ShutDown( RDIDevice* dev )
 {
     g_data.instance_buffer.Free( g_data.allocator );
     g_data.vertex_buffer.Free( g_data.allocator );
-    g_data.commands.Free( g_data.allocator );
+    g_data.cmd_lines.Free( g_data.allocator );
+    g_data.cmd_objects.Free( g_data.allocator );
 
     for( uint32_t i = 0; i < PIPELINE_COUNT; ++i )
     {
@@ -273,6 +300,7 @@ void ShutDown( RDIDevice* dev )
     }
 
     {
+        ::Destroy( &g_data.buffer_matrices );
         ::Destroy( &g_data.cbuffer_idata );
         ::Destroy( &g_data.cbuffer_mdata );
     }
@@ -285,9 +313,9 @@ void ShutDown( RDIDevice* dev )
 
 void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams& params )
 {
-    const uint32_t cmd_index = g_data.commands.Add( 1 );
+    const uint32_t cmd_index = g_data.cmd_objects.Add( 1 );
     const uint32_t data_index = g_data.instance_buffer.Add( 1 );
-    Cmd* cmd = &g_data.commands[cmd_index];
+    Cmd* cmd = &g_data.cmd_objects[cmd_index];
     mat44_t* matrix = &g_data.instance_buffer[data_index];
 
     cmd->data_offset = data_index;
@@ -298,15 +326,71 @@ void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams
     cmd->depth = 0;
 
     matrix[0] = append_scale( mat44_t::translation( center ), extents * params.scale );
+    matrix[0].c3.w = TypeReinterpert( params.color ).f;
 }
 void AddSphere( const vec3_t& pos, float radius, const RDIXDebugParams& params )
 {}
 void AddLine( const vec3_t& start, const vec3_t& end, const RDIXDebugParams& params )
-{}
+{
+    const uint32_t cmd_index = g_data.cmd_lines.Add( 1 );
+    const uint32_t data_index = g_data.vertex_buffer.Add( 2 );
+    Cmd* cmd = &g_data.cmd_lines[cmd_index];
+    Vertex* vertices = &g_data.vertex_buffer[data_index];
+
+    cmd->data_offset = data_index;
+    cmd->data_count = 2;
+    cmd->rsource_index = RSOURCE_LINES;
+    cmd->rsource_range_index = 0;
+    cmd->pipeline_index = SelectPipeline( params, RSOURCE_LINES );
+    cmd->depth = 0;
+
+    vertices[0].pos = start;
+    vertices[1].pos = end;
+    vertices[0].color = params.color;
+    vertices[1].color = params.color;
+}
 void AddAxes( const mat44_t& pose, const RDIXDebugParams& params )
 {}
 
-void Flush( RDICommandQueue& cmdq, const mat44_t& viewproj )
-{}
+
+
+void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
+{
+    if( g_data.cmd_lines.Empty() && g_data.cmd_objects.Empty() )
+        return;
+
+    MaterialData mdata = {};
+    mdata.view_proj_matrix = viewproj;
+    UpdateCBuffer( cmdq, g_data.cbuffer_mdata, &mdata );
+
+    InstanceData idata = {};
+    UpdateCBuffer( cmdq, g_data.cbuffer_idata, &idata );
+
+    std::sort( g_data.cmd_objects.begin(), g_data.cmd_objects.end(), std::less<Cmd>() );
+    std::sort( g_data.cmd_lines.begin(), g_data.cmd_lines.end(), std::less<Cmd>() );
+    
+    {
+        const uint32_t nb_objects = g_data.cmd_objects.count;
+        RangeSplitter splitter = RangeSplitter::SplitByGrab( nb_objects, GPU_MATRIX_BUFFER_CAPACITY );
+        while( splitter.ElementsLeft() )
+        {
+            const uint32_t grab = splitter.NextGrab();
+
+            uint8_t* mapped_data = Map( cmdq, g_data.buffer_matrices, 0, RDIEMapType::WRITE );
+            const mat44_t* src_data = g_data.instance_buffer.begin() + splitter.grabbedElements;
+            memcpy( mapped_data, src_data, grab * g_data.buffer_matrices.elementStride );
+            Unmap( cmdq, g_data.buffer_matrices );
+
+            const uint32_t begin = splitter.grabbedElements;
+            const uint32_t end = splitter.grabbedElements + grab;
+
+            for( uint32_t i = begin; i < end; ++i )
+            {
+                
+            }
+        }
+    }
+
+}
 
 }//

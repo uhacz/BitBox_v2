@@ -89,6 +89,7 @@
     <ClInclude Include="poly_shape\poly_shape.h" />
     <ClInclude Include="random\pcg_basic.h" />
     <ClInclude Include="random\random.h" />
+    <ClInclude Include="range_splitter.h" />
     <ClInclude Include="signal_filter.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
