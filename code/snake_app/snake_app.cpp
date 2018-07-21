@@ -132,6 +132,11 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
 
     _gfx->PostProcess( frame_ctx, g_idcamera );
 
+    {
+        const GFXCameraMatrices& camera_matrices = _gfx->CameraMatrices( g_idcamera );
+        const mat44_t viewproj = camera_matrices.proj_api * camera_matrices.view;
+        RDIXDebug::Flush( _rdicmdq, viewproj );
+    }
     _gfx->RasterizeFramebuffer( _rdicmdq, 1, g_idcamera );
 
     GUI::Draw();

@@ -145,7 +145,7 @@ struct Array
         const int32_t overflow = count - capacity;
         if( overflow > 0 )
         {
-            Init( capacity * 2 );
+            Init( capacity * 2, allocator );
         }
 
         count = 0;
@@ -274,10 +274,16 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
             RDIXResourceBinding* binding = ResourceBinding( g_data.pipeline[i] );
             SetConstantBuffer( binding, "MaterialData", &g_data.cbuffer_mdata );
 
-            const uint32_t index = FindResource( binding, "InstanceData" );
+            uint32_t index = FindResource( binding, "InstanceData" );
             if( index != UINT32_MAX )
             {
                 SetConstantBufferByIndex( binding, index, &g_data.cbuffer_idata );
+            }
+
+            index = FindResource( binding, "g_matrices" );
+            if( index != UINT32_MAX )
+            {
+                SetResourceROByIndex( binding, index, &g_data.buffer_matrices );
             }
         }
 
@@ -374,23 +380,39 @@ void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
         RangeSplitter splitter = RangeSplitter::SplitByGrab( nb_objects, GPU_MATRIX_BUFFER_CAPACITY );
         while( splitter.ElementsLeft() )
         {
-            const uint32_t grab = splitter.NextGrab();
-
+            const RangeSplitter::Grab grab = splitter.NextGrab();
+            
+            const mat44_t* src_data = g_data.instance_buffer.begin() + grab.begin;
             uint8_t* mapped_data = Map( cmdq, g_data.buffer_matrices, 0, RDIEMapType::WRITE );
-            const mat44_t* src_data = g_data.instance_buffer.begin() + splitter.grabbedElements;
-            memcpy( mapped_data, src_data, grab * g_data.buffer_matrices.elementStride );
+
+            memcpy( mapped_data, src_data, grab.count * g_data.buffer_matrices.elementStride );
             Unmap( cmdq, g_data.buffer_matrices );
 
-            const uint32_t begin = splitter.grabbedElements;
-            const uint32_t end = splitter.grabbedElements + grab;
+            const uint32_t begin = grab.begin;
+            const uint32_t end = grab.end();
 
             for( uint32_t i = begin; i < end; ++i )
             {
-                
+                const Cmd& cmd = g_data.cmd_objects[i];
+                idata.instance_batch_offset = cmd.data_offset;// -splitter.grabbedElements;
+                UpdateCBuffer( cmdq, g_data.cbuffer_idata, &idata );
+
+                RDIXPipeline* pipeline = g_data.pipeline[cmd.pipeline_index];
+                RDIXRenderSource* rsource = g_data.rsource[cmd.rsource_index];
+
+                BindPipeline( cmdq, pipeline, true );
+                BindRenderSource( cmdq, rsource );
+                SubmitRenderSourceInstanced( cmdq, rsource, 1, cmd.rsource_range_index );
             }
         }
     }
 
+
+
+    g_data.cmd_objects.Clear( g_data.allocator );
+    g_data.cmd_lines.Clear( g_data.allocator );
+    g_data.instance_buffer.Clear( g_data.allocator );
+    g_data.vertex_buffer.Clear( g_data.allocator );
 }
 
 }//

@@ -789,8 +789,8 @@ RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformB
     const uint32_t num_elements = 3 * desc.capacity; // 3 x float4 (matrix) or 3 x float3 (matrix it)
 
 	buffer->gpu_instance_offset = CreateConstantBuffer( dev, 16 );
-	buffer->gpu_buffer_matrix = CreateBufferRO( dev, num_elements, gpu_format_m, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
-	buffer->gpu_buffer_matrix_it = CreateBufferRO( dev, num_elements, gpu_format_mit, RDIECpuAccess::WRITE, RDIEGpuAccess::READ );
+	buffer->gpu_buffer_matrix = CreateBufferRO( dev, num_elements, gpu_format_m, RDIECpuAccess::WRITE );
+	buffer->gpu_buffer_matrix_it = CreateBufferRO( dev, num_elements, gpu_format_mit, RDIECpuAccess::WRITE );
 	buffer->max_elements = desc.capacity;
 
 	return buffer;

@@ -14,13 +14,24 @@ public:
     static inline RangeSplitter SplitByGrab( uint32_t nElements, uint32_t grabSize ) { return RangeSplitter( nElements, grabSize ); }
 
     inline uint32_t ElementsLeft() const { return nElements - grabbedElements; }
-    inline uint32_t NextGrab()
+
+    struct Grab
     {
+        uint32_t begin;
+        uint32_t count;
+
+        uint32_t end() const { return begin + count; }
+    };
+
+    inline Grab NextGrab()
+    {
+        Grab result = { 0, 0 };
+        result.begin = grabbedElements;
         const uint32_t eleft = ElementsLeft();
-        const uint32_t grab = ( eleft < grabSize ) ? eleft : grabSize;
-        grabbedElements += grab;
+        result.count = ( eleft < grabSize ) ? eleft : grabSize;
+        grabbedElements += result.count;
         SYS_ASSERT( grabbedElements <= nElements );
-        return grab;
+        return result;
     }
 
     const uint32_t nElements;

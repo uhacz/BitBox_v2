@@ -50,7 +50,7 @@
 //	float4 color[MAX_WORLD_MATRICES];
 //};
 
-StructuredBuffer<matrix> _matrices;
+StructuredBuffer<matrix> g_matrices;
 
 shared cbuffer MaterialData
 {
@@ -94,7 +94,7 @@ in_PS vs_object( in_VS input )
 {
     in_PS output;
     const uint instance_index = instance_batch_offset + input.instanceID;
-	matrix wm = _matrices[instance_index];
+	matrix wm = g_matrices[instance_index];
 
     uint colorU32 = wm[3][3];
     wm[3][3] = 1.0f;
