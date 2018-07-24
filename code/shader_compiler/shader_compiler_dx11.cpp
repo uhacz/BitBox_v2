@@ -133,9 +133,17 @@ ID3DBlob* dx11Compiler::_CompileShader( int stage, const char* shader_source, co
 
 void dx11Compiler::_CreateResourceBindings( std::vector< RDIXResourceSlot >* bindings, const RDIShaderReflection& reflection )
 {
-    for( const ShaderCBufferDesc& desc : reflection.cbuffers )
+    for( const ShaderBufferDesc& desc : reflection.buffers )
     {
-        RDIXResourceSlot b( desc.name.c_str(), RDIXResourceSlot::UNIFORM );
+        RDIXResourceSlot::EType slot = RDIXResourceSlot::_COUNT_;
+        if( desc.flags.cbuffer )
+            slot = RDIXResourceSlot::UNIFORM;
+        else if( desc.flags.read_write )
+            slot = RDIXResourceSlot::READ_WRITE;
+        else
+            slot = RDIXResourceSlot::READ_ONLY;
+
+        RDIXResourceSlot b( desc.name.c_str(), slot );
         b.Slot( desc.slot ).StageMask( desc.stage_mask );
         bindings->push_back( b );
     }

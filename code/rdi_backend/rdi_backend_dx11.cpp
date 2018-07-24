@@ -119,7 +119,7 @@ void Dx11FetchShaderReflection( RDIShaderReflection* out, const void* code_blob,
 
     D3D11_SHADER_DESC sdesc;
     reflector->GetDesc( &sdesc );
-
+#if 0
     for( uint32_t i = 0; i < sdesc.ConstantBuffers; ++i )
     {
         ID3D11ShaderReflectionConstantBuffer* cbuffer_reflector = reflector->GetConstantBufferByIndex( i );
@@ -134,22 +134,24 @@ void Dx11FetchShaderReflection( RDIShaderReflection* out, const void* code_blob,
         reflector->GetResourceBindingDescByName( sb_desc.Name, &bind_desc );
 
         const uint32_t cb_hashed_name = CalcHash( sb_desc.Name );
-		auto cbuffer_found = std::find_if( out->cbuffers.begin(), out->cbuffers.end(), 
-			[cb_hashed_name]( const ShaderCBufferDesc& desc ) -> bool { return desc.hashed_name == cb_hashed_name; } );
-        if( cbuffer_found != out->cbuffers.end() )
+		auto cbuffer_found = std::find_if( out->buffers.begin(), out->buffers.end(), 
+			[cb_hashed_name]( const ShaderBufferDesc& desc ) -> bool { return desc.hashed_name == cb_hashed_name; } );
+        if( cbuffer_found != out->buffers.end() )
         {
             cbuffer_found->stage_mask |= ( 1 << stage );
             continue;
         }
 
-        out->cbuffers.push_back( ShaderCBufferDesc() );
-        ShaderCBufferDesc& cb = out->cbuffers.back();
+        out->buffers.push_back( ShaderBufferDesc() );
+        ShaderBufferDesc& cb = out->buffers.back();
         cb.name = sb_desc.Name;
         cb.hashed_name = cb_hashed_name;
         cb.size = sb_desc.Size;
         cb.slot = bind_desc.BindPoint;
         cb.stage_mask = ( 1 << stage );
-        
+        cb.flags.cbuffer = 1;
+
+
         for( uint32_t j = 0; j < sb_desc.Variables; ++j )
         {
             ID3D11ShaderReflectionVariable* var_reflector = cbuffer_reflector->GetVariableByIndex( j );
@@ -168,7 +170,9 @@ void Dx11FetchShaderReflection( RDIShaderReflection* out, const void* code_blob,
             vdesc.size = sv_desc.Size;
             vdesc.type = RDIEType::FindBaseType( typeDesc.Name );
         }
+
     }
+#endif
 
     for( uint32_t i = 0; i < sdesc.BoundResources; ++i )
     {
@@ -181,8 +185,63 @@ void Dx11FetchShaderReflection( RDIShaderReflection* out, const void* code_blob,
 
         const uint32_t hashed_name = CalcHash( rdesc.Name );
 
+        if(
+            rdesc.Type == D3D_SIT_CBUFFER ||
+            rdesc.Type == D3D_SIT_UAV_RWTYPED ||
+            rdesc.Type == D3D_SIT_STRUCTURED ||
+            rdesc.Type == D3D_SIT_UAV_RWSTRUCTURED ||
+            rdesc.Type == D3D_SIT_BYTEADDRESS ||
+            rdesc.Type == D3D_SIT_UAV_RWBYTEADDRESS ||
+            rdesc.Type == D3D_SIT_UAV_APPEND_STRUCTURED ||
+            rdesc.Type == D3D_SIT_UAV_CONSUME_STRUCTURED )
+        {
+            D3D11_SHADER_INPUT_BIND_DESC bind_desc;
+            reflector->GetResourceBindingDescByName( rdesc.Name, &bind_desc );
 
-        if( rdesc.Type == D3D_SIT_TEXTURE )
+            auto buffer_found = std::find_if( out->buffers.begin(), out->buffers.end(),
+                [hashed_name]( const ShaderBufferDesc& desc ) -> bool { return desc.hashed_name == hashed_name; } );
+            
+            if( buffer_found != out->buffers.end() )
+            {
+                buffer_found->stage_mask |= (1 << stage);
+                continue;
+            }
+
+            out->buffers.push_back( ShaderBufferDesc() );
+            ShaderBufferDesc& cb = out->buffers.back();
+            cb.name = rdesc.Name;
+            cb.hashed_name = hashed_name;
+            cb.slot = bind_desc.BindPoint;
+            cb.stage_mask = (1 << stage);
+            
+            cb.flags.cbuffer = rdesc.Type == D3D_SIT_CBUFFER;
+            cb.flags.structured = 
+                rdesc.Type == D3D_SIT_STRUCTURED || rdesc.Type == D3D_SIT_UAV_RWSTRUCTURED ||
+                rdesc.Type == D3D_SIT_UAV_APPEND_STRUCTURED || rdesc.Type == D3D_SIT_UAV_CONSUME_STRUCTURED;
+            cb.flags.byteaddress = 
+                rdesc.Type == D3D_SIT_BYTEADDRESS ||
+                rdesc.Type == D3D_SIT_UAV_RWBYTEADDRESS;
+            cb.flags.uav = 
+                rdesc.Type == D3D_SIT_UAV_RWTYPED || 
+                rdesc.Type == D3D_SIT_UAV_RWSTRUCTURED ||
+                rdesc.Type == D3D_SIT_UAV_RWBYTEADDRESS ||
+                rdesc.Type == D3D_SIT_UAV_APPEND_STRUCTURED ||
+                rdesc.Type == D3D_SIT_UAV_CONSUME_STRUCTURED;
+            cb.flags.read_write = 
+                rdesc.Type == D3D_SIT_UAV_RWTYPED ||
+                rdesc.Type == D3D_SIT_UAV_RWBYTEADDRESS;
+            cb.flags.append = rdesc.Type == D3D_SIT_UAV_APPEND_STRUCTURED;
+            cb.flags.consume = rdesc.Type == D3D_SIT_UAV_CONSUME_STRUCTURED;
+
+            if( rdesc.Type == D3D_SIT_CBUFFER )
+            {
+                ID3D11ShaderReflectionConstantBuffer* cbuffer_reflector = reflector->GetConstantBufferByName( rdesc.Name );
+                D3D11_SHADER_BUFFER_DESC sb_desc;
+                cbuffer_reflector->GetDesc( &sb_desc );
+                cb.size = sb_desc.Size;
+            }
+        }
+        else if( rdesc.Type == D3D_SIT_TEXTURE )
         {
 			auto found = std::find_if( out->textures.begin(), out->textures.end(), 
 				[hashed_name]( const ShaderTextureDesc& desc ) -> bool { return desc.hashed_name == hashed_name; } );

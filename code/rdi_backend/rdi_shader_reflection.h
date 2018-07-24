@@ -15,15 +15,28 @@ struct ShaderVariableDesc
     uint32_t type = 0;
 };
 
-struct ShaderCBufferDesc
+struct ShaderBufferDesc
 {
     std::string name;
     uint32_t hashed_name = 0;
     uint32_t size = 0;
     uint8_t slot = 0;
     uint8_t stage_mask = 0;
-    uint8_t __padd[2] = {};
-    std::vector<ShaderVariableDesc> variables;
+    union
+    {
+        uint16_t all = 0;
+        struct  
+        {
+            uint16_t cbuffer : 1;
+            uint16_t structured : 1;
+            uint16_t byteaddress : 1;
+            uint16_t uav : 1;
+            uint16_t read_write : 1;
+            uint16_t append : 1;
+            uint16_t consume : 1;
+        };
+    } flags;
+    //std::vector<ShaderVariableDesc> variables;
 };
 
 struct ShaderTextureDesc
@@ -54,7 +67,7 @@ struct RDIShaderReflection
 {
 	RDIShaderReflection() {}
 
-	std::vector<bx::rdi::ShaderCBufferDesc> cbuffers;
+	std::vector<bx::rdi::ShaderBufferDesc> buffers;
 	std::vector<bx::rdi::ShaderTextureDesc> textures;
 	std::vector<bx::rdi::ShaderSamplerDesc> samplers;
 	RDIVertexLayout vertex_layout;
