@@ -11,7 +11,7 @@ int main( int argc, char** argv )
     BXIAllocator* allocator = BXDefaultAllocator();
 
 #if TEST == 1
-    const char input_file[] = "x:/dev/BitBox_v2/code/shaders/hlsl/texture_util.hlsl";
+    const char input_file[] = "x:/dev/BitBox_v2/code/shaders/hlsl/debug.hlsl";
 	const char output_dir[] = "x:/dev/assets/shader/hlsl/";
 #else
     AnyOption opt;

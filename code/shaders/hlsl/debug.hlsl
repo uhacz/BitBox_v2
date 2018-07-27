@@ -96,7 +96,7 @@ in_PS vs_object( in_VS input )
     const uint instance_index = instance_batch_offset + input.instanceID;
 	matrix wm = g_matrices[instance_index];
 
-    uint colorU32 = wm[3][3];
+    uint colorU32 = asuint( wm[3][3] );
     wm[3][3] = 1.0f;
     
 	float4 world_pos = mul( wm, float4( input.pos.xyz, 1.0 ) );

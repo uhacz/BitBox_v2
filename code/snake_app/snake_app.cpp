@@ -123,7 +123,9 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
     }
     ImGui::End();
 
-    RDIXDebug::AddAABB( vec3_t( 0.f ), vec3_t( 0.5f ), RDIXDebugParams() );
+    RDIXDebug::AddAABB( vec3_t( 0.f ), vec3_t( 0.5f ), RDIXDebugParams( 0xFF00FFFF ) );
+    RDIXDebug::AddAABB( vec3_t( 2.f ), vec3_t( 1.0f ), RDIXDebugParams( 0x0000FFFF ) );
+    RDIXDebug::AddSphere( vec3_t( -1.f, 1.f, 0.f ), 0.75f, RDIXDebugParams() );
 
     BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
     ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );

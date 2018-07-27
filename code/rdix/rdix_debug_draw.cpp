@@ -206,7 +206,7 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
     { // render source
         poly_shape_t box, sphere;
         poly_shape::createBox( &box, 1, allocator );
-        poly_shape::createShpere( &sphere, 4, allocator );
+        poly_shape::createShpere( &sphere, 3, allocator );
         
         const uint32_t pos_stride = box.n_elem_pos * sizeof( float );
         const uint32_t index_stride = sizeof( *box.indices );
@@ -224,7 +224,7 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
 
         RDIXRenderSourceRange draw_ranges[2];
         draw_ranges[DRAW_RANGE_BOX] = RDIXRenderSourceRange( 0u, box.num_indices );
-        draw_ranges[DRAW_RANGE_SHERE] = RDIXRenderSourceRange( box.num_indices, sphere.num_indices );
+        draw_ranges[DRAW_RANGE_SHERE] = RDIXRenderSourceRange( box.num_indices, sphere.num_indices, box.num_vertices );
 
         RDIXRenderSourceDesc desc;
         desc.Count( nb_vertices, nb_indices );
@@ -317,7 +317,12 @@ void ShutDown( RDIDevice* dev )
     }
 }
 
-void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams& params )
+struct ObjectCmd
+{
+    Cmd* cmd;
+    mat44_t* matrix;
+};
+static ObjectCmd AddObject( ERSource rsource, EDrawRange draw_range, const RDIXDebugParams& params )
 {
     const uint32_t cmd_index = g_data.cmd_objects.Add( 1 );
     const uint32_t data_index = g_data.instance_buffer.Add( 1 );
@@ -326,16 +331,30 @@ void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams
 
     cmd->data_offset = data_index;
     cmd->data_count = 1;
-    cmd->rsource_index = RSOURCE_OBJ;
-    cmd->rsource_range_index = DRAW_RANGE_BOX;
-    cmd->pipeline_index = SelectPipeline( params, RSOURCE_OBJ );
+    cmd->rsource_index = rsource;
+    cmd->rsource_range_index = draw_range;
+    cmd->pipeline_index = SelectPipeline( params, rsource );
     cmd->depth = 0;
 
-    matrix[0] = append_scale( mat44_t::translation( center ), extents * params.scale );
-    matrix[0].c3.w = TypeReinterpert( params.color ).f;
+    ObjectCmd result;
+    result.cmd = cmd;
+    result.matrix = matrix;
+    return result;
+}
+
+void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams& params )
+{
+    ObjectCmd objcmd = AddObject( RSOURCE_OBJ, DRAW_RANGE_BOX, params );
+    objcmd.matrix[0] = append_scale( mat44_t::translation( center ), extents * params.scale );
+    objcmd.matrix[0].c3.w = TypeReinterpert( params.color ).f;
 }
 void AddSphere( const vec3_t& pos, float radius, const RDIXDebugParams& params )
-{}
+{
+    ObjectCmd objcmd = AddObject( RSOURCE_OBJ, DRAW_RANGE_SHERE, params );
+    objcmd.matrix[0] = append_scale( mat44_t::translation( pos ), vec3_t( radius * params.scale ) );
+    objcmd.matrix[0].c3.w = TypeReinterpert( params.color ).f;
+}
+
 void AddLine( const vec3_t& start, const vec3_t& end, const RDIXDebugParams& params )
 {
     const uint32_t cmd_index = g_data.cmd_lines.Add( 1 );
@@ -394,7 +413,7 @@ void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
             for( uint32_t i = begin; i < end; ++i )
             {
                 const Cmd& cmd = g_data.cmd_objects[i];
-                idata.instance_batch_offset = cmd.data_offset;// -splitter.grabbedElements;
+                idata.instance_batch_offset = cmd.data_offset;
                 UpdateCBuffer( cmdq, g_data.cbuffer_idata, &idata );
 
                 RDIXPipeline* pipeline = g_data.pipeline[cmd.pipeline_index];

@@ -717,7 +717,7 @@ void SubmitRenderSourceInstanced( RDICommandQueue* cmdq, RDIXRenderSource* rende
 	RDIXRenderSourceRange range = renderSource->draw_ranges[rangeIndex];
 
 	if( renderSource->index_buffer.id )
-		DrawIndexedInstanced( cmdq, range.count, range.begin, numInstances, 0 );
+		DrawIndexedInstanced( cmdq, range.count, range.begin, numInstances, range.base_vertex );
 	else
 		DrawInstanced( cmdq, range.count, range.begin, numInstances );
 }
