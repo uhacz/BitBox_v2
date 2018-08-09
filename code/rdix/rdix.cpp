@@ -704,11 +704,16 @@ void SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, 
 {
 	SYS_ASSERT( rangeIndex < renderSource->num_draw_ranges );
 	RDIXRenderSourceRange range = renderSource->draw_ranges[rangeIndex];
+    SubmitRenderSource( cmdq, renderSource, range );	
+}
 
-	if( renderSource->index_buffer.id )
-		DrawIndexed( cmdq, range.count, range.begin, 0 );
-	else
-		Draw( cmdq, range.count, range.begin );
+void SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, const RDIXRenderSourceRange& range )
+{
+    SetTopology( cmdq, range.topology );
+    if( renderSource->index_buffer.id )
+        DrawIndexed( cmdq, range.count, range.begin, 0 );
+    else
+        Draw( cmdq, range.count, range.begin );
 }
 
 void SubmitRenderSourceInstanced( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t numInstances, uint32_t rangeIndex )

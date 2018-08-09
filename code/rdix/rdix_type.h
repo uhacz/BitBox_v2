@@ -134,13 +134,15 @@ struct RDIXRenderTargetDesc
 // ---
 struct RDIXRenderSourceRange
 {
-	uint32_t begin = 0;
+    uint32_t topology = RDIETopology::TRIANGLES;
+    uint32_t begin = 0;
 	uint32_t count = 0;
     uint32_t base_vertex = 0;
 
     RDIXRenderSourceRange() {}
     RDIXRenderSourceRange( uint32_t b, uint32_t c, uint32_t bv = 0 )
-        : begin( b ), count( c ), base_vertex( bv ) {}
+        : topology( RDIETopology::TRIANGLES )
+        , begin( b ), count( c ), base_vertex( bv ) {}
 };
 
 struct RDIXRenderSourceDesc

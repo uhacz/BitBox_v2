@@ -23,7 +23,7 @@ VEC_FORCE_INLINE vec3_t cross( const vec3_t& a, const vec3_t& b )
 VEC_FORCE_INLINE float normalized( vec3_t* v )
 {
     const float m = length_sqr( *v );
-    v[0] = ( m > 0.0f ) ? *v * recip_sqrt( m ) : vec3_t( 0.f );
+    v[0] = ( m > FLT_EPSILON ) ? *v * recip_sqrt( m ) : vec3_t( 0.f );
     return m;
 }
 

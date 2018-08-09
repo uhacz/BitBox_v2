@@ -71,26 +71,23 @@ static inline EPipeline SelectPipeline( const RDIXDebugParams& params, ERSource 
     static const EPipeline router[RSOURCE_COUNT][2][2] =
     {
         {
-            { PIPELINE_OBJ_DEPTH_WIREFRAME, PIPELINE_OBJ_DEPTH_SOLID },
-            { PIPELINE_OBJ_NDEPTH_WIREFRAME, PIPELINE_OBJ_NDEPTH_SOLID }
+            { PIPELINE_OBJ_NDEPTH_WIREFRAME, PIPELINE_OBJ_NDEPTH_SOLID },
+            { PIPELINE_OBJ_DEPTH_WIREFRAME, PIPELINE_OBJ_DEPTH_SOLID }
         },
         {
-            { PIPELINE_LINES_DEPTH, PIPELINE_LINES_DEPTH },
-            { PIPELINE_LINES_NDEPTH, PIPELINE_LINES_NDEPTH }
+            { PIPELINE_LINES_NDEPTH, PIPELINE_LINES_NDEPTH },
+            { PIPELINE_LINES_DEPTH, PIPELINE_LINES_DEPTH }
         }
     };
 
-    const uint32_t depth_index = params.flag & DEPTH ? 0 : 1;
-    const uint32_t raster_index = params.flag & SOLID ? 1 : 0;
-
-    return router[rsource_type][depth_index][raster_index];
+    return router[rsource_type][params.use_depth][params.is_solid];
 }
 
 static constexpr uint32_t INITIAL_INSTANCE_CAPACITY = 128;
 static constexpr uint32_t INITIAL_VERTEX_CAPACITY = 512;
 static constexpr uint32_t INITIAL_CMD_CAPACITY = 128;
-static constexpr uint32_t GPU_LINE_VBUFFER_CAPACITY = 1024 * 4; // number of vertices, NOT lines
-static constexpr uint32_t GPU_MATRIX_BUFFER_CAPACITY = 128;
+static constexpr uint32_t GPU_LINE_VBUFFER_CAPACITY = 512; // number of vertices, NOT lines
+static constexpr uint32_t GPU_MATRIX_BUFFER_CAPACITY = 64;
 
 
 template<typename T>
@@ -206,7 +203,7 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
     { // render source
         poly_shape_t box, sphere;
         poly_shape::createBox( &box, 1, allocator );
-        poly_shape::createShpere( &sphere, 3, allocator );
+        poly_shape::createShpere( &sphere, 6, allocator );
         
         const uint32_t pos_stride = box.n_elem_pos * sizeof( float );
         const uint32_t index_stride = sizeof( *box.indices );
@@ -214,7 +211,7 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
         const uint32_t nb_vertices = box.num_vertices + sphere.num_vertices;
         const uint32_t nb_indices = box.num_indices + sphere.num_indices;
         
-        vec3_t* positions = (vec3_t*)BX_MALLOC( allocator, nb_vertices * pos_stride, 16 );
+        vec3_t* positions = (vec3_t*)BX_MALLOC( allocator, nb_vertices * pos_stride, 4 );
         memcpy( positions, box.positions, box.num_vertices * pos_stride );
         memcpy( positions + box.num_vertices, sphere.positions, sphere.num_vertices * pos_stride );
 
@@ -222,7 +219,7 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
         memcpy( indices, box.indices, box.num_indices * index_stride );
         memcpy( indices + box.num_indices, sphere.indices, sphere.num_indices * index_stride );
 
-        RDIXRenderSourceRange draw_ranges[2];
+        RDIXRenderSourceRange draw_ranges[2] = {};
         draw_ranges[DRAW_RANGE_BOX] = RDIXRenderSourceRange( 0u, box.num_indices );
         draw_ranges[DRAW_RANGE_SHERE] = RDIXRenderSourceRange( box.num_indices, sphere.num_indices, box.num_vertices );
 
@@ -319,65 +316,153 @@ void ShutDown( RDIDevice* dev )
 
 struct ObjectCmd
 {
-    Cmd* cmd;
-    mat44_t* matrix;
+    Cmd* cmd = nullptr;
+    mat44_t* matrix = nullptr;
 };
 static ObjectCmd AddObject( ERSource rsource, EDrawRange draw_range, const RDIXDebugParams& params )
 {
-    const uint32_t cmd_index = g_data.cmd_objects.Add( 1 );
-    const uint32_t data_index = g_data.instance_buffer.Add( 1 );
-    Cmd* cmd = &g_data.cmd_objects[cmd_index];
-    mat44_t* matrix = &g_data.instance_buffer[data_index];
-
-    cmd->data_offset = data_index;
-    cmd->data_count = 1;
-    cmd->rsource_index = rsource;
-    cmd->rsource_range_index = draw_range;
-    cmd->pipeline_index = SelectPipeline( params, rsource );
-    cmd->depth = 0;
-
     ObjectCmd result;
-    result.cmd = cmd;
-    result.matrix = matrix;
+    const uint32_t data_index = g_data.instance_buffer.Add( 1 );
+    if( data_index != UINT32_MAX )
+    {
+        const uint32_t cmd_index = g_data.cmd_objects.Add( 1 );
+        if( cmd_index != UINT32_MAX )
+        {
+            result.cmd = &g_data.cmd_objects[cmd_index];
+            result.matrix = &g_data.instance_buffer[data_index];
+
+            result.cmd->data_offset = data_index;
+            result.cmd->data_count = 1;
+            result.cmd->rsource_index = rsource;
+            result.cmd->rsource_range_index = draw_range;
+            result.cmd->pipeline_index = SelectPipeline( params, rsource );
+            result.cmd->depth = 0;
+        }
+    }
+    return result;
+}
+
+struct LinesCmd
+{
+    Cmd* cmd = nullptr;
+    Vertex* vertices = nullptr;
+};
+
+static LinesCmd AddLineVertices( uint32_t num_vertices, const RDIXDebugParams& params )
+{
+    LinesCmd result;
+    const uint32_t data_index = g_data.vertex_buffer.Add( num_vertices );
+    if( data_index != UINT32_MAX )
+    {
+        const uint32_t cmd_index = g_data.cmd_lines.Add( 1 );
+        if( cmd_index != UINT32_MAX )
+        {
+            result.cmd = &g_data.cmd_lines[cmd_index];
+            result.vertices = &g_data.vertex_buffer[data_index];
+
+            result.cmd->data_offset = data_index;
+            result.cmd->data_count = num_vertices;
+            result.cmd->rsource_index = RSOURCE_LINES;
+            result.cmd->rsource_range_index = 0;
+            result.cmd->pipeline_index = SelectPipeline( params, RSOURCE_LINES );
+            result.cmd->depth = 0;
+        }
+    }
     return result;
 }
 
 void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams& params )
 {
-    ObjectCmd objcmd = AddObject( RSOURCE_OBJ, DRAW_RANGE_BOX, params );
-    objcmd.matrix[0] = append_scale( mat44_t::translation( center ), extents * params.scale );
-    objcmd.matrix[0].c3.w = TypeReinterpert( params.color ).f;
+    if( params.is_solid )
+    {
+        ObjectCmd objcmd = AddObject( RSOURCE_OBJ, DRAW_RANGE_BOX, params );
+        if( objcmd.matrix )
+        {
+            objcmd.matrix[0] = append_scale( mat44_t::translation( center ), extents * 2.f * params.scale );
+            objcmd.matrix[0].c3.w = TypeReinterpert( params.color ).f;
+        }
+    }
+    else
+    {
+        const Vertex corners[8] =
+        {
+            { center + vec3_t( -extents.x, -extents.y, extents.z ), params.color },
+            { center + vec3_t( extents.x, -extents.y, extents.z ), params.color },
+            { center + vec3_t( extents.x, -extents.y,-extents.z ), params.color },
+            { center + vec3_t( -extents.x, -extents.y,-extents.z ), params.color },
+            { center + vec3_t( -extents.x,  extents.y, extents.z ), params.color },
+            { center + vec3_t( extents.x,  extents.y, extents.z ), params.color },
+            { center + vec3_t( extents.x,  extents.y,-extents.z ), params.color },
+            { center + vec3_t( -extents.x,  extents.y,-extents.z ), params.color },
+        };
+        static constexpr uint8_t indices[] =
+        {
+            0,1,
+            1,2,
+            2,3,
+            3,0,
+
+            4,5,
+            5,6,
+            6,7,
+            7,4,
+
+            0,4,
+            1,5,
+            2,6,
+            3,7
+        };
+        static constexpr uint32_t num_indices = (uint32_t)(sizeof( indices ) / sizeof( *indices ));
+
+        LinesCmd cmd = AddLineVertices( num_indices, params );
+        if( cmd.vertices )
+        {
+            for( uint32_t i = 0; i < num_indices; ++i )
+            {
+                const uint32_t v_index = indices[i];
+                cmd.vertices[i] = corners[v_index];
+            }
+        }
+    }
 }
 void AddSphere( const vec3_t& pos, float radius, const RDIXDebugParams& params )
 {
     ObjectCmd objcmd = AddObject( RSOURCE_OBJ, DRAW_RANGE_SHERE, params );
-    objcmd.matrix[0] = append_scale( mat44_t::translation( pos ), vec3_t( radius * params.scale ) );
-    objcmd.matrix[0].c3.w = TypeReinterpert( params.color ).f;
+    if( objcmd.matrix )
+    {
+        objcmd.matrix[0] = append_scale( mat44_t::translation( pos ), vec3_t( radius * params.scale ) );
+        objcmd.matrix[0].c3.w = TypeReinterpert( params.color ).f;
+    }
 }
 
 void AddLine( const vec3_t& start, const vec3_t& end, const RDIXDebugParams& params )
 {
-    const uint32_t cmd_index = g_data.cmd_lines.Add( 1 );
-    const uint32_t data_index = g_data.vertex_buffer.Add( 2 );
-    Cmd* cmd = &g_data.cmd_lines[cmd_index];
-    Vertex* vertices = &g_data.vertex_buffer[data_index];
-
-    cmd->data_offset = data_index;
-    cmd->data_count = 2;
-    cmd->rsource_index = RSOURCE_LINES;
-    cmd->rsource_range_index = 0;
-    cmd->pipeline_index = SelectPipeline( params, RSOURCE_LINES );
-    cmd->depth = 0;
-
-    vertices[0].pos = start;
-    vertices[1].pos = end;
-    vertices[0].color = params.color;
-    vertices[1].color = params.color;
+    LinesCmd cmd = AddLineVertices( 2, params );
+    if( cmd.vertices )
+    {
+        cmd.vertices[0].pos = start;
+        cmd.vertices[0].color = params.color;
+        cmd.vertices[1].pos = end;
+        cmd.vertices[1].color = params.color;
+    }
 }
 void AddAxes( const mat44_t& pose, const RDIXDebugParams& params )
-{}
+{
+    RDIXDebugParams params_copy = params;
+   
 
+    const vec3_t p = pose.translation();
+    const mat33_t r = pose.upper3x3();
 
+    params_copy.color = 0xFF0000FF;
+    AddLine( p, p + r.c0, params_copy );
+    
+    params_copy.color = 0x00FF00FF;
+    AddLine( p, p + r.c1, params_copy );
+    
+    params_copy.color = 0x0000FFFF;
+    AddLine( p, p + r.c2, params_copy );
+}
 
 void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
 {
@@ -391,29 +476,31 @@ void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
     InstanceData idata = {};
     UpdateCBuffer( cmdq, g_data.cbuffer_idata, &idata );
 
-    std::sort( g_data.cmd_objects.begin(), g_data.cmd_objects.end(), std::less<Cmd>() );
-    std::sort( g_data.cmd_lines.begin(), g_data.cmd_lines.end(), std::less<Cmd>() );
-    
     {
         const uint32_t nb_objects = g_data.cmd_objects.count;
         RangeSplitter splitter = RangeSplitter::SplitByGrab( nb_objects, GPU_MATRIX_BUFFER_CAPACITY );
         while( splitter.ElementsLeft() )
         {
             const RangeSplitter::Grab grab = splitter.NextGrab();
-            
-            const mat44_t* src_data = g_data.instance_buffer.begin() + grab.begin;
-            uint8_t* mapped_data = Map( cmdq, g_data.buffer_matrices, 0, RDIEMapType::WRITE );
+            Cmd* cmd_begin = g_data.cmd_objects.begin() + grab.begin;
+            Cmd* cmd_end = cmd_begin + grab.count;
+            std::sort( cmd_begin, cmd_end, std::less<Cmd>() );
 
-            memcpy( mapped_data, src_data, grab.count * g_data.buffer_matrices.elementStride );
+            mat44_t* mapped_data = (mat44_t*)Map( cmdq, g_data.buffer_matrices, 0, RDIEMapType::WRITE );
+
+            mat44_t* matrix = mapped_data;
+            for( Cmd* cmd = cmd_begin; cmd != cmd_end; ++cmd )
+            {
+                matrix[0] = g_data.instance_buffer[cmd->data_offset];
+                ++matrix;
+            }
+            
             Unmap( cmdq, g_data.buffer_matrices );
 
-            const uint32_t begin = grab.begin;
-            const uint32_t end = grab.end();
-
-            for( uint32_t i = begin; i < end; ++i )
+            for( uint32_t i = 0; i < grab.count; ++i )
             {
-                const Cmd& cmd = g_data.cmd_objects[i];
-                idata.instance_batch_offset = cmd.data_offset;
+                const Cmd& cmd = cmd_begin[i];
+                idata.instance_batch_offset = i;
                 UpdateCBuffer( cmdq, g_data.cbuffer_idata, &idata );
 
                 RDIXPipeline* pipeline = g_data.pipeline[cmd.pipeline_index];
@@ -425,8 +512,106 @@ void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
             }
         }
     }
+    
+    if( !g_data.cmd_lines.Empty() )
+    {
+        RDIVertexBuffer dst_vbuffer = VertexBuffer( g_data.rsource[RSOURCE_LINES], 0 );
+        std::sort( g_data.cmd_lines.begin(), g_data.cmd_lines.end(), std::less<Cmd>() );
+        
 
+        
+        Vertex* mapped_data = (Vertex*)Map( cmdq, dst_vbuffer, 0, GPU_LINE_VBUFFER_CAPACITY, RDIEMapType::WRITE );
+        uint32_t current_pipeline_index = g_data.cmd_lines[0].pipeline_index;
+        RDIXRenderSourceRange draw_range;
+        draw_range.topology = RDIETopology::LINES;
+        draw_range.begin = 0;
+        draw_range.count = 0;
+        draw_range.base_vertex = 0;
 
+        BindRenderSource( cmdq, g_data.rsource[RSOURCE_LINES] );
+        BindPipeline( cmdq, g_data.pipeline[current_pipeline_index], true );
+
+        const uint32_t nb_lines = g_data.cmd_lines.count;
+        for( uint32_t i = 0; i < nb_lines; ++i )
+        {
+            const Cmd& cmd = g_data.cmd_lines[i];
+            const Vertex* cmd_data = &g_data.vertex_buffer[cmd.data_offset];
+
+            const bool vertex_overflow = (draw_range.count + cmd.data_count > GPU_LINE_VBUFFER_CAPACITY);
+            const bool pipeline_mismatch = current_pipeline_index != cmd.pipeline_index;
+
+            if( vertex_overflow || pipeline_mismatch )
+            {
+                Unmap( cmdq, dst_vbuffer );
+                SubmitRenderSource( cmdq, g_data.rsource[RSOURCE_LINES], draw_range );
+
+                mapped_data = (Vertex*)Map( cmdq, dst_vbuffer, 0, GPU_LINE_VBUFFER_CAPACITY, RDIEMapType::WRITE );
+                draw_range.count = 0;
+
+                if( pipeline_mismatch )
+                {
+                    BindPipeline( cmdq, g_data.pipeline[cmd.pipeline_index], true );
+                    current_pipeline_index = cmd.pipeline_index;
+                }
+            }
+
+            Vertex* vertices = mapped_data + draw_range.count;
+            for( uint32_t i = 0; i < cmd.data_count; ++i )
+            {
+                vertices[i] = g_data.vertex_buffer[cmd.data_offset + i];
+            }
+            draw_range.count += cmd.data_count;
+        }
+
+        if( draw_range.count )
+        {
+            Unmap( cmdq, dst_vbuffer );
+            SubmitRenderSource( cmdq, g_data.rsource[RSOURCE_LINES], draw_range );
+        }
+
+        //RangeSplitter splitter = RangeSplitter::SplitByGrab( nb_lines, GPU_LINE_VBUFFER_CAPACITY/2 );
+        //while( splitter.ElementsLeft() )
+        //{
+        //    const RangeSplitter::Grab grab = splitter.NextGrab();
+
+        //    Cmd* cmd_begin = g_data.cmd_lines.begin() + grab.begin;
+        //    Cmd* cmd_end = cmd_begin + grab.count;
+        //    std::sort( cmd_begin, cmd_end, std::less<Cmd>() );
+
+        //    RDIXRenderSourceRange buckets[PIPELINE_COUNT];
+        //    memset( &buckets[0], 0x00, sizeof( buckets ) );
+
+        //    Vertex* mapped_data = (Vertex*)Map( cmdq, dst_vbuffer, 0, grab.count, RDIEMapType::WRITE );
+        //    Vertex* vertex = mapped_data;
+        //    for( const Cmd* cmd = cmd_begin; cmd != cmd_end; ++cmd )
+        //    {
+        //        for( uint32_t i = 0; i < cmd->data_count; ++i )
+        //        {
+        //            vertex[i] = g_data.vertex_buffer[cmd->data_offset + i];
+        //        }
+        //        vertex += cmd->data_count;
+
+        //        buckets[cmd->pipeline_index].count += cmd->data_count;
+        //    }
+        //    Unmap( cmdq, dst_vbuffer );
+
+        //    BindRenderSource( cmdq, g_data.rsource[RSOURCE_LINES] );
+
+        //    uint32_t bucket_begin = 0;
+        //    for( uint32_t i = 0; i < PIPELINE_COUNT; ++i )
+        //    {
+        //        if( buckets[i].count == 0 )
+        //            continue;
+
+        //        buckets[i].topology = RDIETopology::LINES;
+        //        buckets[i].begin = bucket_begin;
+        //        bucket_begin += buckets[i].count;
+
+        //        BindPipeline( cmdq, g_data.pipeline[i], true );
+        //        SubmitRenderSource( cmdq, g_data.rsource[RSOURCE_LINES], buckets[i] );
+        //    }
+        //}
+    }
 
     g_data.cmd_objects.Clear( g_data.allocator );
     g_data.cmd_lines.Clear( g_data.allocator );

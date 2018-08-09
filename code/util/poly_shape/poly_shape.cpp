@@ -283,7 +283,7 @@ namespace poly_shape
         normalize( shape, 0, shape->num_vertices, FLT_MIN );
         transform( shape, 0, shape->num_vertices, scale );
         generateSmoothNormals1( shape, 0, shape->num_vertices );
-        //generateSphereUV( shape, 0, shape->num_vertices );
+        generateSphereUV( shape, 0, shape->num_vertices );
         computeTangentSpace( shape );
     }
 

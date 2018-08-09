@@ -70,6 +70,8 @@ RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_
 void			  DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource );
 void			  BindRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource );
 void			  SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t rangeIndex = 0 );
+void			  SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, const RDIXRenderSourceRange& range );
+
 void			  SubmitRenderSourceInstanced( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t numInstances, uint32_t rangeIndex = 0 );
 
 

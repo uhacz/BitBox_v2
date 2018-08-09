@@ -1169,7 +1169,7 @@ void SetVertexBuffers( RDICommandQueue* cmdq, RDIVertexBuffer* vbuffers, unsigne
         strides[i] = buffer.desc.ByteWidth();
         buffers[i] = buffer.buffer;
     }
-    cmdq->dx11()->IASetVertexBuffers( start, n, buffers, strides, offsets );
+    cmdq->dx11()->IASetVertexBuffers( start, cRDI_MAX_VERTEX_BUFFERS, buffers, strides, offsets );
 }
 void SetIndexBuffer( RDICommandQueue* cmdq, RDIIndexBuffer ibuffer )
 {

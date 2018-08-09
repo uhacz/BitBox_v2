@@ -43,13 +43,6 @@
 
 #~header
 
-//#define MAX_WORLD_MATRICES 16
-//shared cbuffer InstanceData : register(b1)
-//{
-//    matrix world_matrix[MAX_WORLD_MATRICES];	
-//	float4 color[MAX_WORLD_MATRICES];
-//};
-
 StructuredBuffer<matrix> g_matrices;
 
 shared cbuffer MaterialData
