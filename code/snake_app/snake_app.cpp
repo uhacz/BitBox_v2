@@ -26,6 +26,16 @@ static GFXCameraID g_idcamera = {0};
 static GFXCameraInputContext g_camera_input_ctx = {};
 static CMNGroundMesh g_ground_mesh = {};
 
+namespace ECameraMode
+{
+    enum E : uint32_t
+    {
+        FREE = 0,
+        FOLLOW = 1,
+    };
+}
+static ECameraMode::E g_camera_mode = ECameraMode::FREE;
+
 vec3_t GridSizeAsVec3( const grid_t& grid )
 {
     return vec3_t( (float)grid.width, (float)grid.height, (float)grid.depth );
@@ -87,7 +97,7 @@ void SnakeInit( Snake* snake, const vec3_t& pos, const vec3_t& vel )
     snake->current_length = 8;
 }
 
-vec3_t SnakeCollectInput( const BXInput& input )
+vec3_t SnakeCollectInput( const BXInput& input, const mat33_t& camera_rot )
 {
     vec3_t result( 0.f );
     const BXInput::PadState& pad = input.pad.CurrentState();
@@ -107,15 +117,18 @@ vec3_t SnakeCollectInput( const BXInput& input )
             result.x += 1.f;
     }
 
-    return result;
+    const vec3_t result_ws = camera_rot * result;
+    vec3_t result_rounded;
+    result_rounded.x = nearbyintf( result_ws.x );
+    result_rounded.y = nearbyintf( result_ws.y );
+    result_rounded.z = nearbyintf( result_ws.z );
+
+    return result_rounded;
 }
 
 void SnakeSteer( Snake* snake, const vec3_t& input )
 {
     vec3_t input_rounded = input;
-    //input_rounded.x = (input.x > 0.5f) ? 1.f : -1.f;
-    //input_rounded.y = (input.y > 0.5f) ? 1.f : -1.f;
-    //input_rounded.z = (input.z > 0.5f) ? 1.f : -1.f;
     if( length_sqr( input_rounded ) > FLT_EPSILON )
     {
         snake->vel = input_rounded;
@@ -136,14 +149,8 @@ void SnakeMove( Snake* snake, const grid_t& grid, float grid_cell_size, float dt
         const vec3_t& p1 = snake->pos[i];
 
         vec3_t vec = p0 - p1;
-
-        uint32_t unwrap_mask = 0;
-        if( ::fabs( vec.x ) >= grid_ext.x )
-            unwrap_mask |= 0x1;
-        if( ::fabs( vec.y ) >= grid_ext.y )
-            unwrap_mask |= 0x2;
-        if( ::fabs( vec.z ) >= grid_ext.z )
-            unwrap_mask |= 0x4;
+        const vec3_t vec_abs = abs_per_elem( vec );
+        const uint32_t unwrap_mask = gteq_per_elem( vec_abs, grid_ext );
 
         vec = Unwrap( vec, grid_size, unwrap_mask );
         vec3_t dir = vec;
@@ -173,12 +180,21 @@ void SnakeDebugDraw( const Snake& snake )
     }
 
     RDIXDebug::AddLine( snake.pos[0], snake.pos[0] + snake.vel, RDIXDebugParams(0xFF0000FF) );
+}
+
+void SnakeMenuDraw( const Snake& snake )
+{
+    if( ImGui::Begin( "Snake" ) )
+    {
+        ImGui::BeginCombo
+    }
+    ImGui::End();
 
 }
 
 struct Level
 {
-    grid_t grid = { 32, 32, 32 };
+    grid_t grid = { 256, 128, 256 };
 };
 
 static Snake g_snake = {};
@@ -209,7 +225,10 @@ bool SnakeApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, 
         _filesystem->CloseFile( filewait.handle );
 
     }
-    g_idcamera = _gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 16.f, 64.f ) ) );
+
+    GFXCameraParams camera_params = {};
+    camera_params.zfar = 1024;
+    g_idcamera = _gfx->CreateCamera( "main", camera_params, mat44_t( mat33_t::identity(), vec3_t( 0.f, 16.f, 64.f ) ) );
     
     SnakeInit( &g_snake, vec3_t( 0.f ), vec3_t( 0.f ) );
 
@@ -268,7 +287,7 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
     }
 
     {
-        const vec3_t snake_input = SnakeCollectInput( win->input );
+        const vec3_t snake_input = SnakeCollectInput( win->input, new_camera_world.upper3x3() );
         SnakeSteer( &g_snake, snake_input );
         SnakeMove( &g_snake, g_level.grid, 1.f, delta_time_sec );
         SnakeDebugDraw( g_snake );

@@ -62,3 +62,10 @@ VEC_FORCE_INLINE vec3_t abs_per_elem( const vec3_t& v )
 {
     return vec3_t( ::fabsf( v.x ), ::fabsf( v.y ), ::fabsf( v.z ) );
 }
+VEC_FORCE_INLINE uint32_t gteq_per_elem( const vec3_t& a, const vec3_t& b )
+{
+    const uint32_t x_mask = (a.x >= b.x) ? 0x1 : 0;
+    const uint32_t y_mask = (a.y >= b.y) ? 0x2 : 0;
+    const uint32_t z_mask = (a.z >= b.z) ? 0x4 : 0;
+    return x_mask | y_mask | z_mask;
+}
