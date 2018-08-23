@@ -1,10 +1,12 @@
 #include "gfx.h"
 #include "gfx_internal.h"
+#include "gfx_resource_loader.h"
 #include "rtti/serializer.h"
 
 namespace gfx_shader
 {
 #include <shaders/hlsl/shadow_data.h>
+
 
 
     RTTI_DEFINE_TYPE( Material, {
@@ -442,8 +444,14 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
     gfx->_rdidev = dev;
     gfx->_rsm = rsm;
 
-    gfx_interface->utils->StartUp( dev, filesystem, allocator );
+    { // loaders
+        RSM::RegisterLoader<GFXMeshResourceLoader>( rsm );
+        RSM::RegisterLoader<GFXTextureResourceLoader>( rsm );
+        RSM::RegisterLoader<GFXShaderResourceLoader>( rsm );
+    }
 
+    gfx_interface->utils->StartUp( dev, filesystem, allocator );
+    
     {// --- framebuffer
         RDIXRenderTargetDesc render_target_desc( desc.framebuffer_width, desc.framebuffer_height );
         render_target_desc.Texture( GFXEFramebuffer::COLOR, RDIFormat::Float4() );

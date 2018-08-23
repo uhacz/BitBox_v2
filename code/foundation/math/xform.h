@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../common.h"
+
 VEC_FORCE_INLINE xform_t::xform_t( const mat44_t& m )
 {
     rot = quat_t( mat33_t( m.c0.xyz(), m.c1.xyz(), m.c2.xyz() ) );

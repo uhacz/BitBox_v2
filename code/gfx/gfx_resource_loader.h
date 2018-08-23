@@ -1,16 +1,14 @@
 #pragma once
 
-#include "dll_interface.h"
 #include <resource_manager/resource_loader.h>
 #include <rtti/rtti.h>
 
 //
 // mesh
 //
-struct GFX_EXPORT GFXMeshResourceLoader : RSMLoader
+struct GFXMeshResourceLoader : RSMLoader
 {
-    RTTI_DECLARE_TYPE( GFXMeshResourceLoader );
-
+    RSM_DEFINE_LOADER( GFXMeshResourceLoader );
     virtual const char* SupportedType() const { return "mesh"; }
     virtual bool IsBinary() const { return true; }
 };
@@ -18,9 +16,9 @@ struct GFX_EXPORT GFXMeshResourceLoader : RSMLoader
 //
 // texture
 //
-struct GFX_EXPORT GFXTextureResourceLoader: RSMLoader
+struct GFXTextureResourceLoader: RSMLoader
 {
-    RTTI_DECLARE_TYPE( GFXTextureResourceLoader );
+    RSM_DEFINE_LOADER( GFXTextureResourceLoader );
 
     virtual const char* SupportedType() const override { return "DDS"; }
     virtual bool IsBinary() const override { return true; }
@@ -33,9 +31,9 @@ struct GFX_EXPORT GFXTextureResourceLoader: RSMLoader
 //
 // shader
 //
-struct GFX_EXPORT GFXShaderResourceLoader : RSMLoader
+struct GFXShaderResourceLoader : RSMLoader
 {
-    RTTI_DECLARE_TYPE( GFXShaderResourceLoader );
+    RSM_DEFINE_LOADER( GFXShaderResourceLoader );
 
     virtual const char* SupportedType() const { return "shader"; }
     virtual bool IsBinary() const { return true; }

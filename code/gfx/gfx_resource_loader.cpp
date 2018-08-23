@@ -1,11 +1,6 @@
 #include "gfx_resource_loader.h"
 #include <memory/memory.h>
 
-RTTI_DEFINE_EMPTY_TYPE_DERIVED( GFXMeshResourceLoader, RSMLoader );
-RTTI_DEFINE_EMPTY_TYPE_DERIVED( GFXTextureResourceLoader, RSMLoader );
-RTTI_DEFINE_EMPTY_TYPE_DERIVED( GFXShaderResourceLoader, RSMLoader );
-
-
 #include <rdi_backend/rdi_backend.h>
 #include "gfx.h"
 bool GFXTextureResourceLoader::Load( RSMResourceData* out, const void* data, uint32_t size, BXIAllocator* allocator, void* system )

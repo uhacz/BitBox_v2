@@ -1,4 +1,7 @@
 #pragma once
+
+#include "../common.h"
+
 VEC_FORCE_INLINE float length_sqr( const vec4_t& v )
 {
     return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w;

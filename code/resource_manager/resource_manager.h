@@ -2,6 +2,7 @@
 
 #include "dll_interface.h"
 #include <foundation/type.h>
+#include "resource_loader.h"
 
 struct BXIFilesystem;
 struct BXIAllocator;
@@ -29,7 +30,7 @@ struct RSMResourceID
     static constexpr RSMResourceID Null() { return { 0 }; }
 };
 
-struct RSM_EXPORT RSM
+struct RSM
 {
     static RSMResourceHash CreateHash( const char* relative_path );
 
@@ -56,8 +57,11 @@ struct RSM_EXPORT RSM
    
     // 
     BXIFilesystem* Filesystem();
+    void Internal_AddLoader( RSMLoaderCreator* creator );
 
     // --- private
+    template<typename T>
+    static void RegisterLoader( RSM* rsm ) { rsm->Internal_AddLoader( T::Internal_Creator ); }
     static RSM* StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator );
     static void ShutDown( RSM** ptr );
 

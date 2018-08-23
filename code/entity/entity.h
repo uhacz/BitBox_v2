@@ -56,7 +56,7 @@ struct ENTSerializeInfo
 {
 };
 
-struct ENT_EXPORT ENTIComponent
+struct ENTIComponent
 {
     virtual ~ENTIComponent();
 
@@ -69,7 +69,7 @@ struct ENT_EXPORT ENTIComponent
     virtual int32_t Serialize( ENTEntityID entity_id, ENTSerializeInfo* sys );
 };
 
-struct ENT_EXPORT ENT
+struct ENT
 {
     ENTEntityID CreateEntity();
     void        DestroyEntity( ENTEntityID entity_id );

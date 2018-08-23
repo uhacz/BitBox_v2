@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../common.h"
+
 VEC_FORCE_INLINE mat44_t::mat44_t( const quat_t& q )
 {
     const float x = q.x;

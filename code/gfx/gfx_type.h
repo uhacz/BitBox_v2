@@ -18,8 +18,8 @@ struct  GFXMaterialResource
 };
 
 struct SRLInstance;
-void GFX_EXPORT Serialize( SRLInstance* srl, gfx_shader::Material* obj );
-void GFX_EXPORT Serialize( SRLInstance* srl, GFXMaterialResource* obj );
+void Serialize( SRLInstance* srl, gfx_shader::Material* obj );
+void Serialize( SRLInstance* srl, GFXMaterialResource* obj );
 
 struct GFXMaterialTexture
 {

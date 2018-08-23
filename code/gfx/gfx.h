@@ -16,7 +16,7 @@ struct GFXUtils
     GFXUtilsData* data = nullptr;
 };
 
-struct GFX_EXPORT GFX
+struct GFX
 {
     static GFX* StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
     static void ShutDown( GFX**gfx, RSM* rsm );

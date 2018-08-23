@@ -1,7 +1,7 @@
 #pragma once
 
-#include "dll_interface.h"
 #include <foundation/type.h>
+#include <memory/memory.h>
 
 struct BXIAllocator;
 
@@ -12,7 +12,7 @@ struct RSMResourceData
     BXIAllocator* allocator = nullptr;
 };
 
-struct RSM_EXPORT RSMLoader
+struct RSMLoader
 {
     virtual ~RSMLoader() {}
 
@@ -22,3 +22,9 @@ struct RSM_EXPORT RSMLoader
     virtual void Unload( RSMResourceData* in_out );
 };
 
+using RSMLoaderCreator = RSMLoader*(BXIAllocator* allocator);
+#define RSM_DEFINE_LOADER( cls )\
+    static inline RSMLoader* Internal_Creator( BXIAllocator* allocator )\
+    {\
+        return BX_NEW( allocator, cls );\
+    }

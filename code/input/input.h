@@ -138,9 +138,9 @@ struct BXInput
     {
         return ( kbd.CurrentState().keys[key] ) != 0;
     }
-    inline bool IsKeyPressedOnce( unsigned char key )
+    inline bool IsKeyPressedOnce( unsigned char key ) const
     {
-        const unsigned char curr_state = kbd.CurrentState()->keys[key];
+        const unsigned char curr_state = kbd.CurrentState().keys[key];
         const unsigned char prev_state = kbd.PreviousState().keys[key];
 
         return !prev_state && curr_state;

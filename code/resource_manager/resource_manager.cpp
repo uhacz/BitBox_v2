@@ -448,6 +448,20 @@ BXIFilesystem* RSM::Filesystem()
     return _rsm->filesystem;
 }
 
+void RSM::Internal_AddLoader( RSMLoaderCreator* creator )
+{
+    SYS_ASSERT( _rsm->nb_loaders < RSM::RSMImpl::MAX_TYPES );
+    RSMLoader* loader = creator(_rsm->main_allocator);
+    if( loader )
+    {
+        const uint32_t loader_index = _rsm->nb_loaders++;
+        _rsm->loader[loader_index] = loader;
+
+        const char* type = loader->SupportedType();
+        _rsm->loader_supported_type[loader_index] = ResourceTypeHash( type );
+    }
+}
+
 RSM* RSM::StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator )
 {
     uint32_t mem_size = 0;
@@ -474,16 +488,7 @@ RSM* RSM::StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator )
         const RTTITypeInfo* typeinfo = nullptr;
         while( typeinfo = RTTI::FindChildType<RSMLoader>( typeinfo ) )
         {
-            SYS_ASSERT( rsm->nb_loaders < RSM::RSMImpl::MAX_TYPES );
-            RSMLoader* loader = (RSMLoader*)(*typeinfo->creator)(rsm->main_allocator);
-            if( loader )
-            {
-                const uint32_t loader_index = rsm->nb_loaders++;
-                rsm->loader[loader_index] = loader;
-
-                const char* type = loader->SupportedType();
-                rsm->loader_supported_type[loader_index] = ResourceTypeHash( type );
-            }
+            
         }
     }
 

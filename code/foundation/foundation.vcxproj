@@ -100,6 +100,7 @@
     <ClInclude Include="math\vec4.h" />
     <ClInclude Include="math\vmath.h" />
     <ClInclude Include="math\xform.h" />
+    <ClInclude Include="math\math_common.h" />
     <ClInclude Include="static_array.h" />
     <ClInclude Include="thread\mutex.h" />
     <ClInclude Include="queue.h" />
@@ -117,6 +118,7 @@
     <ClCompile Include="hash.cpp" />
     <ClCompile Include="id_allocator_dense.cpp" />
     <ClCompile Include="io.cpp" />
+    <ClCompile Include="math\math_common.cpp" />
     <ClCompile Include="tag.cpp" />
     <ClCompile Include="thread\semaphore.cpp" />
     <ClCompile Include="string_util.cpp" />

@@ -4,7 +4,7 @@
 #include <foundation/type.h>
 #include <foundation/math/vmath.h>
 
-struct GFX_EXPORT GFXCameraParams
+struct GFXCameraParams
 {
     float h_aperture = 1.8f;
     float v_aperture = 1.f;
@@ -29,13 +29,13 @@ struct GFXCameraMatrices
     vec3_t dir() const { return -world.c2.xyz(); }
 };
 
-GFX_EXPORT void    ComputeViewport( int32_t xywh[4], float aspect, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
-GFX_EXPORT mat44_t PerspectiveMatrix( float fov, float aspect, float znear, float zfar );
-GFX_EXPORT void    ComputeMatrices( GFXCameraMatrices* out, const GFXCameraParams& params, const mat44_t& world );
+void    ComputeViewport( int32_t xywh[4], float aspect, int dstWidth, int dstHeight, int srcWidth, int srcHeight );
+mat44_t PerspectiveMatrix( float fov, float aspect, float znear, float zfar );
+void    ComputeMatrices( GFXCameraMatrices* out, const GFXCameraParams& params, const mat44_t& world );
 
 
 // --- movement utils
-struct GFX_EXPORT GFXCameraInputContext
+struct GFXCameraInputContext
 {
 	float _left_x = 0.f;
 	float _left_y = 0.f;
@@ -48,4 +48,4 @@ struct GFX_EXPORT GFXCameraInputContext
 	bool AnyMovement() const;
 };
 
-GFX_EXPORT mat44_t CameraMovementFPP( const GFXCameraInputContext& input, const mat44_t& world, float sensitivity );
+mat44_t CameraMovementFPP( const GFXCameraInputContext& input, const mat44_t& world, float sensitivity );

@@ -1,11 +1,7 @@
 #ifndef MATERIAL_DATA_H
 #define MATERIAL_DATA_H
 
-struct 
-#ifndef SHADER_IMPLEMENTATION
-    GFX_EXPORT
-#endif 
-    Material
+struct Material
 {
 #ifndef SHADER_IMPLEMENTATION
     RTTI_DECLARE_TYPE( Material );

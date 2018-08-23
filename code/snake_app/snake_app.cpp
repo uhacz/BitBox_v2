@@ -19,6 +19,8 @@
 #include "rdix\rdix_debug_draw.h"
 #include "util\grid.h"
 #include "foundation\type_compound.h"
+#include "foundation\math\math_common.h"
+#include "util\signal_filter.h"
 
 static GFXSceneID g_idscene = { 0 };
 static GFXCameraID g_idcamera = {0};
@@ -32,9 +34,17 @@ namespace ECameraMode
     {
         FREE = 0,
         FOLLOW = 1,
+        _COUNT_,
     };
+    static const char* names[] =
+    {
+        "free", "follow",
+    };
+
+    SYS_STATIC_ASSERT( _COUNT_ == sizeof( names ) / sizeof( *names ) );
 }
 static ECameraMode::E g_camera_mode = ECameraMode::FREE;
+static float g_camera_speed = 100.f;
 
 vec3_t GridSizeAsVec3( const grid_t& grid )
 {
@@ -85,6 +95,8 @@ struct Snake
     static_array_t<vec3_t, MAX_LEN> pos;
     vec3_t vel;
 
+    mat33_t rot;
+
     uint32_t current_length;
 };
 
@@ -94,7 +106,8 @@ void SnakeInit( Snake* snake, const vec3_t& pos, const vec3_t& vel )
         snake->pos[i] = pos;
 
     snake->vel = vel;
-    snake->current_length = 8;
+    snake->rot = mat33_t::identity();
+    snake->current_length = 16;
 }
 
 vec3_t SnakeCollectInput( const BXInput& input, const mat33_t& camera_rot )
@@ -107,13 +120,13 @@ vec3_t SnakeCollectInput( const BXInput& input, const mat33_t& camera_rot )
     }
     else
     {
-        if( input.IsKeyPressed( 'W' ) )
+        if( input.IsKeyPressedOnce( 'W' ) )
             result.y += 1.f;
-        if( input.IsKeyPressed( 'S' ) )
+        if( input.IsKeyPressedOnce( 'S' ) )
             result.y -= 1.f;
-        if( input.IsKeyPressed( 'A' ) )
+        if( input.IsKeyPressedOnce( 'A' ) )
             result.x -= 1.f;
-        if( input.IsKeyPressed( 'D' ) )
+        if( input.IsKeyPressedOnce( 'D' ) )
             result.x += 1.f;
     }
 
@@ -140,6 +153,22 @@ void SnakeMove( Snake* snake, const grid_t& grid, float grid_cell_size, float dt
 {
     snake->pos[0] += snake->vel * dt * 8;
     
+    {
+        const vec3_t snake_dir = normalize( snake->vel );
+        if( length_sqr( snake_dir ) > FLT_EPSILON )
+        {
+            const mat33_t& rot = snake->rot;
+
+            const float y_dot = dot( rot.c1, snake_dir );
+            const vec3_t y_ref = (::fabs( y_dot ) >= (1.f - FLT_EPSILON)) ? rot.c2 : rot.c1;
+                
+            const vec3_t x = normalize( cross( y_ref, snake_dir ) );
+            const vec3_t y = normalize( cross( snake_dir, x ) );
+            
+            snake->rot = mat33_t( x, y, snake_dir );
+        }
+    }
+
     const vec3_t grid_ext = GridExtentAsVec3( grid );
     const vec3_t grid_size = GridSizeAsVec3( grid );
 
@@ -171,22 +200,116 @@ void SnakeMove( Snake* snake, const grid_t& grid, float grid_cell_size, float dt
 
 }
 
+mat33_t ComputeBasis( const vec3_t &n )
+{
+    vec3_t b1, b2;
+    if( n.z < 0. ) {
+        const float a = 1.0f / (1.0f - n.z);
+        const float b = n.x * n.y * a;
+        b1 = vec3_t( 1.0f - n.x * n.x * a, -b, n.x );
+        b2 = vec3_t( b, n.y * n.y*a - 1.0f, -n.y );
+    }
+    else {
+        const float a = 1.0f / (1.0f + n.z);
+        const float b = -n.x * n.y * a;
+        b1 = vec3_t( 1.0f - n.x * n.x * a, b, -n.x );
+        b2 = vec3_t( b, 1.0f - n.y * n.y * a, -n.y );
+    }
+
+    return mat33_t( b1, b2, n );
+}
+
+mat44_t SnakeComputeCameraTPP( const Snake& snake, const mat44_t& camera_pose, float dt )
+{
+    const vec3_t& base_pos = snake.pos[0];
+    const vec3_t target_dir = normalize( snake.vel );
+    const float distance = (float)snake.current_length;
+
+    if( length_sqr( target_dir ) < FLT_EPSILON )
+    {
+        const vec3_t new_cam_pos = base_pos + vec3_t::az() * distance;
+        return mat44_t( mat33_t::identity(), new_cam_pos );
+    }
+    else
+    {
+        const mat33_t& base_rot = snake.rot;// ComputeBasis( target_dir );
+        const vec3_t curr_cam_pos = camera_pose.translation();
+        vec3_t dst_cam_pos = base_pos - base_rot.c2 * distance;
+        dst_cam_pos += base_rot.c1 * distance;
+
+        const vec3_t new_cam_pos = LowPassFilter( dst_cam_pos, curr_cam_pos, 0.1f, dt );
+
+        const vec3_t new_cam_dir = normalize( new_cam_pos - base_pos );
+        const vec3_t new_cam_side = normalize( cross( base_rot.c1, new_cam_dir ) );
+        const vec3_t new_cam_up = normalize( cross( new_cam_dir, new_cam_side ) );
+        const mat33_t new_cam_rot( new_cam_side, new_cam_up, new_cam_dir );
+        return mat44_t( new_cam_rot, new_cam_pos );
+
+        //const vec3_t curr_cam_dir = camera_pose.c2.xyz();
+        //const quat_t drot = ShortestRotation( curr_cam_dir, target_dir );
+
+        //const mat33_t cam_rot = camera_pose.upper3x3();
+        //const mat33_t drot33( drot );
+
+        //const mat33_t new_cam_rot = cam_rot * drot33;
+        //vec3_t new_cam_pos = base_pos - target_dir * snake.current_length;
+        //new_cam_pos += new_cam_rot.c1 * snake.current_length;
+
+        //const vec3_t new_cam_pos = snake.pos[0] - (target_dir + new_cam_rot.c1) * snake.current_length;
+
+        //return mat44_t( new_cam_rot, new_cam_pos );
+    }
+}
+
+mat44_t SnakeComputeCamera( const Snake& snake, const GFXCameraInputContext& camera_input, const mat44_t& camera_pose, ECameraMode::E camera_mode, float dt )
+{
+    if( camera_mode == ECameraMode::FREE )
+    {
+        const mat44_t camera_tpp = SnakeComputeCameraTPP( snake, camera_pose, dt );
+        RDIXDebug::AddAxes( camera_tpp );
+
+        return CameraMovementFPP( camera_input, camera_pose, dt * g_camera_speed );
+    }
+    else
+    {
+        return SnakeComputeCameraTPP( snake, camera_pose, dt );
+    }
+}
+
 void SnakeDebugDraw( const Snake& snake )
 {
     for( uint32_t i = 0; i < snake.current_length; ++i )
     {
-        RDIXDebug::AddAABB( snake.pos[i], vec3_t( 0.5f ), RDIXDebugParams().Solid() );
+        if( i > 0 )
+            RDIXDebug::AddAABB( snake.pos[i], vec3_t( 0.5f ), RDIXDebugParams().Solid() );
+        
         RDIXDebug::AddAABB( snake.pos[i], vec3_t( 0.501f ), RDIXDebugParams( 0x00FF00FF ) );
     }
 
-    RDIXDebug::AddLine( snake.pos[0], snake.pos[0] + snake.vel, RDIXDebugParams(0xFF0000FF) );
+    //RDIXDebug::AddLine( snake.pos[0], snake.pos[0] + snake.vel, RDIXDebugParams(0xFF0000FF) );
+    RDIXDebug::AddAxes( mat44_t( snake.rot, snake.pos[0] ) );
 }
 
 void SnakeMenuDraw( const Snake& snake )
 {
     if( ImGui::Begin( "Snake" ) )
     {
-        ImGui::BeginCombo
+        const char* item_current = ECameraMode::names[g_camera_mode];
+        if( ImGui::BeginCombo( "Camera mode", item_current ) )
+        {
+            for( uint32_t i = 0; i < ECameraMode::_COUNT_; ++i )
+            {
+                bool is_selected = ECameraMode::names[i] == item_current;
+                if( ImGui::Selectable( ECameraMode::names[i], &is_selected ) )
+                    g_camera_mode = (ECameraMode::E)i;
+
+                if( is_selected )
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+        ImGui::SliderFloat( "Camera speed", &g_camera_speed, 1.f, 150.f );
     }
     ImGui::End();
 
@@ -271,7 +394,7 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
     }
     const GFXCameraMatrices& current_camera_matrices = _gfx->CameraMatrices( g_idcamera );
 
-    const mat44_t new_camera_world = CameraMovementFPP( g_camera_input_ctx, current_camera_matrices.world, delta_time_sec * 20.f );
+    const mat44_t new_camera_world = SnakeComputeCamera( g_snake, g_camera_input_ctx, current_camera_matrices.world, g_camera_mode, delta_time_sec );
     _gfx->SetCameraWorld( g_idcamera, new_camera_world );
     _gfx->ComputeCamera( g_idcamera );
 
@@ -291,6 +414,7 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
         SnakeSteer( &g_snake, snake_input );
         SnakeMove( &g_snake, g_level.grid, 1.f, delta_time_sec );
         SnakeDebugDraw( g_snake );
+        SnakeMenuDraw( g_snake );
     }
 
 

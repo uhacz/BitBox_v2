@@ -1,4 +1,7 @@
 #pragma once
+
+#include "../common.h"
+
 VEC_FORCE_INLINE quat_t::quat_t( const mat33_t& m )
 {
     if( m.c2.z < 0 )
