@@ -1,8 +1,6 @@
 #pragma once
 
-#include <foundation/data_buffer.h>
-#include "dll_interface.h"
-
+#include "data_buffer.h"
 
 #define SRL_ADD( version_added, field )\
     if( srl->version >= version_added )\
@@ -16,7 +14,7 @@
         Serialize( srl, &(field) );\
     }
 
-struct RTTI_EXPORT SRLInstance
+struct SRLInstance
 {
     uint32_t version;
     

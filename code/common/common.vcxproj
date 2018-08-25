@@ -67,10 +67,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="base_engine_init.h" />
+    <ClInclude Include="common.h" />
     <ClInclude Include="ground_mesh.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="base_engine_init.cpp" />
+    <ClCompile Include="common.cpp" />
     <ClCompile Include="ground_mesh.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

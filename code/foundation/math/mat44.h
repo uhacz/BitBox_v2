@@ -64,6 +64,10 @@ VEC_FORCE_INLINE mat44_t::mat44_t( const quat_t& rot, const vec3_t& pos )
 {
 	*this = mat44_t( mat33_t( rot ), pos );
 }
+VEC_FORCE_INLINE mat44_t::mat44_t( const quat_t& rot, const vec4_t& pos )
+{
+    *this = mat44_t( mat33_t( rot ), pos );
+}
 
 VEC_FORCE_INLINE mat44_t transpose( const mat44_t& m )
 {

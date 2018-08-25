@@ -59,3 +59,7 @@ VEC_FORCE_INLINE vec4_t abs_per_elem( const vec4_t& v )
 {
     return vec4_t( ::fabsf( v.x ), ::fabsf( v.y ), ::fabsf( v.z ), ::fabsf( v.w ) );
 }
+VEC_FORCE_INLINE vec4_t recip_per_elem( const vec4_t& v )
+{
+    return vec4_t( 1.f / v.x, 1.f / v.y, 1.f / v.z, 1.f / v.w );
+}

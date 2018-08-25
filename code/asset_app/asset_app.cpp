@@ -2,7 +2,6 @@
 
 #include <memory\memory.h>
 #include <rtti\rtti.h>
-#include <rtti\serializer.h>
 #include <plugin\plugin_registry.h>
 #include <plugin\plugin_load.h>
 

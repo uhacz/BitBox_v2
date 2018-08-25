@@ -8,7 +8,9 @@
 #define VEC_FORCE_INLINE VEC_FORCE_INLINE __attribute__( (always_inline) )
 #endif
 
-
+#ifdef _MSC_VER
+#pragma warning( disable: 4201 )
+#endif
 
 struct vec2_t
 {
@@ -119,6 +121,8 @@ struct VEC_ALIGNMENT(16) quat_t
 	         constexpr quat_t( const quat_t& q                        ) : x( q.x ), y( q.y ), z( q.z ), w( q.w ) {}
 	explicit VEC_FORCE_INLINE quat_t( const mat33_t& m                       );
 
+    VEC_FORCE_INLINE vec4_t to_vec4() const { return vec4_t( x, y, z, w ); }
+
 	static VEC_FORCE_INLINE quat_t identity() { return quat_t( 0.f, 0.f, 0.f, 1.f ); }
 	static VEC_FORCE_INLINE quat_t rotationx( float radians );
 	static VEC_FORCE_INLINE quat_t rotationy( float radians );
@@ -219,7 +223,9 @@ struct VEC_ALIGNMENT(16) mat44_t
     constexpr mat44_t( const mat44_t& m ) : c0( m.c0 ), c1( m.c1 ), c2( m.c2 ), c3( m.c3 ) {}
     constexpr mat44_t( const vec4_t& v0, const vec4_t& v1, const vec4_t& v2, const vec4_t& v3 ) : c0( v0 ), c1( v1 ), c2( v2 ), c3( v3 ) {}
     constexpr mat44_t( const mat33_t& rot, const vec3_t& pos ) : c0( vec4_t( rot.c0, 0.f ) ), c1( vec4_t( rot.c1, 0.f ) ), c2( vec4_t( rot.c2, 0.f ) ), c3( pos, 1.f ) {}
-	VEC_FORCE_INLINE mat44_t( const quat_t& rot, const vec3_t& pos );
+    constexpr mat44_t( const mat33_t& rot, const vec4_t& pos ) : c0( vec4_t( rot.c0, 0.f ) ), c1( vec4_t( rot.c1, 0.f ) ), c2( vec4_t( rot.c2, 0.f ) ), c3( pos ) {}
+    VEC_FORCE_INLINE mat44_t( const quat_t& rot, const vec3_t& pos );
+    VEC_FORCE_INLINE mat44_t( const quat_t& rot, const vec4_t& pos );
 
     explicit VEC_FORCE_INLINE mat44_t( const vec4_t& v ) : c0( v ), c1( v ), c2( v ), c3( v ) {}
 	explicit VEC_FORCE_INLINE mat44_t( const quat_t& q );

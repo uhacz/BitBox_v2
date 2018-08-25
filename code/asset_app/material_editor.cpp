@@ -3,9 +3,10 @@
 #include <util/file_system_name.h>
 #include <gfx/gfx_type.h>
 #include <foundation/common.h>
-#include "foundation/data_buffer.h"
+#include "foundation/serializer.h"
 #include <foundation/static_array.h>
-#include "rtti/serializer.h"
+
+#include <common/common.h>
 
 static constexpr char MATERIAL_FILE_EXT[] = ".material";
 
@@ -70,80 +71,14 @@ void MATEditor::ShutDown( GFX* gfx, RSM* rsm )
     string::free( &_file_list );
     gfx->RemoveMeshFromScene( _mesh_id );
     gfx->DestroyMaterial( _mat_id );
-    //for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
-    //{
-    //    rsm->Release( _mat_tex.id[i] );
-    //}
 }
 
-static void RefreshFiles( string_buffer_t* flist, const char* folder, BXIFilesystem* fs, BXIAllocator* allocator )
-{
-    const uint32_t initial_capacity = max_of_2( 32u, flist->_capacity );
-    string::create( flist, initial_capacity, allocator );
-    fs->ListFiles( fs, flist, folder, BXEFileListFlag::RECURSE, allocator );
-}
-
-
-static string_buffer_it MenuFileSelector( const string_buffer_t& file_list )
-{
-    static_array_t<uint8_t, 255> menu_enter_stack;
-    
-    string_buffer_it file_it = string::iterate( file_list, string_buffer_it() );
-    while( !file_it.null() )
-    {
-        const uint8_t last_menu_entered = (array::empty(menu_enter_stack)) ? 1 : array::back( menu_enter_stack );
-
-        const char* type = file_it.pointer;
-        if( string::equal( type, "D+" ) )
-        {
-            file_it = string::iterate( file_list, file_it );
-
-            const uint8_t entered = ImGui::BeginMenu( file_it.pointer );
-            array::push_back( menu_enter_stack, entered );
-        }
-        else if( string::equal( type, "D-" ) )
-        {
-            array::pop_back( menu_enter_stack );
-            if( last_menu_entered )
-            {
-                ImGui::EndMenu();
-            }
-        }
-        else if( string::equal( type, "F" ) && last_menu_entered )
-        {
-            file_it = string::iterate( file_list, file_it );
-
-            bool selected = false;
-            if( ImGui::MenuItem( file_it.pointer, nullptr, &selected ) )
-            {
-                if( selected )
-                {
-                    break;
-                }
-            }
-        }
-        file_it = string::iterate( file_list, file_it );
-    }
-
-    while( !array::empty( menu_enter_stack ) )
-    {
-        const uint8_t entered = array::back( menu_enter_stack );
-        array::pop_back( menu_enter_stack );
-
-        if( entered )
-        {
-            ImGui::EndMenu();
-        }
-    }
-
-    return file_it;
-}
 static bool ShowTextureMenu( string_t* value,  const char* label, const string_buffer_t& file_list, BXIAllocator* allocator )
 {
     const bool opened = ImGui::BeginMenu( label );
     if( opened )
     {
-        string_buffer_it selected_it = MenuFileSelector( file_list );
+        string_buffer_it selected_it = common::MenuFileSelector( file_list );
         if( !selected_it.null() )
         {
             string::create( value, selected_it.pointer, allocator );
@@ -176,7 +111,7 @@ void MATEditor::Tick( GFX* gfx, RSM* rsm, BXIFilesystem* fs )
                     _flags.refresh_files = 1;
                 }
                 
-                string_buffer_it selected_it = MenuFileSelector( _file_list );
+                string_buffer_it selected_it = common::MenuFileSelector( _file_list );
                 if( !selected_it.null() )
                 {
                     _Load( selected_it.pointer, fs );
@@ -284,12 +219,12 @@ void MATEditor::Tick( GFX* gfx, RSM* rsm, BXIFilesystem* fs )
     if( _flags.refresh_files )
     {
         _flags.refresh_files = 0;
-        RefreshFiles( &_file_list, _folder.c_str(), fs, _allocator );
+        common::RefreshFiles( &_file_list, _folder.c_str(), fs, _allocator );
     }
     if( _flags.refresh_files_texture )
     {
         _flags.refresh_files_texture = 0;
-        RefreshFiles( &_texture_file_list, _texture_folder.c_str(), fs, _allocator );
+        common::RefreshFiles( &_texture_file_list, _texture_folder.c_str(), fs, _allocator );
     }
 }
 

@@ -68,11 +68,9 @@
   <ItemGroup>
     <ClInclude Include="dll_interface.h" />
     <ClInclude Include="rtti.h" />
-    <ClInclude Include="serializer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="rtti.cpp" />
-    <ClCompile Include="serializer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\3rd_party\pugixml\pugixml.vcxproj">
