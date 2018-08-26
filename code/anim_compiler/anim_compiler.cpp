@@ -235,15 +235,29 @@ namespace tool{ namespace anim {
     }
     uint32_t SkelTag()
     {
-        return tag32_t( "SK01" );
+        return ANIM_SKEL_TAG;
     }
     uint32_t ClipTag()
     {
-        return tag32_t( "AN01" );
+        return ANIM_CLIP_TAG;
     }
-    ////
-    ////
-    bool ExportSkeleton( const char* out_filename, const Skeleton& in_skeleton, BXIAllocator* allocator )
+
+    bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size )
+    {
+        const aiScene* scene = aiImportFileFromMemory( (const char*)data, data_size, 0, nullptr );
+        if( scene )
+        {
+            _ExtractSkeleton( skeleton, scene );
+            _ExtractAnimation( animation, *skeleton, scene, 0 );
+        
+            aiReleaseImport( scene );
+            return true;
+        }
+
+        return false;
+    }
+
+    blob_t CreateSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator )
     {
         static_assert(sizeof( Joint ) == sizeof( ANIMJoint ), "joint size mismatch");
 
@@ -258,9 +272,9 @@ namespace tool{ namespace anim {
         memory_size += base_pose_size;
         memory_size += joint_name_hashes_size;
 
-        uint8_t* memory = (uint8_t*)AllocateMemory( allocator, memory_size, 16 );
+        blob_t blob = blob_t::allocate( allocator, memory_size, 16 );
 
-        ANIMSkel* out_skeleton = (ANIMSkel*)memory;
+        ANIMSkel* out_skeleton = (ANIMSkel*)blob.raw;
         memset( out_skeleton, 0, sizeof( ANIMSkel ) );
 
         uint8_t* base_pose_address = (uint8_t*)(out_skeleton + 1);
@@ -281,17 +295,19 @@ namespace tool{ namespace anim {
 
         memcpy( base_pose_address, world_bind_pose.data(), base_pose_size );
         memcpy( parent_indices_address, &in_skeleton.parentIndices[0], parent_indices_size );
-        memcpy( joint_name_hashes_address, &in_skeleton.jointNames[0], joint_name_hashes_size );
 
-        int write_result = WriteFile( out_filename, memory, memory_size );
+        uint32_t* joint_name_hashes = (uint32_t*)joint_name_hashes_address;
+        for( size_t i = 0; i < in_skeleton.jointNames.size(); ++i )
+        {
+            joint_name_hashes[0] = GenerateJointNameHash( in_skeleton.jointNames[i].c_str() );
+            ++joint_name_hashes;
+        }
+        SYS_ASSERT( (uintptr_t)(joint_name_hashes) == (uintptr_t)(joint_name_hashes_address + joint_name_hashes_size) );
 
-        FreeMemory0( allocator, memory );
-
-        return (write_result == -1) ? false : true;
+        return blob;
     }
-    ////
-    ////
-    bool ExportAnimation( const char* out_filename, const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator )
+
+    blob_t CreateClip( const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator )
     {
         const uint32_t num_joints = (uint32_t)in_skeleton.jointNames.size();
         const uint32_t num_frames = in_animation.numFrames;
@@ -303,9 +319,9 @@ namespace tool{ namespace anim {
         memory_size += channel_data_size; // translation
         memory_size += channel_data_size; // scale
 
-        uint8_t* memory = (uint8_t*)AllocateMemory( allocator, memory_size, 16 );
+        blob_t blob = blob_t::allocate( allocator, memory_size, 16 );
 
-        ANIMClip* clip = (ANIMClip*)memory;
+        ANIMClip* clip = (ANIMClip*)blob.raw;
         memset( clip, 0, sizeof( ANIMClip ) );
 
         uint8_t* rotation_address = (uint8_t*)(clip + 1);
@@ -347,11 +363,29 @@ namespace tool{ namespace anim {
         memcpy( translation_address, &translation_vector[0], channel_data_size );
         memcpy( scale_address, &scale_vector[0], channel_data_size );
 
-        WriteFile( out_filename, memory, memory_size );
+        return blob;
+    }
 
-        FreeMemory0( allocator, memory );
+    ////
+    ////
+    bool ExportSkeletonToFile( const char* out_filename, const Skeleton& in_skeleton, BXIAllocator* allocator )
+    {
+        blob_t skel_blob = CreateSkeleton( in_skeleton, allocator );
+        int write_result = WriteFile( out_filename, skel_blob.raw, skel_blob.size );
 
-        return true;
+        skel_blob.destroy();
+        return (write_result == -1) ? false : true;
+    }
+    ////
+    ////
+    bool ExportAnimationToFile( const char* out_filename, const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator )
+    {
+        blob_t clip_blob = CreateClip( in_animation, in_skeleton, allocator );
+
+        int write_result = WriteFile( out_filename, clip_blob.raw, clip_blob.size );
+
+        clip_blob.destroy();
+        return (write_result == -1) ? false : true;
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -371,7 +405,7 @@ namespace tool{ namespace anim {
         aiDetachAllLogStreams();
     }
 
-    bool ExportSkeleton( const char* out_filename, const char* in_filename, BXIAllocator* allocator )
+    bool ExportSkeletonToFile( const char* out_filename, const char* in_filename, BXIAllocator* allocator )
     {
         const unsigned import_flags = 0;
         initAssImp();
@@ -385,13 +419,13 @@ namespace tool{ namespace anim {
         Skeleton skel;
         _ExtractSkeleton( &skel, aiscene );
 
-        const bool bres = ExportSkeleton( out_filename, skel, allocator );
+        const bool bres = ExportSkeletonToFile( out_filename, skel, allocator );
         deinitAssImp( aiscene );
 
         return bres;
     }
 
-    bool ExportAnimation( const char* out_filename, const char* in_filename, unsigned flags, BXIAllocator* allocator )
+    bool ExportAnimationToFile( const char* out_filename, const char* in_filename, unsigned flags, BXIAllocator* allocator )
     {
         const unsigned import_flags = 0;
         initAssImp();
@@ -413,7 +447,7 @@ namespace tool{ namespace anim {
         _ExtractSkeleton( &skel, aiscene );
         _ExtractAnimation( &anim, skel, aiscene, flags );
 
-        const bool bres = ExportAnimation( out_filename, anim, skel, allocator );
+        const bool bres = ExportAnimationToFile( out_filename, anim, skel, allocator );
         deinitAssImp( aiscene );
         return bres;
     }

@@ -23,11 +23,17 @@ inline int GetJointByHash( const ANIMSkel* skeleton, uint32_t joint_hash )
 	}
 	return -1;
 }
+
+inline uint32_t GenerateJointNameHash( const char* joint_name )
+{
+    const uint32_t hash_seed = ANIM_SKEL_TAG;
+    return murmur3_hash32( joint_name, string::length( joint_name ), hash_seed );
+}
+
 inline int GetJointByName( const ANIMSkel* skeleton, const char* joint_name )
 {
 	SYS_ASSERT( joint_name != 0 );
-    const uint32_t hash_seed = ANIM_SKEL_TAG;
-	const uint32_t joint_hash = murmur3_hash32( joint_name, string::length( joint_name ), hash_seed  );
+    const uint32_t joint_hash = GenerateJointNameHash( joint_name );
 	return GetJointByHash( skeleton, joint_hash );
 }
 

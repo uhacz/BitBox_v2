@@ -23,6 +23,7 @@
 #include "util\signal_filter.h"
 
 #include <3rd_party/assimp/Importer.hpp>
+#include "anim_tool.h"
 
 static GFXSceneID g_idscene = { 0 };
 static GFXCameraID g_idcamera = { 0 };
@@ -30,8 +31,7 @@ static GFXCameraID g_idcamera = { 0 };
 static GFXCameraInputContext g_camera_input_ctx = {};
 static CMNGroundMesh g_ground_mesh = {};
 
-static aiScene* g_importedScene = nullptr;
-
+static AnimTool g_tool = {};
 
 bool AnimApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
@@ -63,12 +63,15 @@ bool AnimApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, B
     camera_params.zfar = 1024;
     g_idcamera = _gfx->CreateCamera( "main", camera_params, mat44_t( mat33_t::identity(), vec3_t( 0.f, 16.f, 64.f ) ) );
 
+    g_tool.StartUp( ".src/anim/", "anim/", allocator );
 
     return true;
 }
 
 void AnimApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
+    g_tool.ShutDown();
+
     _gfx->DestroyCamera( g_idcamera );
     _gfx->DestroyScene( g_idscene );
     DestroyGroundMesh( &g_ground_mesh, _gfx );
@@ -119,7 +122,8 @@ bool AnimApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocato
     }
 
     {
-
+        g_tool.Tick( _filesystem );
+        g_tool.DrawMenu();
     }
 
 

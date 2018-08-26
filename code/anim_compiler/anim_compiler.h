@@ -1,6 +1,7 @@
 #pragma once
 
 #include <foundation/type_compound.h>
+#include <foundation/blob.h>
 #include <string>
 #include <vector>
 
@@ -49,16 +50,20 @@ namespace tool { namespace anim {
 
             std::vector< JointAnimation > joints;
         };
-
+        
         uint32_t SkelTag();
         uint32_t ClipTag();
 
-        ANIMSkel* CreateSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator );
-        ANIMClip* CreateClip( const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator );
+        bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size );
+        
+        // produces data with ANIMSkel header
+        blob_t CreateSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator );
+        // produces data with ANIMClip header
+        blob_t CreateClip( const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator );
 
-        bool ExportSkeleton( const char* out_filename, const Skeleton& in_skeleton, BXIAllocator* allocator );
-        bool ExportAnimation( const char* out_filename, const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator );
+        bool ExportSkeletonToFile( const char* out_filename, const Skeleton& in_skeleton, BXIAllocator* allocator );
+        bool ExportAnimationToFile( const char* out_filename, const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator );
 
-        bool ExportSkeleton( const char* out_filename, const char* in_filename, BXIAllocator* allocator );
-        bool ExportAnimation( const char* out_filename, const char* in_filename, unsigned flags, BXIAllocator* allocator );
+        bool ExportSkeletonToFile( const char* out_filename, const char* in_filename, BXIAllocator* allocator );
+        bool ExportAnimationToFile( const char* out_filename, const char* in_filename, unsigned flags, BXIAllocator* allocator );
 }}//
