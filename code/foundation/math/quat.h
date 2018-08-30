@@ -170,3 +170,32 @@ VEC_FORCE_INLINE const vec3_t rotate_inv( const quat_t& q, const vec3_t& v )
                    ( vy * w2 - ( q.z * vx - q.x * vz ) * q.w + q.y * dot2 ),
                    ( vz * w2 - ( q.x * vy - q.y * vx ) * q.w + q.z * dot2 ) );
 }
+
+inline quat_t slerp( float t, const quat_t& left, const quat_t& right )
+{
+    const float eps = 1.0e-8f;
+
+    float cosine = dot( left, right );
+    float sign = 1.f;
+    if( cosine < 0 )
+    {
+        cosine = -cosine;
+        sign = -1.f;
+    }
+
+    float sine = 1.f - cosine * cosine;
+
+    if( sine >= eps * eps )
+    {
+        sine = ::sqrtf( sine );
+        const float angle = ::atan2f( sine, cosine );
+        const float i_sin_angle = 1.f / sine;
+
+        const float leftw = ::sinf( angle * (1.f - t) ) * i_sin_angle;
+        const float rightw = ::sinf( angle * t ) * i_sin_angle * sign;
+
+        return left * leftw + right * rightw;
+    }
+
+    return left;
+}

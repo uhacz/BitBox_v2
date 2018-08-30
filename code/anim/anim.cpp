@@ -2,7 +2,7 @@
 #include <foundation/debug.h>
 #include <memory/memory.h>
 
-ANIMContext* contextInit( const ANIMSkel& skel, BXIAllocator* allocator )
+ANIMContext* ContextInit( const ANIMSkel& skel, BXIAllocator* allocator )
 {
 	const uint32_t poseMemorySize = skel.numJoints * sizeof( ANIMJoint );
 	
@@ -49,7 +49,7 @@ ANIMContext* contextInit( const ANIMSkel& skel, BXIAllocator* allocator )
 	return ctx;
 }
 
-void contextDeinit( ANIMContext** ctx )
+void ContextDeinit( ANIMContext** ctx )
 {
     if( ctx[0] == nullptr )
         return;
@@ -134,6 +134,14 @@ namespace anim_ext {
     //    //_UnloadResource( resourceManager, uptr( clip[0] ) );
     //    //clip[0] = 0;
     //}
+
+    ANIMJoint* AllocateJoints( const ANIMSkel* skel, BXIAllocator* allocator )
+    {
+        const uint32_t memory_size = skel->numJoints * sizeof( ANIMJoint );
+        return (ANIMJoint*)BX_MALLOC( allocator, memory_size, 16 );
+    }
+
+
 
     void LocalJointsToWorldJoints( ANIMJoint* outJoints, const ANIMJoint* inJoints, const ANIMSkel* skel, const ANIMJoint& rootJoint )
     {

@@ -77,27 +77,27 @@ struct ANIMSimplePlayer
     float _blend_duration = 0.f;
     uint32_t _num_clips = 0;
 
-    void prepare( const ANIMSkel* skel, BXIAllocator* allcator = nullptr );
-    void unprepare();
+    void Prepare( const ANIMSkel* skel, BXIAllocator* allcator = nullptr );
+    void Unprepare();
 
-    void play( const ANIMClip* clip, float startTime, float blendTime, uint64_t userData );
-    void tick( float deltaTime );
+    void Play( const ANIMClip* clip, float startTime, float blendTime, uint64_t userData );
+    void Tick( float deltaTime );
+
+    bool Empty() const { return _num_clips == 0; }
+    const ANIMJoint* LocalJoints() const;
+    ANIMJoint*       LocalJoints();
+
+    const ANIMJoint* PrevLocalJoints() const;
+    ANIMJoint*       PrevLocalJoints();
+
+    bool UserData( uint64_t* dst, uint32_t depth );
+    bool EvalTime( float* dst, uint32_t depth );
+    bool Duration( float* dst, uint32_t depth );
+    bool BlendAlpha( float* dst );
+
 private:
     static void _ClipUpdateTime( Clip* clip, float deltaTime );
     static float _ClipPhase( const Clip& clip );
     void _Tick_processBlendTree();
     void _Tick_updateTime( float deltaTime );
-    
-
-public:
-    bool empty() const { return _num_clips == 0; }
-    const ANIMJoint* localJoints() const;
-    ANIMJoint*       localJoints();
-
-    const ANIMJoint* prevLocalJoints() const;
-    ANIMJoint*       prevLocalJoints();
-
-    bool userData( uint64_t* dst, uint32_t depth );
-    bool evalTime( float* dst, uint32_t depth );
-    bool blendAlpha( float* dst );
 };

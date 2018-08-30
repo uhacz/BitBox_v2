@@ -13,7 +13,7 @@ struct RDIXDebugParams
     RDIXDebugParams( uint32_t c = 0xFFFFFFFF ) : color( c ) { use_depth = 1; is_solid = 0; }
     RDIXDebugParams& NoDepth()  { use_depth = 0; return *this; }
     RDIXDebugParams& Solid() { is_solid = 1; return *this; }
-    RDIXDebugParams& Scale( float v ) { scale = v; }
+    RDIXDebugParams& Scale( float v ) { scale = v; return *this; }
 };
 
 struct BXIAllocator;

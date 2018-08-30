@@ -122,6 +122,7 @@ struct VEC_ALIGNMENT(16) quat_t
 	explicit VEC_FORCE_INLINE quat_t( const mat33_t& m                       );
 
     VEC_FORCE_INLINE vec4_t to_vec4() const { return vec4_t( x, y, z, w ); }
+    VEC_FORCE_INLINE vec3_t xyz() const { return vec3_t( x, y, z ); }
 
 	static VEC_FORCE_INLINE quat_t identity() { return quat_t( 0.f, 0.f, 0.f, 1.f ); }
 	static VEC_FORCE_INLINE quat_t rotationx( float radians );
@@ -131,8 +132,11 @@ struct VEC_ALIGNMENT(16) quat_t
 
     VEC_FORCE_INLINE quat_t operator*( const quat_t& q ) const
     {
-        return quat_t( w * q.x + q.w * x + y * q.z - q.y * z, w * q.y + q.w * y + z * q.x - q.z * x,
-                       w * q.z + q.w * z + x * q.y - q.x * y, w * q.w - x * q.x - y * q.y - z * q.z );
+        return quat_t( 
+            w * q.x + q.w * x + y * q.z - q.y * z, 
+            w * q.y + q.w * y + z * q.x - q.z * x,
+            w * q.z + q.w * z + x * q.y - q.x * y,
+            w * q.w - q.x * x - y * q.y - q.z * z );
     }
     VEC_FORCE_INLINE quat_t operator-() const { return quat_t( -x, -y, -z, -w ); }
     VEC_FORCE_INLINE quat_t operator+( const quat_t& q ) const { return quat_t( x + q.x, y + q.y, z + q.z, w + q.w ); }

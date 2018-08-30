@@ -133,7 +133,7 @@ static void BackgroundThread( RSM::RSMImpl* rsm )
 
                 should_delete_file_data = !load_ok || (data->pointer != file.pointer);
             }
-            rsm->filesystem->CloseFile( pending.hfile, should_delete_file_data );
+            rsm->filesystem->CloseFile( &pending.hfile, should_delete_file_data );
         }
 
         while( PopFrontQueue( &pending, rsm->to_unload, rsm->to_unload_lock ) )

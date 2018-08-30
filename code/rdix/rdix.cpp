@@ -21,7 +21,7 @@ RDIXShaderFile* LoadShaderFile( const char* name, BXIFilesystem* filesystem, BXI
 	
 	RDIXShaderFile* sfile = CreateShaderFile( load_result.file.pointer, load_result.file.size );
 
-	filesystem->CloseFile( load_result.handle, false );
+	filesystem->CloseFile( &load_result.handle, false );
 
 	return sfile;
 }

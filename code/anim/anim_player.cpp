@@ -281,7 +281,7 @@ uint32_t ANIMCascadePlayer::_AllocateNode()
 
 //////////////////////////////////////////////////////////////////////////
 
-void ANIMSimplePlayer::prepare( const ANIMSkel* skel, BXIAllocator* allocator /*= nullptr */ )
+void ANIMSimplePlayer::Prepare( const ANIMSkel* skel, BXIAllocator* allocator /*= nullptr */ )
 {
     _allocator = allocator;
     _ctx = ContextInit( *skel, allocator );
@@ -294,13 +294,13 @@ void ANIMSimplePlayer::prepare( const ANIMSkel* skel, BXIAllocator* allocator /*
 }
 
 
-void ANIMSimplePlayer::unprepare()
+void ANIMSimplePlayer::Unprepare()
 {
     BX_FREE0( _allocator, _prev_joints );
     ContextDeinit( &_ctx );
 }
 
-void ANIMSimplePlayer::play( const ANIMClip* clip, float startTime, float blendTime, uint64_t userData )
+void ANIMSimplePlayer::Play( const ANIMClip* clip, float startTime, float blendTime, uint64_t userData )
 {
     if( _num_clips == 2 )
         return;
@@ -327,9 +327,9 @@ void ANIMSimplePlayer::play( const ANIMClip* clip, float startTime, float blendT
 
 }
 
-void ANIMSimplePlayer::tick( float deltaTime )
+void ANIMSimplePlayer::Tick( float deltaTime )
 {
-    memcpy( _prev_joints, localJoints(), _ctx->numJoints * sizeof( ANIMJoint ) );
+    memcpy( _prev_joints, LocalJoints(), _ctx->numJoints * sizeof( ANIMJoint ) );
     _Tick_processBlendTree();
     _Tick_updateTime( deltaTime );
 }
@@ -420,7 +420,7 @@ void ANIMSimplePlayer::_Tick_updateTime( float deltaTime )
     }
 }
 
-bool ANIMSimplePlayer::userData( uint64_t* dst, uint32_t depth )
+bool ANIMSimplePlayer::UserData( uint64_t* dst, uint32_t depth )
 {
     if( _num_clips == 0 )
         return false;
@@ -432,7 +432,7 @@ bool ANIMSimplePlayer::userData( uint64_t* dst, uint32_t depth )
     return true;
 }
 
-bool ANIMSimplePlayer::evalTime( float* dst, uint32_t depth )
+bool ANIMSimplePlayer::EvalTime( float* dst, uint32_t depth )
 {
     if( _num_clips == 0 )
         return false;
@@ -444,7 +444,19 @@ bool ANIMSimplePlayer::evalTime( float* dst, uint32_t depth )
     return true;
 }
 
-bool ANIMSimplePlayer::blendAlpha( float* dst )
+bool ANIMSimplePlayer::Duration( float* dst, uint32_t depth )
+{
+    if( _num_clips == 0 )
+        return false;
+
+    if( depth >= _num_clips )
+        return false;
+
+    dst[0] = _clips[depth].clip->duration;
+    return true;
+}
+
+bool ANIMSimplePlayer::BlendAlpha( float* dst )
 {
     if( _num_clips != 2 )
         return false;
@@ -453,22 +465,22 @@ bool ANIMSimplePlayer::blendAlpha( float* dst )
     return true;
 }
 
-const ANIMJoint* ANIMSimplePlayer::localJoints() const
+const ANIMJoint* ANIMSimplePlayer::LocalJoints() const
 {
     return PoseFromStack( _ctx, 0 );
 }
 
-ANIMJoint* ANIMSimplePlayer::localJoints()
+ANIMJoint* ANIMSimplePlayer::LocalJoints()
 {
     return PoseFromStack( _ctx, 0 );
 }
 
-const ANIMJoint* ANIMSimplePlayer::prevLocalJoints() const
+const ANIMJoint* ANIMSimplePlayer::PrevLocalJoints() const
 {
     return _prev_joints;
 }
 
-ANIMJoint* ANIMSimplePlayer::prevLocalJoints()
+ANIMJoint* ANIMSimplePlayer::PrevLocalJoints()
 {
     return _prev_joints;
 }

@@ -147,7 +147,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
                 _gfx->EnableSky( g_idscene, true );
             }
         }
-        _filesystem->CloseFile( filewait.handle );
+        _filesystem->CloseFile( &filewait.handle );
 
     }
     g_idcamera = _gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) ) );

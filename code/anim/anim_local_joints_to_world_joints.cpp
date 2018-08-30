@@ -13,24 +13,24 @@ void LocalJointsToWorldJoints( ANIMJoint* outJoints, const ANIMJoint* inJoints, 
 		const uint16_t parentIdx = parentIndices[i];
 
 		ANIMJoint world;
-		const ANIMJoint& local = inJoints[i];
-		const ANIMJoint& worldParent = ( parentIdx != 0xFFFF ) ? outJoints[parentIdx] : rootJoint;
+		const ANIMJoint local = inJoints[i];
+		const ANIMJoint worldParent = ( parentIdx != 0xFFFF ) ? outJoints[parentIdx] : rootJoint;
 
-		world.rotation = worldParent.rotation * local.rotation;
-		world.rotation = normalize( world.rotation );
+		world.rotation = normalize( worldParent.rotation * local.rotation );
+        world.scale = mul_per_elem( local.scale, worldParent.scale );
 
-		world.scale = mul_per_elem( local.scale, worldParent.scale );
+        const vec3_t ts = mul_per_elem( local.position, worldParent.scale ).xyz();
+        world.position = worldParent.position + vec4_t( rotate( worldParent.rotation, ts ), 0.f );
+        
+  //      const vec4_t q = worldParent.rotation.to_vec4();
 
-		const vec3_t ts = mul_per_elem( local.position, worldParent.scale ).xyz();
-		const vec4_t q = worldParent.rotation.to_vec4();
+		//const float w = q.w;
 
-		const float w = q.w;
+  //      const vec3_t qxyz = q.xyz();
+		//const vec3_t c = cross( qxyz, ts ) + ts * w;
+		//const vec3_t qts = ts + cross( qxyz, c ) * 2.f;
 
-        const vec3_t qxyz = q.xyz();
-		const vec3_t c = cross( qxyz, ts ) + ts * w;
-		const vec3_t qts = ts + cross( qxyz, c ) * 2.f;
-
-		world.position = worldParent.position + vec4_t( qts, 0.f );
+		//world.position = worldParent.position + vec4_t( qts, 0.f );
 
 		outJoints[i] = world;
 

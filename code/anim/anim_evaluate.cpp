@@ -68,9 +68,9 @@ void EvaluateClip( ANIMJoint* out_joints, const ANIMClip* anim, uint32_t frameIn
 	{
 		const quat_t& q0 = frame.rotations0[i];
 		const quat_t& q1 = frame.rotations1[i];
-        const quat_t q = lerp( alpha, q0, q1 );
+        const quat_t q = slerp( alpha, q0, q1 );
 
-		out_joints[i].rotation = normalize( q );
+		out_joints[i].rotation = q;
 
 	} while ( ++i < endJoint );
 
@@ -118,9 +118,9 @@ void EvaluateClipIndexed( ANIMJoint* out_joints, const ANIMClip* anim, uint32_t 
         
         const quat_t& q0 = frame.rotations0[i];
         const quat_t& q1 = frame.rotations1[i];
-        const quat_t q = lerp( alpha, q0, q1 );
+        const quat_t q = slerp( alpha, q0, q1 );
 
-        out_joints[ii].rotation = normalize( q );
+        out_joints[ii].rotation = q;
     }
 
     for( uint32_t ii = 0; ii < numIndices; ++ii )

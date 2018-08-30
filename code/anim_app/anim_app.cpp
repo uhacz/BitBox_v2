@@ -31,7 +31,7 @@ static GFXCameraID g_idcamera = { 0 };
 static GFXCameraInputContext g_camera_input_ctx = {};
 static CMNGroundMesh g_ground_mesh = {};
 
-static AnimTool g_tool = {};
+static AnimTool* g_tool = nullptr;
 
 bool AnimApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
@@ -43,7 +43,7 @@ bool AnimApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, B
     g_idscene = _gfx->CreateScene( desc );
 
     {
-        CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, _rsm, vec3_t( 100.f, 0.5f, 100.f ), mat44_t::translation( vec3_t( 0.f, -32.f, 0.f ) ) );
+        CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, _rsm, vec3_t( 100.f, 0.5f, 100.f ), mat44_t::translation( vec3_t( 0.f, -0.25f, 0.f ) ) );
     }
 
     {// sky
@@ -55,22 +55,24 @@ bool AnimApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, B
                 _gfx->EnableSky( g_idscene, true );
             }
         }
-        _filesystem->CloseFile( filewait.handle );
+        _filesystem->CloseFile( &filewait.handle );
 
     }
 
     GFXCameraParams camera_params = {};
     camera_params.zfar = 1024;
-    g_idcamera = _gfx->CreateCamera( "main", camera_params, mat44_t( mat33_t::identity(), vec3_t( 0.f, 16.f, 64.f ) ) );
+    g_idcamera = _gfx->CreateCamera( "main", camera_params, mat44_t( mat33_t::identity(), vec3_t( 0.f, 1.f, 4.f ) ) );
 
-    g_tool.StartUp( ".src/anim/", "anim/", allocator );
+    g_tool = BX_NEW( allocator, AnimTool );
+    g_tool->StartUp( ".src/anim/", "anim/", allocator );
 
     return true;
 }
 
 void AnimApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    g_tool.ShutDown();
+    g_tool->ShutDown();
+    BX_DELETE0( allocator, g_tool );
 
     _gfx->DestroyCamera( g_idcamera );
     _gfx->DestroyScene( g_idscene );
@@ -122,8 +124,8 @@ bool AnimApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocato
     }
 
     {
-        g_tool.Tick( _filesystem );
-        g_tool.DrawMenu();
+        g_tool->Tick( _filesystem, delta_time_sec );
+        g_tool->DrawMenu();
     }
 
 

@@ -82,12 +82,12 @@ BXFileHandle FilesystemWindows::LoadFile( const char* relativePath, BXEFIleMode:
 	return fhandle;
 }
 
-void FilesystemWindows::CloseFile( BXFileHandle fhandle, bool freeData )
+void FilesystemWindows::CloseFile( BXFileHandle* fhandle, bool freeData )
 {
-	if( !IsValid( fhandle ) )
+	if( !IsValid( *fhandle ) )
 		return;
 
-	const id_t id = { fhandle.i };
+	const id_t id = { fhandle->i };
 	_files_status[id.index].store( BXEFileStatus::EMPTY );
 
 	BXFile file = _files[id.index];
@@ -105,6 +105,7 @@ void FilesystemWindows::CloseFile( BXFileHandle fhandle, bool freeData )
 	}
 
     _files[id.index] = {};
+    fhandle[0] = {};
 }
 
 BXEFileStatus::E FilesystemWindows::File( BXFile* file, BXFileHandle fhandle )
@@ -181,7 +182,7 @@ void FilesystemWindows::ThreadProc()
 			else
 			{
 				SYS_LOG_ERROR( "Filesystem: path '%s' is to long", info._name.AbsolutePath() );
-				CloseFile( fhandle, false );
+				CloseFile( &fhandle, false );
 			}
 		}
 

@@ -24,12 +24,15 @@ void LocalJointsToWorldJoints( ANIMJoint* out_joints, const ANIMJoint* in_joints
 struct RSM;
 namespace anim_ext {
 
+
    ANIMSkel* LoadSkelFromFile( RSM* resourceManager, const char* relativePath );
    ANIMClip* LoadAnimFromFile( RSM* resourceManager, const char* relativePath );
 
    void UnloadSkelFromFile( RSM* resourceManager, ANIMSkel** skel );
    void UnloadAnimFromFile( RSM* resourceManager, ANIMClip** clip );
 
+   ANIMJoint* AllocateJoints( const ANIMSkel* skel, BXIAllocator* allocator );
+   
    void LocalJointsToWorldJoints( ANIMJoint* outJoints, const ANIMJoint* inJoints, const ANIMSkel* skel, const ANIMJoint& rootJoint );
    void LocalJointsToWorldMatrices( mat44_t* outMatrices, const ANIMJoint* inJoints, const ANIMSkel* skel, const ANIMJoint& rootJoint );
 

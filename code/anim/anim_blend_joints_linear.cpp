@@ -10,9 +10,9 @@ void BlendJointsLinear( ANIMJoint* outJoints, const ANIMJoint* leftJoints, const
 	{
         const quat_t& q0 = leftJoints[i].rotation;
         const quat_t& q1 = rightJoints[i].rotation;
-        const quat_t q = lerp( blendFactor, q0, q1 );
+        const quat_t q = slerp( blendFactor, q0, q1 );
 
-		outJoints[i].rotation = normalize( q );
+		outJoints[i].rotation = q;
 
 	} while ( ++i < numJoints );
 

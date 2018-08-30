@@ -13,6 +13,10 @@ struct BIT_ALIGNMENT_16 ANIMSkel
 	uint32_t offsetJointNames;
 	uint32_t pad1__[3];
 };
+inline const int16_t*   ParentIndices( const ANIMSkel* skel ) { return TYPE_OFFSET_GET_POINTER( int16_t, skel->offsetParentIndices ); }
+inline const uint32_t*  JointNames   ( const ANIMSkel* skel ) { return TYPE_OFFSET_GET_POINTER( uint32_t, skel->offsetJointNames ); }
+inline const ANIMJoint* BasePose     ( const ANIMSkel* skel ) { return TYPE_OFFSET_GET_POINTER( ANIMJoint, skel->offsetBasePose ); }
+
 
 struct BIT_ALIGNMENT_16 ANIMClip
 {

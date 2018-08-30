@@ -51,15 +51,20 @@ namespace tool { namespace anim {
             std::vector< JointAnimation > joints;
         };
         
+        struct ImportParams
+        {
+            float scale = 1.f;
+        };
+
         uint32_t SkelTag();
         uint32_t ClipTag();
 
-        bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size );
+        bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size, const ImportParams& params = {} );
         
         // produces data with ANIMSkel header
-        blob_t CreateSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator );
+        blob_t ExportSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator );
         // produces data with ANIMClip header
-        blob_t CreateClip( const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator );
+        blob_t ExportClip( const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator );
 
         bool ExportSkeletonToFile( const char* out_filename, const Skeleton& in_skeleton, BXIAllocator* allocator );
         bool ExportAnimationToFile( const char* out_filename, const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator );

@@ -93,14 +93,16 @@ static constexpr uint32_t GPU_MATRIX_BUFFER_CAPACITY = 64;
 template<typename T>
 struct Array
 {
-    T* data = nullptr;
-    uint32_t capacity = 0;
-    std::atomic_uint32_t count = 0;
-
     T* begin() { return data; }
-    T* end() { return data + count; }
+    T* end() { return data + Size(); }
 
     bool Empty() const { return count == 0; }
+    uint32_t Size() const 
+    { 
+        const uint32_t current_count = count.load();
+        return min_of_2( capacity, current_count ); 
+    }
+
 
     void Init( uint32_t initial_cap, BXIAllocator* allocator )
     {
@@ -154,6 +156,10 @@ struct Array
         capacity = 0;
         count = 0;
     }
+private:
+    T* data = nullptr;
+    uint32_t capacity = 0;
+    std::atomic_uint32_t count = 0;
 };
 
 struct Data
@@ -455,13 +461,13 @@ void AddAxes( const mat44_t& pose, const RDIXDebugParams& params )
     const mat33_t r = pose.upper3x3();
 
     params_copy.color = 0xFF0000FF;
-    AddLine( p, p + r.c0, params_copy );
+    AddLine( p, p + r.c0 * params.scale, params_copy );
     
     params_copy.color = 0x00FF00FF;
-    AddLine( p, p + r.c1, params_copy );
+    AddLine( p, p + r.c1 * params.scale, params_copy );
     
     params_copy.color = 0x0000FFFF;
-    AddLine( p, p + r.c2, params_copy );
+    AddLine( p, p + r.c2 * params.scale, params_copy );
 }
 
 void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
@@ -477,7 +483,7 @@ void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
     UpdateCBuffer( cmdq, g_data.cbuffer_idata, &idata );
 
     {
-        const uint32_t nb_objects = g_data.cmd_objects.count;
+        const uint32_t nb_objects = g_data.cmd_objects.Size();
         RangeSplitter splitter = RangeSplitter::SplitByGrab( nb_objects, GPU_MATRIX_BUFFER_CAPACITY );
         while( splitter.ElementsLeft() )
         {
@@ -531,7 +537,7 @@ void Flush( RDICommandQueue* cmdq, const mat44_t& viewproj )
         BindRenderSource( cmdq, g_data.rsource[RSOURCE_LINES] );
         BindPipeline( cmdq, g_data.pipeline[current_pipeline_index], true );
 
-        const uint32_t nb_lines = g_data.cmd_lines.count;
+        const uint32_t nb_lines = g_data.cmd_lines.Size();
         for( uint32_t i = 0; i < nb_lines; ++i )
         {
             const Cmd& cmd = g_data.cmd_lines[i];

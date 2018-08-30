@@ -345,7 +345,7 @@ bool SnakeApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, 
                 _gfx->EnableSky( g_idscene, true );
             }
         }
-        _filesystem->CloseFile( filewait.handle );
+        _filesystem->CloseFile( &filewait.handle );
 
     }
 

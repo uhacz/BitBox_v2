@@ -32,7 +32,7 @@ struct FilesystemWindows : BXIFilesystem
 	void			 SetRoot( const char* absoluteDirPath ) override final;
     const char*      GetRoot() const override;
 	BXFileHandle	 LoadFile( const char* relativePath, BXEFIleMode::E mode, BXPostLoadCallback callback, BXIAllocator* allocator = nullptr ) override final;
-	void			 CloseFile( BXFileHandle fhandle, bool freeData ) override final;
+	void			 CloseFile( BXFileHandle* fhandle, bool freeData ) override final;
 	BXEFileStatus::E File( BXFile* file, BXFileHandle fhandle ) override final;
 
 	// ---

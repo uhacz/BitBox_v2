@@ -274,6 +274,6 @@ void MATEditor::_Load( const char* filename, BXIFilesystem* fs )
         _flags.load_material_textures = 1;
         _flags.refresh_material_textures = 1;
     }
-    fs->CloseFile( wait.handle );
+    fs->CloseFile( &wait.handle );
 
 }

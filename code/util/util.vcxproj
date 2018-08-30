@@ -82,6 +82,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bbox.h" />
+    <ClInclude Include="color.h" />
     <ClInclude Include="file_system_name.h" />
     <ClInclude Include="grid.h" />
     <ClInclude Include="guid.h" />

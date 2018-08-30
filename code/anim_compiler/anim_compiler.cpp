@@ -26,6 +26,16 @@ static inline float4_t toFloat4( const aiQuaternion& q )
     return float4_t( q.x, q.y, q.z, q.w );
 }
 
+inline float4_t Mul4( const float4_t& f4, float f )
+{
+    return float4_t( f4.x * f, f4.y * f, f4.z * f, f4.w * f );
+}
+inline float4_t Mul3( const float4_t& f4, float f )
+{
+    return float4_t( f4.x * f, f4.y * f, f4.z * f, f4.w );
+}
+
+
 namespace tool{ namespace anim {
  
     static void _ReadNode( Skeleton* skel, uint16_t* current_index, uint16_t parent_index, aiNode* node )
@@ -69,14 +79,11 @@ namespace tool{ namespace anim {
         {
             if( string::equal( animation->mChannels[i]->mNodeName.C_Str(), joint_name ) )
                 return i;
-            //const uint32_t node_name_hash = simple_hash( animation->mChannels[i]->mNodeName.C_Str() );
-            //if( node_name_hash == joint_name_hash )
-            //    return i;
         }
 
         return UINT32_MAX;
     }
-    static void _ExtractAnimation( Animation* anim, const Skeleton& skel, const aiScene* scene, unsigned flags )
+    static void _ExtractAnimation( Animation* anim, const Skeleton& skel, const aiScene* scene )
     {
         aiAnimation* animation = scene->mAnimations[0];
 
@@ -85,6 +92,7 @@ namespace tool{ namespace anim {
         /// because animation->mDuration is number of frames
         anim->endTime = (float)(animation->mDuration / animation->mTicksPerSecond);
         anim->sampleFrequency = (float)animation->mTicksPerSecond;
+        const float dt = (float)(1.0 / animation->mTicksPerSecond);
 
         const uint32_t num_joints = (uint32_t)skel.jointNames.size();
         for( uint32_t i = 0; i < num_joints; ++i )
@@ -116,12 +124,14 @@ namespace tool{ namespace anim {
             for( uint32_t j = 0; j < node_anim->mNumRotationKeys; ++j )
             {
                 const aiQuatKey& node_key = node_anim->mRotationKeys[j];
+                aiQuaternion rotation = node_key.mValue;
+                rotation.Normalize();
 
                 janim.rotation.push_back( AnimKeyframe() );
                 AnimKeyframe& key = janim.rotation.back();
 
-                key.data = toFloat4( node_key.mValue );
-                key.time = static_cast<float>(node_key.mTime);
+                key.data = toFloat4( rotation );
+                key.time = static_cast<float>(node_key.mTime * dt);
             }
 
             for( uint32_t j = 0; j < node_anim->mNumPositionKeys; ++j )
@@ -132,7 +142,7 @@ namespace tool{ namespace anim {
                 AnimKeyframe& key = janim.translation.back();
 
                 key.data = toFloat4( node_key.mValue );
-                key.time = static_cast<float>(node_key.mTime);
+                key.time = static_cast<float>(node_key.mTime * dt);
             }
 
             for( uint32_t j = 0; j < node_anim->mNumScalingKeys; ++j )
@@ -143,7 +153,7 @@ namespace tool{ namespace anim {
                 AnimKeyframe& key = janim.scale.back();
 
                 key.data = toFloat4( node_key.mValue );
-                key.time = static_cast<float>(node_key.mTime);
+                key.time = static_cast<float>(node_key.mTime * dt);
             }
         }
 
@@ -156,7 +166,7 @@ namespace tool{ namespace anim {
                 const uint32_t n_rotations = max_key_frames - (uint32_t)janim.rotation.size();
                 const uint32_t n_translations = max_key_frames - (uint32_t)janim.translation.size();
                 const uint32_t n_scale = max_key_frames - (uint32_t)janim.scale.size();
-                const float dt = (float)(1.0 / animation->mTicksPerSecond);
+                
 
                 AnimKeyframe rotation_keyframe;
                 AnimKeyframe translation_keyframe;
@@ -188,9 +198,9 @@ namespace tool{ namespace anim {
                     scale_keyframe.time += dt;
                 }
 
-                SYS_ASSERT( janim.rotation.back().time <= animation->mDuration );
-                SYS_ASSERT( janim.translation.back().time <= animation->mDuration );
-                SYS_ASSERT( janim.scale.back().time <= animation->mDuration );
+                //SYS_ASSERT( janim.rotation.back().time <= animation->mDuration * dt );
+                //SYS_ASSERT( janim.translation.back().time <= animation->mDuration * dt );
+                //SYS_ASSERT( janim.scale.back().time <= animation->mDuration * dt );
 
             }
         }
@@ -242,22 +252,38 @@ namespace tool{ namespace anim {
         return ANIM_CLIP_TAG;
     }
 
-    bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size )
+    bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size, const ImportParams& params )
     {
         const aiScene* scene = aiImportFileFromMemory( (const char*)data, data_size, 0, nullptr );
         if( scene )
         {
             _ExtractSkeleton( skeleton, scene );
-            _ExtractAnimation( animation, *skeleton, scene, 0 );
+            _ExtractAnimation( animation, *skeleton, scene );
         
             aiReleaseImport( scene );
+
+            if( params.scale != 1.0f )
+            {
+                for( Joint& joint : skeleton->basePose )
+                {
+                    joint.translation = Mul3( joint.translation, params.scale );
+                }
+
+                for( JointAnimation& janim : animation->joints )
+                {
+                    for( AnimKeyframe& key : janim.translation )
+                    {
+                        key.data = Mul3( key.data, params.scale );
+                    }
+                }
+            }
             return true;
         }
 
         return false;
     }
 
-    blob_t CreateSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator )
+    blob_t ExportSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator )
     {
         static_assert(sizeof( Joint ) == sizeof( ANIMJoint ), "joint size mismatch");
 
@@ -307,7 +333,7 @@ namespace tool{ namespace anim {
         return blob;
     }
 
-    blob_t CreateClip( const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator )
+    blob_t ExportClip( const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator )
     {
         const uint32_t num_joints = (uint32_t)in_skeleton.jointNames.size();
         const uint32_t num_frames = in_animation.numFrames;
@@ -370,7 +396,7 @@ namespace tool{ namespace anim {
     ////
     bool ExportSkeletonToFile( const char* out_filename, const Skeleton& in_skeleton, BXIAllocator* allocator )
     {
-        blob_t skel_blob = CreateSkeleton( in_skeleton, allocator );
+        blob_t skel_blob = ExportSkeleton( in_skeleton, allocator );
         int write_result = WriteFile( out_filename, skel_blob.raw, skel_blob.size );
 
         skel_blob.destroy();
@@ -380,7 +406,7 @@ namespace tool{ namespace anim {
     ////
     bool ExportAnimationToFile( const char* out_filename, const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator )
     {
-        blob_t clip_blob = CreateClip( in_animation, in_skeleton, allocator );
+        blob_t clip_blob = ExportClip( in_animation, in_skeleton, allocator );
 
         int write_result = WriteFile( out_filename, clip_blob.raw, clip_blob.size );
 
@@ -445,7 +471,7 @@ namespace tool{ namespace anim {
         Animation anim;
 
         _ExtractSkeleton( &skel, aiscene );
-        _ExtractAnimation( &anim, skel, aiscene, flags );
+        _ExtractAnimation( &anim, skel, aiscene );
 
         const bool bres = ExportAnimationToFile( out_filename, anim, skel, allocator );
         deinitAssImp( aiscene );

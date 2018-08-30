@@ -1,6 +1,7 @@
 #include "anim.h"
 #include <foundation/debug.h>
 #include <foundation/math/vec4.h>
+#include <foundation/math/mat44.h>
 
 void LocalJointsToWorldMatrices4x4( mat44_t* out_matrices, const ANIMJoint* in_joints, const uint16_t* parent_indices, uint32_t count, const ANIMJoint& root_joint )
 {

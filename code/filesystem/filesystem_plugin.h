@@ -81,7 +81,7 @@ struct BXIFilesystem
     virtual const char*      GetRoot  () const = 0;
 	virtual BXFileHandle	 LoadFile ( const char* relativePath, BXEFIleMode::E mode, BXPostLoadCallback callback, BXIAllocator* allocator = nullptr ) = 0;
     virtual BXFileHandle	 LoadFile ( const char* relativePath, BXEFIleMode::E mode, BXIAllocator* allocator = nullptr ) { return LoadFile( relativePath, mode, BXPostLoadCallback{ nullptr,nullptr }, allocator ); }
-    virtual void			 CloseFile( BXFileHandle fhandle, bool freeData = true ) = 0;
+    virtual void			 CloseFile( BXFileHandle* fhandle, bool freeData = true ) = 0;
 	
 	virtual BXEFileStatus::E File     ( BXFile* file, BXFileHandle fhandle ) = 0;
     
