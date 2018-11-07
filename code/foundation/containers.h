@@ -61,6 +61,10 @@ struct static_array_t
 template< class T >
 struct array_span_t
 {
+    array_span_t()
+        : _begin( nullptr ), _size( 0 )
+    {}
+
     array_span_t( T* b, uint32_t size )
         : _begin( b ), _size( size )
     {}
@@ -93,6 +97,13 @@ private:
     T* _begin = nullptr;
     uint32_t _size = 0;
 };
+
+template< typename T >
+inline array_span_t<T> ToArraySpan( const Blob& blob )
+{
+    SYS_ASSERT( (blob.size % sizeof( T )) == 0 );
+    return array_span_t<T>( (T*)blob.data, (T*)( blob.data + blob.size ) );
+}
 
 template< typename T >
 struct queue_t

@@ -26,7 +26,7 @@ void BX_DELETE( BXIAllocator* alloc, T* ptr )
 {
     if( ptr )
     {
-        InvokeDestructor( ptr );
+        ptr->~T();
         BX_FREE( alloc, ptr );
     }
 }

@@ -73,10 +73,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="dll_interface.h" />
+    <ClInclude Include="entity1.h" />
+    <ClInclude Include="ess.h" />
     <ClInclude Include="entity.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="entity.cpp" />
+    <ClCompile Include="entity1.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\foundation\foundation.vcxproj">

@@ -10,6 +10,7 @@
 #include <gui\gui.h>
 #include <gfx\gfx.h>
 #include <entity\entity.h>
+#include <entity\entity1.h>
 
 #include <common\ground_mesh.h>
 
@@ -33,8 +34,68 @@ static CMNGroundMesh g_ground_mesh = {};
 
 static AnimTool* g_tool = nullptr;
 
+static ECS* g_ecs = nullptr;
+
+struct IntComp
+{
+    uint32_t value;
+};
+
+struct TestComp
+{
+    vec3_t vec;
+    float flt;
+    uint32_t integer;
+};
+
+struct LocalTransformComp
+{
+    xform_t xform;
+    vec3_t scale;
+};
+
 bool AnimApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
+    g_ecs = ECS::StartUp( allocator );
+
+    RegisterComponent<IntComp>( g_ecs, "Int" );
+    RegisterComponent<TestComp>( g_ecs, "TestComp" );
+    RegisterComponent<LocalTransformComp>( g_ecs, "LocalTransform" );
+
+    ECSComponentID id_ints[10];
+    ECSComponentID id_trans[10];
+    for( uint32_t i = 0; i < 10; ++i )
+    {
+        id_ints[i] = CreateComponent<IntComp>( g_ecs );
+        IntComp* data = Component<IntComp>( g_ecs, id_ints[i] );
+        data->value = i;
+
+        id_trans[i] = CreateComponent<LocalTransformComp>( g_ecs );
+        LocalTransformComp* data1 = Component<LocalTransformComp>( g_ecs, id_trans[i] );
+        data1->xform = xform_t( quat_t::identity(), vec3_t( (float)i ) );
+    }
+
+    array_span_t<IntComp> intcomps = Components<IntComp>( g_ecs );
+    array_span_t<LocalTransformComp> transcomp = Components<LocalTransformComp>( g_ecs );
+
+    g_ecs->DestroyComponent( id_ints[5] );
+
+    intcomps = Components<IntComp>( g_ecs );
+
+    g_ecs->DestroyComponent( id_ints[0] );
+    g_ecs->DestroyComponent( id_ints[7] );
+
+    id_ints[0] = CreateComponent<IntComp>( g_ecs );
+    
+    IntComp* data = Component<IntComp>( g_ecs, id_ints[9] );
+
+    for( int i = 0; i < 10; ++i )
+        g_ecs->DestroyComponent( id_ints[i] );
+
+    intcomps = Components<IntComp>( g_ecs );
+
+    int terminator = 0;
+
     ::Startup( (CMNEngine*)this, argc, argv, plugins, allocator );
 
     GFXSceneDesc desc;

@@ -67,8 +67,12 @@ void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* 
 
 void MATEditor::ShutDown( GFX* gfx, RSM* rsm )
 {
+    string::free( &_folder );
+    string::free( &_texture_folder );
     string::free( &_current_file );
     string::free( &_file_list );
+    string::free( &_texture_file_list );
+
     gfx->RemoveMeshFromScene( _mesh_id );
     gfx->DestroyMaterial( _mat_id );
 }

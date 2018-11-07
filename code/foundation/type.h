@@ -73,3 +73,9 @@ inline bool is_pow2( int n )
 {
     return ( n&( n - 1 ) ) == 0;
 }
+
+struct Blob
+{
+    uint8_t* data;
+    uint32_t size;
+};

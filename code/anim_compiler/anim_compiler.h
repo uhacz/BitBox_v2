@@ -49,11 +49,15 @@ namespace tool { namespace anim {
             uint32_t numFrames;
 
             std::vector< JointAnimation > joints;
+            JointAnimation root_motion;
         };
         
         struct ImportParams
         {
             float scale = 1.f;
+            int16_t root_motion_joint = -1;
+            bool extract_root_motion = false;
+            bool remove_root_motion = false;
         };
 
         uint32_t SkelTag();

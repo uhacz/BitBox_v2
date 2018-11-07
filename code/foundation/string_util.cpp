@@ -134,7 +134,11 @@ string_t::string_t()
 
 string_t::~string_t()
 {
-    string::free( this );
+    if( _allocator )
+    {
+        SYS_ASSERT( _dynamic == nullptr );
+    }
+            //string::free( this );
 }
 
 unsigned string_t::length() const
@@ -233,16 +237,6 @@ namespace string
             BX_FREE( allocator, s->_base );
             s->_base = new_data;
             s->_capacity = new_capacity;
-
-            //string_buffer_t new_s;
-            //memset( &new_s, 0x00, sizeof( string_buffer_t ) );
-            //create( &new_s, new_capacity, allocator );
-
-            //memcpy( new_s._base, s->_base, s->_offset );
-            //new_s._offset = s->_offset;
-
-            //free( s );
-            //s[0] = new_s;
         }
 
         char* dst = s->_base + s->_offset;

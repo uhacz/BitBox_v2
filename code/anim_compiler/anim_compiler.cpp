@@ -277,6 +277,18 @@ namespace tool{ namespace anim {
                     }
                 }
             }
+
+            if( params.remove_root_motion || params.extract_root_motion )
+            {
+                JointAnimation& janim = animation->joints[1];
+                int nFrames = (int)janim.translation.size();
+                for( int iframe = 0; iframe < nFrames; ++iframe )
+                {
+                    float4_t& translation = janim.translation[iframe].data;
+                    translation.z = 0.f;
+                }
+            }
+
             return true;
         }
 

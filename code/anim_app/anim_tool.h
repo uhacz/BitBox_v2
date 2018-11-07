@@ -47,6 +47,9 @@ struct AnimTool
     string_buffer_t _src_file_list;
     string_buffer_t _dst_file_list;
 
+    // editor stuff
+    array_t<int16_t> _selected_joints;
+
     union 
     {
         uint32_t all = 0;

@@ -9,9 +9,7 @@
 #include <anim/anim.h>
 #include <anim/anim_player.h>
 
-
 #include <rdix/rdix_debug_draw.h>
-
 #include <3rd_party/imgui/imgui.h>
 
 
@@ -25,9 +23,18 @@ void AnimTool::StartUp( const char* src_folder, const char* dst_folder, BXIAlloc
 
 void AnimTool::ShutDown()
 {
+    string::free( &_current_src_file );
+    string::free( &_dst_folder );
+    string::free( &_src_folder );
+
     BX_DELETE0( _allocator, _in_skel );
     BX_DELETE0( _allocator, _in_anim );
-    BX_DELETE0( _allocator, _player );
+
+    if( _player )
+    {
+        _player->Unprepare();
+        BX_DELETE0( _allocator, _player );
+    }
     BX_FREE0( _allocator, _joints_ms );
 
     _skel_blob.destroy();
@@ -88,6 +95,7 @@ void AnimTool::Tick( BXIFilesystem* fs, float dt )
                 array::resize( _matrices_ms, skel->numJoints );
 
                 _joints_ms = anim_ext::AllocateJoints( skel, _allocator );
+                array::clear( _selected_joints );
             }
             fs->CloseFile( &_hfile, true );
         }
@@ -121,11 +129,53 @@ void AnimTool::Tick( BXIFilesystem* fs, float dt )
             //const mat44_t& child_matrix = _matrices_ms[i];
 
             RDIXDebug::AddLine( parent.position.xyz(), joint.position.xyz(), RDIXDebugParams( color ) );
+            {
+                if( array::find( _selected_joints, (int16_t)i ) != array::npos )
+                {
+                    RDIXDebug::AddSphere( joint.position.xyz(), _import_params.scale, RDIXDebugParams( color32_t::GREEN() ) );
+                    RDIXDebug::AddAxes( toMatrix4( joint ), RDIXDebugParams().Scale( _import_params.scale * 5.f ) );
+                }
+            }
             //RDIXDebug::AddAxes( mat44_t( parent.rotation, parent.position ), RDIXDebugParams().Scale(0.12f) );
             //RDIXDebug::AddAxes( parent_matrix, RDIXDebugParams().Scale( 0.2f ) );
         }
     }
+}
 
+static void DrawSkeletonTree( array_t<int16_t>& selected_joints, const tool::anim::Skeleton* skel, int16_t joint_index, ImGuiTreeNodeFlags flags )
+{
+    const int16_t num_joints = (int16_t)skel->parentIndices.size();
+
+    const uint32_t selected_index = array::find( selected_joints, joint_index );
+    const bool is_selected = selected_index != array::npos;
+
+    ImGuiTreeNodeFlags current_flags = flags;
+    if( is_selected )
+        current_flags |= ImGuiTreeNodeFlags_Selected;
+
+    const bool opened = ImGui::TreeNodeEx( skel->jointNames[joint_index].c_str(), current_flags );
+    if( ImGui::IsItemClicked(1) )
+    {
+        if( is_selected )
+            array::erase_swap( selected_joints, selected_index );
+        else
+            array::push_back( selected_joints, joint_index );
+    }
+
+    if( opened )
+    {
+    
+
+        for( int16_t i = joint_index + 1; i < num_joints; ++i )
+        {
+            const int16_t parent_index = skel->parentIndices[i];
+            if( parent_index == joint_index )
+            {
+                DrawSkeletonTree( selected_joints, skel, i, flags );
+            }
+        }
+        ImGui::TreePop();
+    }
 }
 
 void AnimTool::DrawMenu()
@@ -180,6 +230,19 @@ void AnimTool::DrawMenu()
 
             }
         }
+        if( _in_skel )
+        {
+            const int16_t num_joints = (int16_t)_in_skel->jointNames.size();
+            if( num_joints )
+            {
+                if( ImGui::TreeNodeEx( _in_skel->jointNames[0].c_str(), ImGuiTreeNodeFlags_DefaultOpen ) )
+                {
+                    DrawSkeletonTree( _selected_joints, _in_skel, 1, 0 );
+                    ImGui::TreePop();
+                }
+            }
+            
+        }
     }
     ImGui::End();
 
@@ -190,6 +253,7 @@ void AnimTool::DrawMenu()
             ImGui::Text( "filename: %s", _current_src_file.c_str() );
             ImGui::Separator();
             ImGui::InputFloat( "scale", &_import_params.scale, 0.01f, 0.1f, 3 );
+            ImGui::Checkbox( "remove root motion", &_import_params.remove_root_motion );
             ImGui::Separator();
 
             if( ImGui::Button( "cancel" ) )
