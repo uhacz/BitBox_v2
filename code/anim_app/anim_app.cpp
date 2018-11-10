@@ -94,6 +94,13 @@ bool AnimApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, B
 
     intcomps = Components<IntComp>( g_ecs );
 
+    ECSEntityID entity = g_ecs->CreateEntity();
+    g_ecs->Link( entity, id_trans, 10 );
+    g_ecs->Link( entity, id_ints, 10 );
+
+    g_ecs->Unlink( id_trans, 10 );
+
+
     int terminator = 0;
 
     ::Startup( (CMNEngine*)this, argc, argv, plugins, allocator );

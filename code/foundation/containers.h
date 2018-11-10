@@ -10,6 +10,8 @@
 template< typename T >
 struct array_t
 {
+    using type_t = T;
+
     uint32_t size;
     uint32_t capacity;
     BXIAllocator* allocator;
@@ -42,6 +44,12 @@ struct array_t
 template< typename T, uint32_t MAX >
 struct static_array_t
 {
+    using type_t = T;
+
+    static_array_t() {}
+    static_array_t( uint32_t initial_size )
+        : size( initial_size ) {}
+    
     T data[MAX];
     uint32_t size = 0;
 
@@ -54,6 +62,15 @@ struct static_array_t
     const T* begin() const { return data; }
     const T* end() const { return data + size; }
 };
+namespace array
+{
+    template< typename Tarray >
+    inline void zero( Tarray& arr )
+    {
+        memset( arr.begin(), 0x00, arr.size * sizeof( Tarray::type_t ) );
+    }
+}
+
 
 //
 // array span
@@ -108,6 +125,8 @@ inline array_span_t<T> ToArraySpan( const Blob& blob )
 template< typename T >
 struct queue_t
 {
+    using type_t = T;
+
     array_t<T> data;
     uint32_t size;
     uint32_t offset;
@@ -125,7 +144,8 @@ struct queue_t
 template<typename T> 
 struct hash_t
 {
-public:
+    using type_t = T;
+
     hash_t( BXIAllocator* a = BXDefaultAllocator() )
         : _hash( a )
         , _data( a )

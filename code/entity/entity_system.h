@@ -1,32 +1,15 @@
 #pragma once
 
+#include "entity_id.h"
 #include <foundation/containers.h>
 
 struct BXIAllocator;
-
-template< typename T, uint32_t INDEX_BITS >
-union ECSID
-{
-    static constexpr uint32_t INDEX_BITS_VALUE = INDEX_BITS;
-    T hash = 0;
-    
-    struct
-    {
-        T index : INDEX_BITS;
-        T id : (sizeof(T)*8 - INDEX_BITS); // aka generation
-    };
-};
-
-using ECSEntityID = ECSID<uint32_t, 10>;
-using ECSComponentID = ECSID<uint32_t, 12>;
-
-struct ECSComponentBlob
-{};
-
 struct ECSImpl;
+
 struct ECS
 {
     ECSEntityID CreateEntity();
+    ECSEntityID MarkForDestroy( ECSEntityID id );
     void DestroyEntity( ECSEntityID id );
 
     void RegisterComponent( const char* type_name, size_t type_hash_code, uint32_t struct_size );
@@ -52,7 +35,6 @@ struct ECS
 //
 // helpers
 //
-
 template< typename T>
 inline void RegisterComponent( ECS* ecs, const char* type_name )
 { 
