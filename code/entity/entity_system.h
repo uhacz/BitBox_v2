@@ -6,25 +6,28 @@
 struct BXIAllocator;
 struct ECSImpl;
 
+using ECSRawComponent = void;
+using ECSRawComponentSpan = array_span_t<ECSRawComponent*>;
 struct ECS
 {
     ECSEntityID CreateEntity();
     ECSEntityID MarkForDestroy( ECSEntityID id );
-    void DestroyEntity( ECSEntityID id );
 
     void RegisterComponent( const char* type_name, size_t type_hash_code, uint32_t struct_size );
 
     ECSComponentID CreateComponent( size_t type_hash_code );
-    void DestroyComponent( ECSComponentID id );
+    void MarkForDestroy( ECSComponentID id );
 
-    uint8_t* Component( ECSComponentID id );
-    Blob Components( size_t type_hash_code );
+    ECSRawComponent* Component( ECSComponentID id );
+    ECSRawComponentSpan Components( size_t type_hash_code );
 
     void Link( ECSEntityID parent, ECSEntityID child );
     void Unlink( ECSEntityID child );
 
     void Link( ECSEntityID eid, const ECSComponentID* cid, uint32_t cid_count );
     void Unlink( const ECSComponentID* cid, uint32_t cid_count );
+
+
 
     //
     ECSImpl *impl = nullptr;
@@ -54,8 +57,9 @@ inline T* Component( ECS* ecs, ECSComponentID id )
 }
 
 template< typename T>
-inline array_span_t<T> Components( ECS* ecs ) 
+inline array_span_t<T*> Components( ECS* ecs ) 
 { 
-    return ToArraySpan<T>( ecs->Components( typeid(T).hash_code() ) ); 
+    ECSRawComponentSpan raw_span = ecs->Components( typeid(T).hash_code() );
+    return array_span_t<T*>( (T**)raw_span.begin(), raw_span.size() ); 
 }
 

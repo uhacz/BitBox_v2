@@ -15,6 +15,10 @@ union ECSID
     };
 
     operator T () { return hash; }
+    inline bool operator == ( const ECSID<T, INDEX_BITS>& other ) const { return hash == other.hash; }
+    inline bool operator != ( const ECSID<T, INDEX_BITS>& other ) const { return hash != other.hash; }
+
+    static inline ECSID<T, INDEX_BITS> Null() { return {}; }
 };
 
 using ECSEntityID = ECSID<uint32_t, 13>;

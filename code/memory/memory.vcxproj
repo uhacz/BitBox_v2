@@ -73,12 +73,16 @@
     <ClInclude Include="dlmalloc.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="memory_plugin.h" />
+    <ClInclude Include="pool.h" />
+    <ClInclude Include="pool_allocator.h" />
     <ClInclude Include="tlsf.h" />
     <ClInclude Include="tlsf_allocator.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dlmalloc.c" />
     <ClCompile Include="memory_plugin.cpp" />
+    <ClCompile Include="pool.cpp" />
+    <ClCompile Include="pool_allocator.cpp" />
     <ClCompile Include="tlsf.c" />
     <ClCompile Include="tlsf_allocator.cpp" />
   </ItemGroup>

@@ -132,13 +132,32 @@ string_t::string_t( const char* str )
 string_t::string_t()
 {}
 
-string_t::~string_t()
+string_t::string_t( string_t&& other )
 {
+    _allocator = other._allocator;
     if( _allocator )
     {
-        SYS_ASSERT( _dynamic == nullptr );
+        _dynamic = other._dynamic;
+
+        other._dynamic = nullptr;
+        other._allocator = nullptr;
     }
-            //string::free( this );
+}
+
+string_t::string_t( const string_t& other )
+{
+    string::copy( this, other );
+}
+
+string_t::~string_t()
+{
+    string::free( this );
+}
+
+string_t& string_t::operator=( const string_t& other )
+{
+    string::copy( this, other );
+    return *this;
 }
 
 unsigned string_t::length() const
@@ -179,6 +198,19 @@ namespace string
             s->_allocator = allocator;
         }
     }
+    void string::copy( string_t* dst, const string_t& src )
+    {
+        dst->_allocator = src._allocator;
+        if( dst->_allocator )
+        {
+            dst->_dynamic = string::duplicate( dst->_dynamic, src._dynamic, dst->_allocator );
+        }
+        else
+        {
+            memcpy( dst->_static, src._static, string_t::MAX_STATIC_SIZE );
+        }
+    }
+
 
     void free( string_t* s )
     {

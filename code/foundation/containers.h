@@ -82,11 +82,11 @@ struct array_span_t
         : _begin( nullptr ), _size( 0 )
     {}
 
-    array_span_t( T* b, uint32_t size )
+    explicit array_span_t( T* b, uint32_t size )
         : _begin( b ), _size( size )
     {}
 
-    array_span_t( T* b, T* e )
+    explicit array_span_t( T* b, T* e )
         : _begin( b ), _size( (uint32_t)(ptrdiff_t)(e - b) )
     {}
 

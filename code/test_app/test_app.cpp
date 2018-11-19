@@ -12,25 +12,42 @@
 #include <stdio.h>
 #include <atomic>
 
+#include <gfx/gfx.h>
+#include <entity/entity_system.h>
+
+struct CMPMesh
+{
+    GFXMeshInstanceID mesh_id;
+    GFXMaterialID material_id;
+};
+struct CMPWorldXForm
+{
+    xform_t data;
+};
+
+
+
 bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-	_filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
-	if( _filesystem )
-	{
-		_filesystem->SetRoot( "x:/dev/assets/" );
-	}
+    CMNEngine::Startup( this, argc, argv, plugins, allocator );
 
-	BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
-	const BXWindow* window = win_plugin->GetWindow();
-	::Startup( &_rdidev, &_rdicmdq, window->GetSystemHandle( window ), 800, 600, 0, allocator );
+    RegisterComponent<CMPMesh>( _ecs, "Mesh" );
+    RegisterComponent<CMPWorldXForm>( _ecs, "WorldXForm" );
+    
+    ECSComponentID meshid = CreateComponent<CMPMesh>( _ecs );
+    ECSComponentID xformid = CreateComponent<CMPWorldXForm>( _ecs );
+
+    CMPWorldXForm* xform_data = Component<CMPWorldXForm>( _ecs, xformid );
+    xform_data->data = xform_t::identity();
+
+    array_span_t<CMPWorldXForm*> xforms = Components<CMPWorldXForm>( _ecs );
 
 	return true;
 }
 
 void BXTestApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-	::Shutdown( &_rdidev, &_rdicmdq, allocator );
-	_filesystem = nullptr;
+    CMNEngine::Shutdown( this, allocator );
 }
 
 bool BXTestApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocator* allocator )
@@ -38,33 +55,6 @@ bool BXTestApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloca
     if( win->input.IsKeyPressedOnce( BXInput::eKEY_ESC ) )
         return false;
 	
-	//if( !bvalue )
-	//{
-	//	fhandle = _filesystem->LoadFile( "global.1cfg", BXIFilesystem::FILE_MODE_TXT );
-	//	bvalue = true;
-	//}
-
-	//BXFile file = {};
-	//BXEFileStatus::E file_status = _filesystem->File( &file, fhandle );
-	//if( file_status != BXEFileStatus::EMPTY )
-	//{
-	//	printf( "file status: %d\n", file_status );
-
-	//	if( file_status == BXEFileStatus::READY )
-	//	{
-	//		printf( "file loaded :)" );
-	//		_filesystem->CloseFile( fhandle, true );
-	//	}
-	//	else if( file_status == BXEFileStatus::NOT_FOUND )
-	//	{
-	//		printf( "file not loaded :)" );
-	//		_filesystem->CloseFile( fhandle, true );
-	//	}
-	//}
-
-	//BXFileWaitResult result = _filesystem->LoadFileSync( _filesystem, "global.cfg", BXIFilesystem::FILE_MODE_TXT );
-	//_filesystem->CloseFile( result.handle );
-
     return true;
 }
 

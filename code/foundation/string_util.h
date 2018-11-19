@@ -21,16 +21,21 @@ struct string_t
     static constexpr unsigned MAX_STATIC_LENGTH = 15;
     static constexpr unsigned MAX_STATIC_SIZE = MAX_STATIC_LENGTH + 1;
     BXIAllocator* _allocator = nullptr;
-    union 
+    union
     {
         char _static[MAX_STATIC_SIZE] = {};
         char* _dynamic;
-        
+
     };
 
     string_t();
     string_t( const char* str );
+    string_t( const string_t& other );
+    string_t( string_t&& other );
+
     ~string_t();
+
+    string_t& operator = ( const string_t& other );
 
           char* c_str()       { return (_allocator) ? _dynamic : _static; }
     const char* c_str() const { return (_allocator) ? _dynamic : _static; }
@@ -60,6 +65,7 @@ namespace string
 {
     void create( string_t* s, const char* data, BXIAllocator* allocator );
     void reserve( string_t* s, unsigned length, BXIAllocator* allocator );
+    void copy( string_t* dst, const string_t& src );
     void free( string_t* s );
 
     void create( string_buffer_t* s, unsigned capacity, BXIAllocator* allocator );

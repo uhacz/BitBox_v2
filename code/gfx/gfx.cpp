@@ -571,11 +571,6 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
             poly_shape::deallocateShape( &shapes[i] );
         }
     }
-
-    
-
-    
-
     return gfx_interface;
 }
 
@@ -772,24 +767,7 @@ GFXMaterialID GFX::CreateMaterial( const char* name, const GFXMaterialDesc& desc
     mc.data[id.index] = desc.data;
     mc.flags[id.index] = 0;
 
-    //RDIConstantBuffer* cbuffer = &mc.data_gpu[id.index];
     gfx_internal::ChangeTextures( gfx, id, desc.textures );
-    //RDIXResourceBinding* binding = nullptr;
-    //if( IsAlive( desc.textures.id[0] ) )
-    //{
-    //    binding = CloneResourceBinding( ResourceBinding( mc.pipeline.full ), allocator );
-    //    mc.flags[id.index] = GFXEMaterialFlag::PIPELINE_FULL;
-    //    {
-    //        scope_mutex_t guard( mc.to_refresh_lock );
-    //        array::push_back( mc.to_refresh, id );
-    //    }
-    //}
-    //else
-    //{
-    //   binding = CloneResourceBinding( ResourceBinding( mc.pipeline.base ), allocator );
-    //}
-
-    //mc.binding[id.index] = binding;
     
     string::create( &mc.name[id.index], name, allocator );
     mc.idself[id.index] = id;

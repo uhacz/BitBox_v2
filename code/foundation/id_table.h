@@ -37,7 +37,7 @@ namespace id_table
     {
         SYS_ASSERT_TXT( has( a, id ), "IdTable does not have ID: %d,%d", id.id, id.index );
 
-        a._ids[id.index].id = ++a._next_id;
+        a._ids[id.index].id += 1;
         return a._ids[id.index];
     }
 

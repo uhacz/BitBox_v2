@@ -1,6 +1,5 @@
 #pragma once
 #include <application/application_plugin.h>
-
 #include <common/base_engine_init.h>
 
 struct AnimApp : BXIApplication, CMNEngine

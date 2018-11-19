@@ -73,13 +73,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="dll_interface.h" />
-    <ClInclude Include="entity1.h" />
+    <ClInclude Include="entity_system.h" />
+    <ClInclude Include="entity_id.h" />
+    <ClInclude Include="entity_iterator.h" />
     <ClInclude Include="ess.h" />
     <ClInclude Include="entity.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="entity.cpp" />
-    <ClCompile Include="entity1.cpp" />
+    <ClCompile Include="entity_system.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\foundation\foundation.vcxproj">

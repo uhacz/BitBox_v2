@@ -325,7 +325,7 @@ static Level g_level = {};
 
 bool SnakeApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    ::Startup( (CMNEngine*)this, argc, argv, plugins, allocator );
+    CMNEngine::Startup( (CMNEngine*)this, argc, argv, plugins, allocator );
 
     GFXSceneDesc desc;
     desc.max_renderables = 16 + 1;
@@ -363,7 +363,7 @@ void SnakeApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     _gfx->DestroyCamera( g_idcamera );
     _gfx->DestroyScene( g_idscene );
     DestroyGroundMesh( &g_ground_mesh, _gfx );
-    ::Shutdown( (CMNEngine*)this, allocator );
+    CMNEngine::Shutdown( (CMNEngine*)this, allocator );
 }
 
 bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocator* allocator )

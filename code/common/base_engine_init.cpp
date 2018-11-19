@@ -14,8 +14,9 @@
 #include <gui\gui.h>
 #include <gfx\gfx.h>
 #include <entity\entity.h>
+#include <entity\entity_system.h>
 
-bool Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
+bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
     BXIFilesystem* filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
     filesystem->SetRoot( "x:/dev/assets/" );
@@ -37,6 +38,7 @@ bool Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegistry* plugi
     GFX* gfx = GFX::StartUp( rdidev, rsm, gfxdesc, filesystem, allocator );
 
     ENT* ent = ENT::StartUp( allocator );
+    ECS* ecs = ECS::StartUp( allocator );
 
     e->_filesystem = filesystem;
     e->_rdidev = rdidev;
@@ -45,19 +47,24 @@ bool Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegistry* plugi
     e->_rsm = rsm;
     e->_gfx = gfx;
     e->_ent = ent;
+    e->_ecs = ecs;
 
     return true;
 }
 
-void Shutdown( CMNEngine* e, BXIAllocator* allocator )
+void CMNEngine::Shutdown( CMNEngine* e, BXIAllocator* allocator )
 {
+    {
+        ECS::ShutDown( &e->_ecs );
+    }
+    
     {
         ENTSystemInfo ent_sys_info = {};
         ent_sys_info.ent = e->_ent;
         ent_sys_info.gfx = e->_gfx;
         ENT::ShutDown( &e->_ent, &ent_sys_info );
     }
-
+    
     GFX::ShutDown( &e->_gfx, e->_rsm );
     RDIXDebug::ShutDown( e->_rdidev );
     RSM::ShutDown( &e->_rsm );
