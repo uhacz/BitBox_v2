@@ -21,6 +21,13 @@ namespace array
         return arr.size++;
     }
 
+    template< typename T, uint32_t MAX>
+    T& emplace_back( static_array_t<T, MAX>& arr )
+    {
+        SYS_ASSERT( arr.size + 1 <= MAX );
+        return arr.data[arr.size++];
+    }
+
     template< typename T, uint32_t MAX > void pop_back( static_array_t<T, MAX>& arr )
     {
         arr.size = (arr.size > 0) ? --arr.size : 0;

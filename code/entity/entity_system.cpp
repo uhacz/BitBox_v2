@@ -17,13 +17,24 @@ static constexpr uint32_t MAX_COMP = 1 << ECSComponentID::INDEX_BITS_VALUE;
 static constexpr uint32_t MAX_COMP_PER_ENTITY = 1 << 7;
 static constexpr uint16_t INVALID_TYPE_INDEX = UINT16_MAX;
 
-struct ECSComponentInfo
+struct ECSComponentTypeInfo
 {
-    string_t type_name;
-    uint32_t struct_size = 0;
-    uint16_t type_index = INVALID_TYPE_INDEX;
-    uint16_t granularity = 64;
+    string_t name;
+    uint32_t index = INVALID_TYPE_INDEX;
+    ECSComponentTypeDesc desc;
+
+    void Initialize( uint16_t i, const char* n, const ECSComponentTypeDesc& d, BXIAllocator* allocator )
+    {
+        string::create( &name, n, allocator );
+        index = i;
+        desc = d;
+    }
+    void Uninitialize()
+    {
+        string::free( &name );
+    }
 };
+
 
 struct ECSComponentStorage
 {
@@ -237,25 +248,26 @@ struct ECSImpl
 
     BXIAllocator* allocator = nullptr;
     
-    uint32_t                                            num_registered_comp = 0;
-    hash_t<ECSComponentInfo>                            comp_info_map;
-    //hash_t<ECSComponentID>                              comp_address_map;
-    //static_array_t<ECSComponentAddress, MAX_COMP>       comp_address;
-    static_array_t<uint16_t, MAX_COMP>                  comp_type_index;
-    static_array_t<ECSRawComponent*, MAX_COMP>          comp_address;
-    static_array_t<ECSEntityID, MAX_COMP>               comp_owner;
-
-    static_array_t<ECSComponentStorage, MAX_COMP_TYPES> comp_storage;
-    static_array_t<rw_spin_lock_t, MAX_COMP_TYPES>      comp_type_lock;
-
     ECSEntityComponents                     entity_components;
     static_array_t<rw_spin_lock_t, MAX_ENT> entity_local_lock;
     ECSEntityTree                           entity_tree;
     static_array_t<ECSEntityID, MAX_ENT>    live_entities;
 
+    uint32_t                                             num_registered_comp = 0;
+    hash_t<ECSComponentTypeInfo*>                        comp_type_info_map;
+    static_array_t<ECSComponentTypeInfo, MAX_COMP_TYPES> comp_type_info;
+    static_array_t<ECSComponentStorage, MAX_COMP_TYPES>  comp_storage;
+    static_array_t<rw_spin_lock_t, MAX_COMP_TYPES>       comp_type_lock;
+    
+    hash_t<ECSComponentID>                              comp_ptr_to_id_map;
+    static_array_t<uint16_t, MAX_COMP>                  comp_type_index;
+    static_array_t<ECSRawComponent*, MAX_COMP>          comp_address;
+    static_array_t<ECSEntityID, MAX_COMP>               comp_owner;
+
     EntityIdAlloc entity_id_alloc;
     ComponentIdAlloc comp_id_alloc;
 
+    rw_spin_lock_t comp_ptr_to_id_lock;
     rw_spin_lock_t entity_global_lock;
     rw_spin_lock_t comp_lock;
 
@@ -286,10 +298,13 @@ void ECSImpl::StartUp( BXIAllocator* allocator )
 
 void ECSImpl::ShutDown()
 {
-    for( auto* it = hash::begin( comp_info_map ); it != hash::end( comp_info_map ); ++it )
+    while( !array::empty( comp_type_info ) )
     {
-        string::free( (string_t*)&it->value.type_name );
+        array::back( comp_type_info ).Uninitialize();
+        array::pop_back( comp_type_info );
     }
+
+    hash::clear( comp_type_info_map );
 
     while( !array::empty( comp_storage ) )
     {
@@ -347,6 +362,8 @@ ECSEntityID ECS::MarkForDestroy( ECSEntityID id )
     return id_table::invalidate( impl->entity_id_alloc, id );
 }
 
+
+
 void DestroyEntity( ECSImpl* impl, ECSEntityID id )
 {
     scoped_write_spin_lock_t guard( impl->entity_global_lock );
@@ -363,27 +380,26 @@ void DestroyEntity( ECSImpl* impl, ECSEntityID id )
     id_table::destroy( impl->entity_id_alloc, id );
 }
 
-void ECS::RegisterComponent( const char* type_name, size_t type_hash_code, uint32_t struct_size )
+void ECS::RegisterComponent( const char* type_name, const ECSComponentTypeDesc& desc )
 {
-    if( hash::has( impl->comp_info_map, type_hash_code ) )
+    if( hash::has( impl->comp_type_info_map, desc.hash_code ) )
         return;
 
-    ECSComponentInfo cinfo;
-    cinfo.struct_size = struct_size;
-    cinfo.type_index = impl->num_registered_comp++;
-    string::create( &cinfo.type_name, type_name, impl->allocator );
-    hash::set( impl->comp_info_map, type_hash_code, cinfo );
+    ECSComponentTypeInfo& cinfo = array::emplace_back( impl->comp_type_info );
+    cinfo.Initialize( impl->num_registered_comp++, type_name, desc, impl->allocator );
+   
+    hash::set( impl->comp_type_info_map, desc.hash_code, &cinfo );
 
     array::push_back( impl->comp_storage, ECSComponentStorage() );
-    SYS_ASSERT( ( array::size( impl->comp_storage ) - 1 ) == cinfo.type_index );
+    SYS_ASSERT( ( array::size( impl->comp_storage ) - 1 ) == cinfo.index );
     ECSComponentStorage& storage = array::back( impl->comp_storage );
-    storage.StartUp( cinfo.struct_size, cinfo.granularity, 16, impl->allocator );
+    storage.StartUp( cinfo.desc.size, cinfo.desc.pool_chunk_size, 16, impl->allocator );
 }
 
 ECSComponentID ECS::CreateComponent( size_t type_hash_code )
 {
-    const ECSComponentInfo& info = hash::get( impl->comp_info_map, type_hash_code, ECSComponentInfo() );
-    if( info.type_index == UINT32_MAX )
+    const ECSComponentTypeInfo* info = hash::get( impl->comp_type_info_map, type_hash_code, (ECSComponentTypeInfo*)0 );
+    if( !info )
         return ECSComponentID();
 
     ECSComponentID id = ECSComponentID::Null();
@@ -395,23 +411,28 @@ ECSComponentID ECS::CreateComponent( size_t type_hash_code )
     SYS_ASSERT( id != ECSComponentID::Null() );
 
     const uint32_t index = id.index;
-    impl->comp_type_index[index] = info.type_index;
-
-    //ECSComponentAddress& address = impl->comp_address[index];
+    const uint32_t type_index = info->index;
+    
     ECSRawComponent* comp = nullptr;
     {
-        scoped_write_spin_lock_t comp_type_guard( impl->comp_type_lock[info.type_index] );
-        comp = impl->comp_storage[info.type_index].Allocate();
-        //address.data_offset = impl->comp_storage[info.type_index].PushBack();
+        scoped_write_spin_lock_t comp_type_guard( impl->comp_type_lock[type_index] );
+        comp = impl->comp_storage[type_index].Allocate();
     }
-    impl->comp_address[id.index] = comp;
-    //address.type_index = info.type_index;
 
-    //{
-    //    scoped_write_spin_lock_t guard( impl->comp_lock );
-    //    SYS_ASSERT( hash::has( impl->comp_address_map, address.hash ) == false );
-    //    hash::set( impl->comp_address_map, address.hash, id );
-    //}
+    if( info->desc.Ctor )
+    {
+        info->desc.Ctor( comp );
+    }
+
+    {
+        scoped_write_spin_lock_t guard( impl->comp_ptr_to_id_lock );
+        SYS_ASSERT( hash::has( impl->comp_ptr_to_id_map, (uint64_t)comp ) == false );
+        hash::set( impl->comp_ptr_to_id_map, (uint64_t)comp, id );
+    }
+    
+    impl->comp_type_index[index] = type_index;
+    impl->comp_address[id.index] = comp;
+
     return id;
 }
 
@@ -429,6 +450,18 @@ void DestroyComponent( ECSImpl* impl, ECSComponentID id )
 
     const uint32_t type_index = impl->comp_type_index[id.index];
     ECSRawComponent* comp = impl->comp_address[id.index];
+
+    const ECSComponentTypeInfo& info = impl->comp_type_info[type_index];
+    if( info.desc.Dtor )
+    {
+        info.desc.Dtor( comp );
+    }
+
+    {
+        scoped_write_spin_lock_t guard( impl->comp_ptr_to_id_lock );
+        SYS_ASSERT( hash::has( impl->comp_ptr_to_id_map, (uint64_t)comp ) == true );
+        hash::remove( impl->comp_ptr_to_id_map, (uint64_t)comp );
+    }
 
     impl->comp_address[id.index] = nullptr;
     impl->comp_type_index[id.index] = INVALID_TYPE_INDEX;
@@ -458,6 +491,22 @@ void DestroyComponent( ECSImpl* impl, ECSComponentID id )
         id_table::destroy( impl->comp_id_alloc, id );
     }
 }
+ECSEntityID ECS::Owner( ECSComponentID id )
+{
+    if( !IsAlive( impl, id ) )
+        return ECSEntityID::Null();
+
+    return impl->comp_owner[id.index];
+}
+
+ECSComponentID ECS::Lookup( const ECSRawComponent* pointer )
+{
+    if( !pointer )
+        return ECSComponentID::Null();
+
+    scoped_read_spin_lock_t guard( impl->comp_ptr_to_id_lock );
+    return hash::get( impl->comp_ptr_to_id_map, (uint64_t)pointer, ECSComponentID::Null() );
+}
 
 ECSRawComponent* ECS::Component( ECSComponentID id )
 {
@@ -472,17 +521,12 @@ ECSRawComponent* ECS::Component( ECSComponentID id )
 
 ECSRawComponentSpan ECS::Components( size_t type_hash_code )
 {
-    const ECSComponentInfo& info = hash::get( impl->comp_info_map, type_hash_code, ECSComponentInfo() );
-    SYS_ASSERT( info.type_index != UINT32_MAX );
+    const ECSComponentTypeInfo* info = hash::get( impl->comp_type_info_map, type_hash_code, (ECSComponentTypeInfo*)0 );
+    SYS_ASSERT( info != nullptr );
 
-    ECSComponentStorage& storage = impl->comp_storage[info.type_index];
+    ECSComponentStorage& storage = impl->comp_storage[info->index];
 
     return ECSRawComponentSpan( storage._components.begin(), storage._components.size );
-
-    //Blob blob;
-    //blob.data = storage._data;
-    //blob.size = storage._size;
-    //return blob;
 }
 
 void ECS::Link( ECSEntityID eid, const ECSComponentID* cid, uint32_t cid_count )

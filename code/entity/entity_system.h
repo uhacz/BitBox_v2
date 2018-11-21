@@ -8,16 +8,31 @@ struct ECSImpl;
 
 using ECSRawComponent = void;
 using ECSRawComponentSpan = array_span_t<ECSRawComponent*>;
+
+struct ECSComponentTypeDesc
+{
+    void( *Ctor )(ECSRawComponent* raw) = nullptr;
+    void( *Dtor )(ECSRawComponent* raw) = nullptr;
+    
+    size_t hash_code = 0;
+    uint16_t size = 0;
+    uint16_t pool_chunk_size = 64;
+};
+using ECSComponentDestructor = void( ECSRawComponent* raw );
+
+
 struct ECS
 {
     ECSEntityID CreateEntity();
     ECSEntityID MarkForDestroy( ECSEntityID id );
 
-    void RegisterComponent( const char* type_name, size_t type_hash_code, uint32_t struct_size );
+    void RegisterComponent( const char* name, const ECSComponentTypeDesc& desc );
 
     ECSComponentID CreateComponent( size_t type_hash_code );
     void MarkForDestroy( ECSComponentID id );
 
+    ECSEntityID Owner( ECSComponentID id );
+    ECSComponentID Lookup( const ECSRawComponent* pointer );
     ECSRawComponent* Component( ECSComponentID id );
     ECSRawComponentSpan Components( size_t type_hash_code );
 
@@ -38,10 +53,31 @@ struct ECS
 //
 // helpers
 //
+
+#define ECS_NON_POD_COMPONENT( type ) \
+    static void _Ctor( ECSRawComponent* raw ) { new(raw) type(); } \
+    static void _Dtor( ECSRawComponent* raw ) { ((type*)raw)->~type(); }
+
 template< typename T>
 inline void RegisterComponent( ECS* ecs, const char* type_name )
 { 
-    ecs->RegisterComponent( type_name, typeid(T).hash_code(), (uint32_t)sizeof( T ) ); 
+    ECSComponentTypeDesc desc = {};
+    desc.hash_code = typeid(T).hash_code();
+    desc.size = (uint32_t)sizeof( T );
+
+    ecs->RegisterComponent( type_name, desc );
+}
+
+template< typename T>
+inline void RegisterComponentNoPOD( ECS* ecs, const char* type_name )
+{
+    ECSComponentTypeDesc desc = {};
+    desc.hash_code = typeid(T).hash_code();
+    desc.size = (uint32_t)sizeof( T );
+    desc.Ctor = T::_Ctor;
+    desc.Dtor = T::_Dtor;
+
+    ecs->RegisterComponent( type_name, desc );
 }
 
 template< typename T>
