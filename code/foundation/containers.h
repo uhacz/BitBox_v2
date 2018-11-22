@@ -272,3 +272,18 @@ struct id_allocator_dense_t
         };
     };
 };
+
+
+template< uint32_t SIZE >
+struct bitset_t
+{
+    using type_t = uint64_t;
+
+    static constexpr uint32_t ELEMENT_SIZE = sizeof( type_t );
+    static constexpr uint32_t ELEMENT_BITS = ELEMENT_SIZE * 8;
+    static constexpr uint32_t NUM_ELEMENTS = SIZE / ELEMENT_BITS;
+    static constexpr uint32_t DIV_SHIFT = 6;
+    static constexpr uint32_t MOD_MASK = ELEMENT_BITS - 1;
+    
+    type_t bits[NUM_ELEMENTS] = {};
+};

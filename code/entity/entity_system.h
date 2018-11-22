@@ -18,8 +18,6 @@ struct ECSComponentTypeDesc
     uint16_t size = 0;
     uint16_t pool_chunk_size = 64;
 };
-using ECSComponentDestructor = void( ECSRawComponent* raw );
-
 
 struct ECS
 {
@@ -42,7 +40,7 @@ struct ECS
     void Link( ECSEntityID eid, const ECSComponentID* cid, uint32_t cid_count );
     void Unlink( const ECSComponentID* cid, uint32_t cid_count );
 
-
+    void Update();
 
     //
     ECSImpl *impl = nullptr;

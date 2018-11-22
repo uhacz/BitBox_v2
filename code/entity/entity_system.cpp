@@ -670,3 +670,8 @@ void ECSEntityIterator::GoToParent()
     _current_id = _impl->entity_tree.parent[_current_id.index];
 }
 
+void ECS::Update()
+{
+    
+}
+

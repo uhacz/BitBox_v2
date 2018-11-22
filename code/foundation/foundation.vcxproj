@@ -79,6 +79,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="array.h" />
+    <ClInclude Include="bitset.h" />
     <ClInclude Include="blob.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="common.h" />
