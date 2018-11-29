@@ -18,12 +18,12 @@ namespace bitset
             uint32_t mask() const { return 1 << bit; }
         };
 
-        template< BITSET_TEMPLATE_ARGS >
-        inline bit_address_t compute_bit_address( uint32_t index )
+        template< typename T >
+        inline bit_address_t compute_bit_address( const T& bs, uint32_t index )
         {
             bit_address_t addr;
-            addr.element = index >> BITSET_T::DIV_SHIFT;
-            addr.bit = index & BITSET_T::MOD_MASK;
+            addr.element = index >> T::DIV_SHIFT;
+            addr.bit = index & T::MOD_MASK;
             return addr;
         }
 
@@ -48,7 +48,7 @@ namespace bitset
         template<>
         FORCE_INLINE uint32_t population( uint32_t mask ) { return __popcnt( mask ); }
         template<>
-        FORCE_INLINE uint32_t population( uint64_t mask ) { return __popcnt64( mask ); }
+        FORCE_INLINE uint32_t population( uint64_t mask ) { return (uint32_t)__popcnt64( mask ); }
 
     }
 
@@ -59,17 +59,17 @@ namespace bitset
     }
     template< BITSET_TEMPLATE_ARGS > void clear( BITSET_T& bs, uint32_t index )
     {
-        const _internal::bit_address_t bit_addr = _internal::compute_bit_address( index );
+        const _internal::bit_address_t bit_addr = _internal::compute_bit_address( bs, index );
         bs.bits[bit_addr.element] &= ~(bit_addr.mask());
     }
     template< BITSET_TEMPLATE_ARGS > void set( BITSET_T& bs, uint32_t index )
     {
-        const _internal::bit_address_t bit_addr = _internal::compute_bit_address( index );
+        const _internal::bit_address_t bit_addr = _internal::compute_bit_address( bs, index );
         bs.bits[bit_addr.element] |= (bit_addr.mask());
     }
     template< BITSET_TEMPLATE_ARGS > uint32_t get( const BITSET_T& bs, uint32_t index )
     {
-        const _internal::bit_address_t bit_addr = _internal::compute_bit_address( index );
+        const _internal::bit_address_t bit_addr = _internal::compute_bit_address( bs, index );
         return bs.bits[bit_addr.element] & bit_addr.mask();
     }
 
@@ -83,6 +83,16 @@ namespace bitset
         return false;
     }
 
+    template< BITSET_TEMPLATE_ARGS > bool empty( const BITSET_T& bs )
+    {
+        for( uint32_t i = 0; i < SIZE; ++i )
+        {
+            if( !bs.bits[i] )
+                return false;
+        }
+        return true;
+    }
+
     template< BITSET_TEMPLATE_ARGS > uint32_t population( const BITSET_T& bs )
     {
         uint32_t result = 0;
@@ -93,8 +103,32 @@ namespace bitset
 
     template< BITSET_TEMPLATE_ARGS > uint32_t find_next_set( BITSET_T& bs, uint32_t begin )
     {
-        uint32_t offset = begin;
-
+        const _internal::bit_address_t bit_addr = _internal::compute_bit_address( bs, begin );
+        
+        bs::type_t element_index = bit_addr.element;
+        bs::type_t shift = bit_addr.bit;
+        bs::type_t value = bs.bits[element_index] >> shift;
+        while( !value && element_index < BITSET_T::NUM_ELEMENTS )
+        {
+            value = bs.bits[++element_index];
+            shift = 0;
+        }
+    
+        uint32_t result = SIZE;
+        uint32_t found = _internal::bitscan_forward( &result, value );
+        return (found) ? element_index * BITSET_T::ELEMENT_BITS + (result + shift) : SIZE;
     }
+
+    template< BITSET_TEMPLATE_ARGS >
+    struct iterator
+    {
+        iterator( BITSET_T& bs, uint32_t begin )
+            : _bs( bs )
+            : _index( begin ) {}
+        
+        BITSET_T& _bs;
+        uint32_t _index;
+
+    };
 
 }
