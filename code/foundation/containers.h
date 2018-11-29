@@ -281,6 +281,7 @@ struct bitset_t
 
     static constexpr uint32_t ELEMENT_SIZE = sizeof( type_t );
     static constexpr uint32_t ELEMENT_BITS = ELEMENT_SIZE * 8;
+    static constexpr uint32_t NUM_BITS = SIZE;
     static constexpr uint32_t NUM_ELEMENTS = 1 + ( ( SIZE - 1 ) / ELEMENT_BITS );
     static constexpr uint32_t DIV_SHIFT = 6;
     static constexpr uint32_t MOD_MASK = ELEMENT_BITS - 1;

@@ -14,8 +14,9 @@ namespace bitset
         {
             uint32_t element;
             uint32_t bit;
-            
-            uint32_t mask() const { return 1 << bit; }
+
+            template< typename Tresult >
+            Tresult mask() const { return (Tresult)1 << bit; }
         };
 
         template< typename T >
@@ -24,6 +25,7 @@ namespace bitset
             bit_address_t addr;
             addr.element = index >> T::DIV_SHIFT;
             addr.bit = index & T::MOD_MASK;
+            SYS_ASSERT( addr.element < T::NUM_ELEMENTS );
             return addr;
         }
 
@@ -52,30 +54,36 @@ namespace bitset
 
     }
 
+    template< BITSET_TEMPLATE_ARGS > void set_all( BITSET_T& bs )
+    {
+        for( uint32_t i = 0; i < bs.NUM_ELEMENTS; ++i )
+            bs.bits[i] = ~BITSET_T::type_t(0);
+    }
+
     template< BITSET_TEMPLATE_ARGS > void clear_all( BITSET_T& bs )
     {
-        for( uint32_t i = 0; i < SIZE; ++i )
+        for( uint32_t i = 0; i < bs.NUM_ELEMENTS; ++i )
             bs.bits[i] = 0;
     }
     template< BITSET_TEMPLATE_ARGS > void clear( BITSET_T& bs, uint32_t index )
     {
         const _internal::bit_address_t bit_addr = _internal::compute_bit_address( bs, index );
-        bs.bits[bit_addr.element] &= ~(bit_addr.mask());
+        bs.bits[bit_addr.element] &= ~(bit_addr.mask<BITSET_T::type_t>());
     }
     template< BITSET_TEMPLATE_ARGS > void set( BITSET_T& bs, uint32_t index )
     {
         const _internal::bit_address_t bit_addr = _internal::compute_bit_address( bs, index );
-        bs.bits[bit_addr.element] |= (bit_addr.mask());
+        bs.bits[bit_addr.element] |= (bit_addr.mask<BITSET_T::type_t>());
     }
-    template< BITSET_TEMPLATE_ARGS > uint32_t get( const BITSET_T& bs, uint32_t index )
+    template< BITSET_TEMPLATE_ARGS > bool get( const BITSET_T& bs, uint32_t index )
     {
         const _internal::bit_address_t bit_addr = _internal::compute_bit_address( bs, index );
-        return bs.bits[bit_addr.element] & bit_addr.mask();
+        return ( bs.bits[bit_addr.element] & bit_addr.mask<BITSET_T::type_t>() ) != 0;
     }
 
     template< BITSET_TEMPLATE_ARGS > bool is_any_set( const BITSET_T& bs )
     {
-        for( uint32_t i = 0; i < SIZE; ++i )
+        for( uint32_t i = 0; i < BITSET_T::NUM_ELEMENTS; ++i )
         {
             if( bs.bits[i] )
                 return true;
@@ -85,9 +93,9 @@ namespace bitset
 
     template< BITSET_TEMPLATE_ARGS > bool empty( const BITSET_T& bs )
     {
-        for( uint32_t i = 0; i < SIZE; ++i )
+        for( uint32_t i = 0; i < BITSET_T::NUM_ELEMENTS; ++i )
         {
-            if( !bs.bits[i] )
+            if( bs.bits[i] )
                 return false;
         }
         return true;
@@ -96,37 +104,51 @@ namespace bitset
     template< BITSET_TEMPLATE_ARGS > uint32_t population( const BITSET_T& bs )
     {
         uint32_t result = 0;
-        for( uint32_t i = 0; i < SIZE; ++i )
+        for( uint32_t i = 0; i < BITSET_T::NUM_ELEMENTS; ++i )
             result += _internal::population( bs.bits[i] );
+
+        return result;
     }
 
 
-    template< BITSET_TEMPLATE_ARGS > uint32_t find_next_set( BITSET_T& bs, uint32_t begin )
+    template< BITSET_TEMPLATE_ARGS > uint32_t find_next_set( const BITSET_T& bs, uint32_t begin )
     {
+        if( begin >= SIZE )
+            return SIZE;
+
         const _internal::bit_address_t bit_addr = _internal::compute_bit_address( bs, begin );
         
-        bs::type_t element_index = bit_addr.element;
-        bs::type_t shift = bit_addr.bit;
-        bs::type_t value = bs.bits[element_index] >> shift;
-        while( !value && element_index < BITSET_T::NUM_ELEMENTS )
+        using value_type_t = BITSET_T::type_t;
+
+        value_type_t element_index = bit_addr.element;
+        value_type_t shift = bit_addr.bit;
+        value_type_t value = bs.bits[element_index] >> shift;
+        while( !value && ++element_index < BITSET_T::NUM_ELEMENTS )
         {
-            value = bs.bits[++element_index];
+            value = bs.bits[element_index];
             shift = 0;
         }
     
         uint32_t result = SIZE;
         uint32_t found = _internal::bitscan_forward( &result, value );
-        return (found) ? element_index * BITSET_T::ELEMENT_BITS + (result + shift) : SIZE;
+        return (found) ? (uint32_t)( element_index * BITSET_T::ELEMENT_BITS + (result + shift) ) : SIZE;
     }
 
-    template< BITSET_TEMPLATE_ARGS >
-    struct iterator
+    template< typename Tbitset >
+    struct const_iterator
     {
-        iterator( BITSET_T& bs, uint32_t begin )
+        explicit const_iterator( const Tbitset& bs, uint32_t begin = 0 )
             : _bs( bs )
-            : _index( begin ) {}
-        
-        BITSET_T& _bs;
+        {
+            _index = find_next_set( _bs, begin );
+        }
+
+        void next() { _index = find_next_set( _bs, _index + 1 ); }
+        bool ok () const { return _index != _bs.NUM_BITS; }
+        bool get() const { return bitset::get( _bs, _index ); }
+
+    private:
+        const Tbitset& _bs;
         uint32_t _index;
 
     };

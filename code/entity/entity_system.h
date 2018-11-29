@@ -1,6 +1,7 @@
 #pragma once
 
 #include "entity_id.h"
+#include <typeinfo>
 #include <foundation/containers.h>
 
 struct BXIAllocator;

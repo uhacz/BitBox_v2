@@ -14,6 +14,7 @@
 
 #include <gfx/gfx.h>
 #include <entity/entity_system.h>
+#include <entity\components\name_component.h>
 
 struct CMPMesh
 {
@@ -25,32 +26,10 @@ struct CMPWorldXForm
     xform_t data;
 };
 
-struct CMPName
-{
-    ECS_NON_POD_COMPONENT( CMPName );
-    string_t value;
-};
-
-ECSComponentID FindComponentByName( ECS* ecs, const char* name )
-{
-    const array_span_t<CMPName*> names = Components<CMPName>( ecs );
-    const uint32_t n = names.size();
-    for( uint32_t i = 0; i < n; ++i )
-    {
-        const CMPName* comp = names[i];
-        if( string::equal( comp->value.c_str(), name ) )
-        {
-            return ecs->Lookup( comp );
-        }
-    }
-    return ECSComponentID::Null();
-}
-
 bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
     CMNEngine::Startup( this, argc, argv, plugins, allocator );
 
-    RegisterComponentNoPOD<CMPName>( _ecs, "Name" );
     RegisterComponent<CMPMesh>( _ecs, "Mesh" );
     RegisterComponent<CMPWorldXForm>( _ecs, "WorldXForm" );
     
@@ -79,7 +58,7 @@ bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins,
         ids[i] = id;
     }
 
-    ECSComponentID id_D = FindComponentByName( _ecs, "D" );
+    ECSComponentID id_D = CMPName::FindComponent( _ecs, "D" );
     const CMPName* name_comp = Component<CMPName>( _ecs, id_D );
 
     _ecs->MarkForDestroy( ids[4] );
