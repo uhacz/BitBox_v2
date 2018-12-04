@@ -7,7 +7,7 @@
 #include <foundation/math/vmath_type.h>
 
 #include <filesystem/filesystem_plugin.h>
-#include <anim_compiler/anim_compiler.h>
+#include <asset_compiler/anim/anim_compiler.h>
 #include <util/file_system_name.h>
 
 struct BXIAllocator;

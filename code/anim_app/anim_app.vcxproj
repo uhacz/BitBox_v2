@@ -90,8 +90,8 @@
     <ProjectReference Include="..\anim\anim.vcxproj">
       <Project>{a647b6f9-cc23-4361-ac2d-1e71bebbb3a9}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\anim_compiler\anim_compiler.vcxproj">
-      <Project>{0a9c8fd8-ef7a-4bbf-859f-366e76e46067}</Project>
+    <ProjectReference Include="..\asset_compiler\asset_compiler.vcxproj">
+      <Project>{af9a3270-b31d-4e46-a096-339139ecb124}</Project>
     </ProjectReference>
     <ProjectReference Include="..\common\common.vcxproj">
       <Project>{817299b1-a2f0-4915-865b-28f5560619ef}</Project>

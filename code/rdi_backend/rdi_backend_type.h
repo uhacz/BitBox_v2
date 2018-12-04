@@ -1,6 +1,7 @@
 #pragma once
 
 #include <foundation/type.h>
+#include <foundation/debug.h>
 
 namespace RDIEPipeline
 {
@@ -167,13 +168,9 @@ namespace RDIEVertexSlot
     enum Enum
     {
         POSITION = 0,
-        BLENDWEIGHT,
         NORMAL,
         COLOR0,
         COLOR1,
-        FOGCOORD,
-        PSIZE,
-        BLENDINDICES,
         TEXCOORD0,
         TEXCOORD1,
         TEXCOORD2,
@@ -182,19 +179,17 @@ namespace RDIEVertexSlot
         TEXCOORD5,
         TANGENT,
         BINORMAL,
+        BLENDWEIGHT,
+        BLENDINDICES,
         COUNT,
     };
 
     static const char* name[RDIEVertexSlot::COUNT] =
     {
         "POSITION",
-        "BLENDWEIGHT",
         "NORMAL",
         "COLOR",
         "COLOR",
-        "FOGCOORD",
-        "PSIZE",
-        "BLENDINDICES",
         "TEXCOORD",
         "TEXCOORD",
         "TEXCOORD",
@@ -203,17 +198,15 @@ namespace RDIEVertexSlot
         "TEXCOORD",
         "TANGENT",
         "BINORMAL",
+        "BLENDWEIGHT",
+        "BLENDINDICES",
     };
     static const int semanticIndex[RDIEVertexSlot::COUNT] =
     {
         0, //POSITION = 0
-        0, //BLENDWEIGHT,
         0, //NORMAL,	
         0, //COLOR0,	
         1, //COLOR1,	
-        0, //FOGCOORD,	
-        0, //PSIZE,		
-        0, //BLENDINDICES
         0, //TEXCOORD0,	
         1, //TEXCOORD1,
         2, //TEXCOORD2,
@@ -221,6 +214,9 @@ namespace RDIEVertexSlot
         4, //TEXCOORD4,
         5, //TEXCOORD5,
         0, //TANGENT,
+        0, //BINORMAL
+        0, //BLENDWEIGHT,
+        0, //BLENDINDICES
     };
 	RDIEVertexSlot::Enum FromString( const char* n );
 
@@ -528,9 +524,16 @@ union RDIVertexBufferDesc
 	static RDIVertexBufferDesc POS()  { return RDIVertexBufferDesc( RDIEVertexSlot::POSITION ).DataType( RDIEType::FLOAT, 3 ); }
     static RDIVertexBufferDesc POS4() { return RDIVertexBufferDesc( RDIEVertexSlot::POSITION ).DataType( RDIEType::FLOAT, 4 ); }
 	static RDIVertexBufferDesc NRM()  { return RDIVertexBufferDesc( RDIEVertexSlot::NORMAL ).DataType( RDIEType::FLOAT, 3 ); }
-	static RDIVertexBufferDesc UV0()  { return RDIVertexBufferDesc( RDIEVertexSlot::TEXCOORD0 ).DataType( RDIEType::FLOAT, 2 ); }
     static RDIVertexBufferDesc TAN()  { return RDIVertexBufferDesc( RDIEVertexSlot::TANGENT ).DataType( RDIEType::FLOAT, 3 ); }
     static RDIVertexBufferDesc BIN()  { return RDIVertexBufferDesc( RDIEVertexSlot::BINORMAL ).DataType( RDIEType::FLOAT, 3 ); }
+
+    static RDIVertexBufferDesc UV( uint32_t set_index ) 
+    { 
+        SYS_ASSERT( set_index <= RDIEVertexSlot::TEXCOORD5 );
+        return RDIVertexBufferDesc( (RDIEVertexSlot::Enum)(RDIEVertexSlot::TEXCOORD0 + set_index) ).DataType( RDIEType::FLOAT, 2 ); 
+    }
+
+    static RDIVertexBufferDesc UV0() { return RDIVertexBufferDesc( RDIEVertexSlot::TEXCOORD0 ).DataType( RDIEType::FLOAT, 2 ); }
 };
 
 struct RDIVertexLayout

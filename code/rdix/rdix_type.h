@@ -8,7 +8,7 @@
 // --- 
 struct RDIXShaderFile
 {
-	static const uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+	static constexpr uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
 
 	struct Pass
 	{
@@ -189,6 +189,24 @@ struct RDIXRenderSourceDesc
 		shared_index_buffer = ibuffer;
 		return *this;
 	}
+};
+
+struct RDIXMeshFile
+{
+    static constexpr uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+
+    uint32_t tag = tag32_t( "MESH" );
+    uint32_t version = VERSION;
+
+    RDIVertexLayout vertex_layout = {};
+    uint32_t num_vertices = 0;
+    uint32_t num_indices = 0;
+    uint32_t num_bones = 0;
+    uint32_t num_draw_ranges = 0;
+    
+    uint32_t offset_streams[RDIEVertexSlot::COUNT] = {};
+    uint32_t offset_bones = 0;
+    uint32_t offset_draw_ranges = 0;
 };
 
 // --- 

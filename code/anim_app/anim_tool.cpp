@@ -80,8 +80,8 @@ void AnimTool::Tick( BXIFilesystem* fs, float dt )
                 _clip_blob.destroy();                
                 BX_FREE0( _allocator, _joints_ms );
 
-                _skel_blob = tool::anim::ExportSkeleton( *_in_skel, _allocator );
-                _clip_blob = tool::anim::ExportClip( *_in_anim, *_in_skel, _allocator );
+                _skel_blob = tool::anim::CompileSkeleton( *_in_skel, _allocator );
+                _clip_blob = tool::anim::CompileClip( *_in_anim, *_in_skel, _allocator );
 
                 BX_DELETE0( _allocator, _player );
                 _player = BX_NEW( _allocator, ANIMSimplePlayer );
