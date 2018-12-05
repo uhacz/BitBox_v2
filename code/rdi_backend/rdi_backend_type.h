@@ -368,7 +368,7 @@ static const uint32_t cRDI_MAX_TEXTURES = 8;
 static const uint32_t cRDI_MAX_RESOURCES_RO = 8;
 static const uint32_t cRDI_MAX_RESOURCES_RW = 6;
 static const uint32_t cRDI_MAX_SAMPLERS = 8;
-static const uint32_t cRDI_MAX_VERTEX_BUFFERS = 6;
+static const uint32_t cRDI_MAX_VERTEX_BUFFERS = RDIEVertexSlot::COUNT;
 static const uint32_t cRDI_MAX_SHADER_MACRO = 32;
 
 //////////////////////////////////////////////////////////////////////////
@@ -526,6 +526,8 @@ union RDIVertexBufferDesc
 	static RDIVertexBufferDesc NRM()  { return RDIVertexBufferDesc( RDIEVertexSlot::NORMAL ).DataType( RDIEType::FLOAT, 3 ); }
     static RDIVertexBufferDesc TAN()  { return RDIVertexBufferDesc( RDIEVertexSlot::TANGENT ).DataType( RDIEType::FLOAT, 3 ); }
     static RDIVertexBufferDesc BIN()  { return RDIVertexBufferDesc( RDIEVertexSlot::BINORMAL ).DataType( RDIEType::FLOAT, 3 ); }
+    static RDIVertexBufferDesc BW ()  { return RDIVertexBufferDesc( RDIEVertexSlot::BLENDWEIGHT ).DataType( RDIEType::FLOAT, 4 ); }
+    static RDIVertexBufferDesc BI()   { return RDIVertexBufferDesc( RDIEVertexSlot::BLENDINDICES ).DataType( RDIEType::UBYTE, 4 ); }
 
     static RDIVertexBufferDesc UV( uint32_t set_index ) 
     { 

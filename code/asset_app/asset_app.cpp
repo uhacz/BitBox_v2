@@ -40,6 +40,7 @@
 #include <entity/entity.h>
 
 #include "material_editor.h"
+#include <asset_compiler/mesh/mesh_compiler.h>
 
 struct GroundMesh
 {
@@ -75,68 +76,43 @@ static MATEditor g_mat_editor;
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    _filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
-    _filesystem->SetRoot( "x:/dev/assets/" );
-
-    //GFXMaterialResource mat_res;
-    //gfx_shader::Material& mat = mat_res.data;
-    //mat.diffuse_albedo = vec3_t( 1.f, 0.f, 1.f );
-    //mat.roughness = 0.2f;
-    //mat.specular_albedo = vec3_t( 0.f, 1.f, 0.f );
-    //mat.metal = 0.f;
-
-    //string::create( &mat_res.textures[0], "abc", allocator );
-    //string::create( &mat_res.textures[1], "defgh", allocator );
-    //string::create( &mat_res.textures[2], "ijklmno", allocator );
-    //string::create( &mat_res.textures[3], "pqrstuvwxfdsjklfdjsaklfjhsdauof", allocator );
-
-
-    //SRLInstance srl;
-    //data_buffer::create( &srl.data, 128, allocator );
-    //srl.version = 0;
-    //srl.is_writting = true;
-    //srl.allocator = allocator;
-
-    //Serialize( &srl, &mat_res );
-
-    //_filesystem->WriteFileSync( _filesystem, "material/test.material", srl.data.data.begin(), srl.data.data.size );
-
-    ////fopen_s( &srl.file, "test.material", "rb" );
-    //srl.is_writting = false;
-
-    //GFXMaterialResource mat_res1;
-    //Serialize( &srl, &mat_res1 );
-    //fclose( srl.file );
-
-    _rsm = RSM::StartUp( _filesystem, allocator );
-
-	BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
-	const BXWindow* window = win_plugin->GetWindow();
-	::Startup( &_rdidev, &_rdicmdq, window->GetSystemHandle( window ), window->width, window->height, 0, allocator );
-    
-    GUI::StartUp( win_plugin, _rdidev );
-
-    GFXDesc gfxdesc = {};
-    _gfx = GFX::StartUp( _rdidev, _rsm, gfxdesc, _filesystem, allocator );
-
-    _ent = ENT::StartUp( allocator );
+    CMNEngine::Startup( (CMNEngine*)this, argc, argv, plugins, allocator );
 
     GFXSceneDesc desc;
     desc.max_renderables = 16 + 1;
     desc.name = "test scene";
     g_idscene = _gfx->CreateScene( desc );
-	
-    {
-        {
-            CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, _rsm, vec3_t(100.f, 0.5f, 100.f), mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) ) );
-        }
 
-        //for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
-        //{
-        //    entity[i] = _ent->CreateEntity();
-        //    _ent->CreateComponent( entity[i], "TestComponent" );
-        //}
+    {
+        const char* filename = ".src/mesh/paladin.fbx";
+        BXFileWaitResult result = _filesystem->LoadFileSync( _filesystem, filename, BXEFIleMode::BIN, allocator );
+    
+        tool::mesh::Streams mesh_streams;
+        if( tool::mesh::Import( &mesh_streams, result.file.pointer, result.file.size ) )
+        {
+            blob_t cmesh = tool::mesh::Compile( mesh_streams, allocator );
+
+            RDIXMeshFile* mesh_file = (RDIXMeshFile*)cmesh.raw;
+
+            RDIXRenderSource* rsource = CreateRenderSourceFromMemory( _rdidev, mesh_file, allocator );
+            RSMResourceID resource_id = _rsm->Create( "test.mesh", rsource, allocator );
+
+            GFXMeshInstanceDesc desc = {};
+            desc.idmaterial = _gfx->FindMaterial( "checkboard" );
+            desc.idmesh_resource = resource_id;
+            const mat44_t final_pose = mat44_t::identity();
+            _gfx->AddMeshToScene( g_idscene, desc, final_pose );
+        }
+               
+
+
     }
+
+
+
+    
+	
+    CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, _rsm, vec3_t(100.f, 0.5f, 100.f), mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) ) );
     
     {// sky
         BXFileWaitResult filewait = _filesystem->LoadFileSync( _filesystem, "texture/sky_cubemap.dds", BXEFIleMode::BIN, allocator );
@@ -160,8 +136,6 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
     g_mat_editor.ShutDown( _gfx, _rsm );
-    //for( uint32_t i = 0; i < NUM_ENTITIES; ++i )
-    //    _ent->DestroyEntity( entity[i] );
     
     {
         ENTSystemInfo ent_sys_info = {};
@@ -174,17 +148,8 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     _gfx->DestroyScene( g_idscene );
     _gfx->DestroyCamera( g_idcamera );
 
-    GFX::ShutDown( &_gfx, _rsm );
-
-    GUI::ShutDown();
-	
-    ::Shutdown( &_rdidev, &_rdicmdq, allocator );
-    
-    RSM::ShutDown( &_rsm );
-    _filesystem = nullptr;
+    CMNEngine::Shutdown( (CMNEngine*)this, allocator );
 }
-
-
 
 bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocator* allocator )
 {
@@ -218,25 +183,11 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     _gfx->SetCameraWorld( g_idcamera, new_camera_world );
     _gfx->ComputeCamera( g_idcamera );
 
-    {
-        ENTSystemInfo ent_sys_info = {};
-        ent_sys_info.ent = _ent;
-        ent_sys_info.gfx = _gfx;
-        ent_sys_info.rsm = _rsm;
-        ent_sys_info.default_allocator = allocator;
-        ent_sys_info.scratch_allocator = allocator;
-        ent_sys_info.gfx_scene_id = g_idscene;
-        _ent->Step( &ent_sys_info, deltaTimeUS );
-    }
-
     g_mat_editor.Tick( _gfx, _rsm, _filesystem );
 
     GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq, _rsm );
-    //static bool tmp = false;
-    //if( !tmp )
     {
         _gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_idcamera );
-       // tmp = true;
     }
 
     if( ImGui::Begin( "Frame info" ) )

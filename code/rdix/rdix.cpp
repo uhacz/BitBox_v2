@@ -664,6 +664,31 @@ RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_
     return CreateRenderSource( dev, desc, allocator );
 }
 
+RDIXRenderSource* CreateRenderSourceFromMemory( RDIDevice* dev, const RDIXMeshFile* header, BXIAllocator* allocator )
+{
+    RDIXRenderSourceDesc desc = {};
+    desc.Count( header->num_vertices, header->num_indices );
+
+    const uint32_t num_streams = header->num_streams;
+    for( uint32_t i = 0; i < num_streams; ++i )
+    {
+        const RDIVertexBufferDesc& stream_desc = header->descs[i];
+        const void* data_pointer = TYPE_OFFSET_GET_POINTER( void, header->offset_streams[i] );
+
+        desc.VertexBuffer( stream_desc, data_pointer );
+    }
+
+    if( header->num_indices )
+    {
+        const RDIEType::Enum type = (header->flag_use_16bit_indices) ? RDIEType::USHORT : RDIEType::UINT;
+        const void* data_pointer = TYPE_OFFSET_GET_POINTER( void, header->offset_indices );
+
+        desc.IndexBuffer( type, data_pointer );
+    }
+
+    return CreateRenderSource( dev, desc, allocator );
+}
+
 void DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource )
 {
 	if( !rsource[0] )

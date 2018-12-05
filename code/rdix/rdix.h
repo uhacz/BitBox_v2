@@ -67,6 +67,7 @@ RDITextureDepth   TextureDepth( RDIXRenderTarget* rtarget );
 RDIXRenderSource* CreateRenderSource ( RDIDevice* dev, const RDIXRenderSourceDesc& desc, BXIAllocator* allocator );
 RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes_mesh* shape, BXIAllocator* allocator );
 RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_t* shape, BXIAllocator* allocator );
+RDIXRenderSource* CreateRenderSourceFromMemory( RDIDevice* dev, const RDIXMeshFile* header, BXIAllocator* allocator );
 void			  DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource );
 void			  BindRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource );
 void			  SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t rangeIndex = 0 );
