@@ -59,7 +59,7 @@ namespace id_table
     }
 
     template <BX_ID_TABLE_T_DEF>
-    inline id_t id( const id_table_t<BX_ID_TABLE_T_ARG>& a, uint32_t index )
+    inline Tid id( const id_table_t<BX_ID_TABLE_T_ARG>& a, uint32_t index )
     {
         SYS_ASSERT( index < MAX );
         SYS_ASSERT( a._ids[index].index == index );

@@ -11,6 +11,8 @@ struct GFXMeshResourceLoader : RSMLoader
     RSM_DEFINE_LOADER( GFXMeshResourceLoader );
     virtual const char* SupportedType() const { return "mesh"; }
     virtual bool IsBinary() const { return true; }
+    
+    virtual void Unload( RSMResourceData* in_out ) override;
 };
 
 //

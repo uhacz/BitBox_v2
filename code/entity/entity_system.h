@@ -9,6 +9,7 @@ struct ECSImpl;
 
 using ECSRawComponent = void;
 using ECSRawComponentSpan = array_span_t<ECSRawComponent*>;
+using ECSComponentIDSpan  = array_span_t<ECSComponentID>;
 
 struct ECSComponentTypeDesc
 {
@@ -23,20 +24,23 @@ struct ECSComponentTypeDesc
 struct ECS
 {
     ECSEntityID CreateEntity();
-    ECSEntityID MarkForDestroy( ECSEntityID id );
+    void MarkForDestroy( ECSEntityID id );
+    bool IsAlive( ECSEntityID id ) const;
 
     void RegisterComponent( const char* name, const ECSComponentTypeDesc& desc );
 
     ECSComponentID CreateComponent( size_t type_hash_code );
     void MarkForDestroy( ECSComponentID id );
+    bool IsAlive( ECSComponentID id ) const;
 
-    ECSEntityID Owner( ECSComponentID id );
-    ECSComponentID Lookup( const ECSRawComponent* pointer );
-    ECSRawComponent* Component( ECSComponentID id );
-    ECSRawComponentSpan Components( size_t type_hash_code );
+    ECSEntityID Owner( ECSComponentID id ) const;
+    ECSComponentID Lookup( const ECSRawComponent* pointer ) const;
+    ECSRawComponent* Component( ECSComponentID id ) const;
+    ECSRawComponentSpan Components( size_t type_hash_code ) const;
+    ECSComponentIDSpan  Components( ECSEntityID id ) const;
 
-    void Link( ECSEntityID parent, ECSEntityID child );
-    void Unlink( ECSEntityID child );
+    //void Link( ECSEntityID parent, ECSEntityID child );
+    //void Unlink( ECSEntityID child );
 
     void Link( ECSEntityID eid, const ECSComponentID* cid, uint32_t cid_count );
     void Unlink( const ECSComponentID* cid, uint32_t cid_count );

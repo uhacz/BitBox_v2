@@ -47,7 +47,7 @@ void GFXUtils::StartUp( RDIDevice* dev, BXIFilesystem* filesystem, BXIAllocator*
 
 void GFXUtils::ShutDown( RDIDevice* dev )
 {
-    DestroyPipeline( dev, &data->pipeline.copy_rgba );
+    DestroyPipeline( &data->pipeline.copy_rgba );
 
     data->allocator = nullptr;
 }
@@ -142,7 +142,7 @@ namespace gfx_internal
         SetResourceRO( binding, "tex_material_metalness" , rdi_tex[GFXEMaterialTextureSlot::METALNESS] );
     }
 
-    static void RefreshPendingMaterials( GFXSystem* gfx, RSM* rsm )
+    static void RefreshPendingMaterials( GFXSystem* gfx )
     {
         GFXMaterialContainer& mc = gfx->_material;
         {
@@ -160,7 +160,7 @@ namespace gfx_internal
                 const GFXMaterialTexture& textures = mc.textures[id.index];
 
                 RDITextureRO* rdi_tex[GFXEMaterialTextureSlot::_COUNT_] = {};
-                const RSMLoadState state = GetLoadState( rsm, rdi_tex, textures.id, GFXEMaterialTextureSlot::_COUNT_ );
+                const RSMLoadState state = GetLoadState( rdi_tex, textures.id, GFXEMaterialTextureSlot::_COUNT_ );
                 if( state.nb_loaded == GFXEMaterialTextureSlot::_COUNT_ )
                 {
                     ApplyTextures( mc.binding[id.index], rdi_tex );
@@ -188,12 +188,12 @@ namespace gfx_internal
                 RSMResourceID resource_id = array::back( mc.resource_to_release );
                 array::pop_back( mc.resource_to_release );
 
-                rsm->Release( resource_id );
+                RSM::Release( resource_id );
             }
         }
     }
 
-    static void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst, RSM* rsm )
+    static void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst )
     {
         if( !sc->IsMeshAlive( idscene, idinst ) )
             return;
@@ -205,18 +205,23 @@ namespace gfx_internal
             std::lock_guard<mutex_t> lck( sc->mesh_lock[scene_index] );
             const auto remove_info = id_allocator::free( sc->mesh_idalloc[scene_index], idinst );
 
-            SYS_ASSERT( remove_info.copy_data_from_index == data_index );
+            SYS_ASSERT( remove_info.copy_data_to_index == data_index );
             (void)remove_info;
 
 
-            // here should be material and mesh release, or sth like that...
-            rsm->Release( sc->mesh_data[scene_index]->idmesh_resource[data_index] );
+            // render source will be destroyed by resource loader
+            RSMResourceID mesh_res_id = sc->mesh_data[scene_index]->idmesh_resource[data_index];
+            RDIXRenderSource* rsource = (RDIXRenderSource*)RSM::Get( mesh_res_id );
+            if( RSM::Release( mesh_res_id ) )
+            {
+                DestroyRenderSource( &rsource );
+            }
 
             container_soa::remove_packed( sc->mesh_data[scene_index], data_index );
         }
     }
 
-    static void RemovePendingObjects( GFXSystem* gfx, RSM* rsm )
+    static void RemovePendingObjects( GFXSystem* gfx )
     {
         {// cameras
             GFXCameraContainer& cc = gfx->_camera;
@@ -244,7 +249,7 @@ namespace gfx_internal
                 GFXSceneContainer::DeadMeshInstanceID dead_id = array::back( sc.mesh_to_remove );
                 array::pop_back( sc.mesh_to_remove );
 
-                ReleaseMeshInstance( &sc, dead_id.idscene, dead_id.idinst, rsm );
+                ReleaseMeshInstance( &sc, dead_id.idscene, dead_id.idinst );
             }
         }
 
@@ -260,13 +265,13 @@ namespace gfx_internal
                 {
                     const uint32_t last_index = container_soa::size( sc.mesh_data[id.index] ) - 1;
                     const id_t idinst = sc.mesh_data[id.index]->idinstance[last_index];
-                    ReleaseMeshInstance( &sc, id, idinst, rsm );
+                    ReleaseMeshInstance( &sc, id, idinst );
                 }
 
                 Destroy( &sc.sky_data[id.index].sky_texture );
 
                 DestroyCommandBuffer( &sc.command_buffer[id.index], gfx->_allocator );
-                DestroyTransformBuffer( gfx->_rdidev, &sc.transform_buffer[id.index], gfx->_allocator );
+                DestroyTransformBuffer( &sc.transform_buffer[id.index], gfx->_allocator );
                 container_soa::destroy( &sc.mesh_data[id.index] );
                 id_allocator::destroy( &sc.mesh_idalloc[id.index] );
 
@@ -294,7 +299,7 @@ namespace gfx_internal
                 //Destroy( &mc.data_gpu[id.index] );
                 
                 for( uint32_t itex = 0; itex < GFXEMaterialTextureSlot::_COUNT_; ++itex )
-                    rsm->Release( mc.textures[id.index].id[itex] );
+                    RSM::Release( mc.textures[id.index].id[itex] );
 
                 {
                     std::lock_guard<mutex_t> lck( mc.lock );
@@ -344,7 +349,7 @@ namespace gfx_internal
 
         bool hasTextures = false;
         for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_ && !hasTextures; ++i )
-            hasTextures |= gfx->_rsm->IsAlive( tex.id[i] );
+            hasTextures |= RSM::IsAlive( tex.id[i] );
 
         if( hasTextures )
         {
@@ -424,7 +429,7 @@ static void GFXFree( GFX** gfxi, BXIAllocator* allocator )
     BX_DELETE0( allocator, gfxi[0] );
 }
 
-GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator )
+GFX* GFX::StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator )
 {
     GFX* gfx_interface = GFXAllocate( allocator );
     GFXSystem* gfx = gfx_interface->gfx;
@@ -432,12 +437,11 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
     gfx->_camera._names_allocator = allocator;
     gfx->_allocator = allocator;
     gfx->_rdidev = dev;
-    gfx->_rsm = rsm;
 
     { // loaders
-        RSM::RegisterLoader<GFXMeshResourceLoader>( rsm );
-        RSM::RegisterLoader<GFXTextureResourceLoader>( rsm );
-        RSM::RegisterLoader<GFXShaderResourceLoader>( rsm );
+        RSM::RegisterLoader<GFXMeshResourceLoader>();
+        RSM::RegisterLoader<GFXTextureResourceLoader>();
+        RSM::RegisterLoader<GFXShaderResourceLoader>();
     }
 
     gfx_interface->utils->StartUp( dev, filesystem, allocator );
@@ -541,10 +545,10 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
             mat.data.metal = 0.f;
             mat.data.roughness = 0.5f;
 
-            mat.textures.id[GFXEMaterialTextureSlot::BASE_COLOR] = rsm->Load( "texture/checkboard/d.DDS", gfx_interface );
-            mat.textures.id[GFXEMaterialTextureSlot::NORMAL]     = rsm->Load( "texture/checkboard/n.DDS", gfx_interface );
-            mat.textures.id[GFXEMaterialTextureSlot::ROUGHNESS]  = rsm->Load( "texture/checkboard/r.DDS", gfx_interface );
-            mat.textures.id[GFXEMaterialTextureSlot::METALNESS]  = rsm->Load( "texture/not_metal.DDS", gfx_interface );
+            mat.textures.id[GFXEMaterialTextureSlot::BASE_COLOR] = RSM::Load( "texture/checkboard/d.DDS", gfx_interface );
+            mat.textures.id[GFXEMaterialTextureSlot::NORMAL]     = RSM::Load( "texture/checkboard/n.DDS", gfx_interface );
+            mat.textures.id[GFXEMaterialTextureSlot::ROUGHNESS]  = RSM::Load( "texture/checkboard/r.DDS", gfx_interface );
+            mat.textures.id[GFXEMaterialTextureSlot::METALNESS]  = RSM::Load( "texture/not_metal.DDS", gfx_interface );
 
             gfx->_default_materials[4] = gfx_interface->CreateMaterial( "checkboard", mat );
         }
@@ -564,7 +568,7 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
         for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MESHES; ++i )
         {
             RDIXRenderSource* rsource = CreateRenderSourceFromShape( gfx->_rdidev, &shapes[i], allocator );
-            gfx->_default_meshes[i] = rsm->Create( names[i], rsource, allocator );
+            gfx->_default_meshes[i] = RSM::Create( names[i], rsource );
         }
         for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MESHES; ++i )
         {
@@ -575,7 +579,7 @@ GFX* GFX::StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem*
 }
 
 
-void GFX::ShutDown( GFX** gfx_interface_handle, RSM* rsm )
+void GFX::ShutDown( GFX** gfx_interface_handle )
 {
     if( !gfx_interface_handle[0] )
         return;
@@ -585,37 +589,42 @@ void GFX::ShutDown( GFX** gfx_interface_handle, RSM* rsm )
     RDIDevice* dev = gfx->_rdidev;
     BXIAllocator* allocator = gfx->_allocator;
 
+    gfx_internal::RemovePendingObjects( gfx );
 
     {// --- postprocess
-        DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_ss );
-        DestroyPipeline( dev, &gfx->_postprocess.shadow.pipeline_combine );
+        DestroyPipeline( &gfx->_postprocess.shadow.pipeline_ss );
+        DestroyPipeline( &gfx->_postprocess.shadow.pipeline_combine );
         ::Destroy( &gfx->_postprocess.shadow.cbuffer_fdata );
-
     }
 
     {// --- material
         ::Destroy( &gfx->_material.lighting_data_gpu );
         //::Destroy( &gfx->_material.frame_data_gpu );
-        DestroyPipeline( dev, &gfx->_material.pipeline.base );
-        DestroyPipeline( dev, &gfx->_material.pipeline.base_with_skybox );
-        DestroyPipeline( dev, &gfx->_material.pipeline.full );
-        DestroyPipeline( dev, &gfx->_material.pipeline.skybox );
-        DestroyPipeline( dev, &gfx->_material.pipeline.shadow_depth );
+        DestroyPipeline( &gfx->_material.pipeline.base );
+        DestroyPipeline( &gfx->_material.pipeline.base_with_skybox );
+        DestroyPipeline( &gfx->_material.pipeline.full );
+        DestroyPipeline( &gfx->_material.pipeline.skybox );
+        DestroyPipeline( &gfx->_material.pipeline.shadow_depth );
     }
 
     for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MESHES; ++i )
     {
-        rsm->Release( gfx->_default_meshes[i] );
+        RDIXRenderSource* rsource = nullptr;
+        
+        bool released = RSM::Release( gfx->_default_meshes[i], (void**)&rsource );
+        SYS_ASSERT( released );
+        
         gfx->_default_meshes[i] = RSMResourceID::Null();
+        DestroyRenderSource( &rsource );
     }
-    DestroyRenderSource( gfx->_rdidev, &gfx->_fallback_mesh );
+    DestroyRenderSource( &gfx->_fallback_mesh );
     
     gfx_interface->DestroyMaterial( gfx->_fallback_idmaterial );
     for( uint32_t i = 0; i < GFXSystem::NUM_DEFAULT_MATERIALS; ++i )
     {
         gfx_interface->DestroyMaterial( gfx->_default_materials[i] );
     }
-    gfx_internal::RemovePendingObjects( gfx, rsm );
+    
 
     SYS_ASSERT( gfx->_frame_ctx.Valid() == false );
 
@@ -916,13 +925,12 @@ GFXMeshInstanceID GFX::AddMeshToScene( GFXSceneID idscene, const GFXMeshInstance
     const id_t idinst = id_allocator::alloc( sc.mesh_idalloc[index] );
     const uint32_t data_index = container_soa::push_back( data );
     sc.mesh_lock[index].unlock();
-
-    
-    SYS_ASSERT( data_index == idinst.index );
-    data->world_matrix[idinst.index] = pose;
-    data->idmesh_resource[idinst.index] = desc.idmesh_resource;
-    data->idmat[idinst.index] = idmat;
-    data->idinstance[idinst.index] = idinst;
+        
+    SYS_ASSERT( data_index ==  id_allocator::dense_index( sc.mesh_idalloc[index], idinst ) );
+    data->world_matrix   [data_index] = pose;
+    data->idmesh_resource[data_index] = desc.idmesh_resource;
+    data->idmat          [data_index] = idmat;
+    data->idinstance     [data_index] = idinst;
 
     return EncodeMeshInstanceID( idscn, idinst );
 }
@@ -1024,10 +1032,10 @@ const GFXSkyParams& GFX::SkyParams( GFXSceneID idscene ) const
     return sc.sky_data[index].params;
 }
 
-GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq, RSM* rsm )
+GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq )
 {
-    gfx_internal::RefreshPendingMaterials( gfx, rsm );
-    gfx_internal::RemovePendingObjects( gfx, rsm );
+    gfx_internal::RefreshPendingMaterials( gfx );
+    gfx_internal::RemovePendingObjects( gfx );
     
 
     ClearState( cmdq );
@@ -1065,7 +1073,6 @@ GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq, RSM* rsm )
 
     SYS_ASSERT( !gfx->_frame_ctx.Valid() );
     gfx->_frame_ctx.cmdq = cmdq;
-    gfx->_frame_ctx.rsm = rsm;
     return &gfx->_frame_ctx;
 }
 
@@ -1075,7 +1082,6 @@ void GFX::EndFrame( GFXFrameContext* fctx )
 
     ::Swap( fctx->cmdq, gfx->_sync_interval );
     fctx->cmdq = nullptr;
-    fctx->rsm = nullptr;
 }
 void GFX::RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, GFXCameraID idcamera )
 {
@@ -1217,7 +1223,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, GFXC
         
         if( RDIXDrawRenderSourceCmd* draw_cmd = chain.AppendCmd<RDIXDrawRenderSourceCmd>() )
         {
-            RDIXRenderSource* rsource = (RDIXRenderSource*)fctx->rsm->Get( idmesh_array[i] );
+            RDIXRenderSource* rsource = (RDIXRenderSource*)RSM::Get( idmesh_array[i] );
             draw_cmd->rsource = rsource ? rsource : gfx->_fallback_mesh;
             draw_cmd->num_instances = 1;
         }

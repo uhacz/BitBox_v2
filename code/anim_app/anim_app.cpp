@@ -43,7 +43,7 @@ bool AnimApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, B
     g_idscene = _gfx->CreateScene( desc );
 
     {
-        CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, _rsm, vec3_t( 100.f, 0.5f, 100.f ), mat44_t::translation( vec3_t( 0.f, -0.25f, 0.f ) ) );
+        CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, vec3_t( 100.f, 0.5f, 100.f ), mat44_t::translation( vec3_t( 0.f, -0.25f, 0.f ) ) );
     }
 
     {// sky
@@ -116,7 +116,6 @@ bool AnimApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocato
         ENTSystemInfo ent_sys_info = {};
         ent_sys_info.ent = _ent;
         ent_sys_info.gfx = _gfx;
-        ent_sys_info.rsm = _rsm;
         ent_sys_info.default_allocator = allocator;
         ent_sys_info.scratch_allocator = allocator;
         ent_sys_info.gfx_scene_id = g_idscene;
@@ -129,7 +128,7 @@ bool AnimApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocato
     }
 
 
-    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq, _rsm );
+    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
 
     _gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_idcamera );
 

@@ -202,7 +202,7 @@ namespace
 
 static Data g_data = {};
 
-void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
+void StartUp( RDIDevice* dev, BXIAllocator* allocator )
 {
     g_data.allocator = allocator;
 
@@ -260,7 +260,7 @@ void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator )
     }
 
     {// shader
-        RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/debug.shader", rsm->Filesystem(), allocator );
+        RDIXShaderFile* shader_file = LoadShaderFile( "shader/hlsl/bin/debug.shader", RSM::Filesystem(), allocator );
 
         g_data.pipeline[PIPELINE_OBJ_DEPTH_WIREFRAME] = CreatePipeline( dev, shader_file, "object_D_W", allocator );
         g_data.pipeline[PIPELINE_OBJ_NDEPTH_WIREFRAME] = CreatePipeline( dev, shader_file, "object_ND_W", allocator );
@@ -305,7 +305,7 @@ void ShutDown( RDIDevice* dev )
 
     for( uint32_t i = 0; i < PIPELINE_COUNT; ++i )
     {
-        DestroyPipeline( dev, &g_data.pipeline[i] );
+        DestroyPipeline( &g_data.pipeline[i] );
     }
 
     {
@@ -316,7 +316,7 @@ void ShutDown( RDIDevice* dev )
 
     for( uint32_t i = 0; i < RSOURCE_COUNT; ++i )
     {
-        DestroyRenderSource( dev, &g_data.rsource[i] );
+        DestroyRenderSource( &g_data.rsource[i] );
     }
 }
 

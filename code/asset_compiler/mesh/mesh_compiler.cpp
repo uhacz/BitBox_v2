@@ -222,7 +222,18 @@ namespace tool { namespace mesh {
         return result;
     }
 
-    blob_t Compile( const Streams& streams, BXIAllocator* allocator )
+    CompileOptions::CompileOptions( uint32_t default_slots /*= UINT32_MAX */ )
+    {
+        slot_mask = default_slots;
+    }
+
+    CompileOptions& CompileOptions::AddSlot( RDIEVertexSlot::Enum slot )
+    {
+        slot_mask |= 1 << slot;
+        return *this;
+    }
+
+    blob_t Compile( const Streams& streams, const CompileOptions& opt, BXIAllocator* allocator )
     {
         constexpr uint32_t MAX_STREAMS = RDIEVertexSlot::COUNT;
 
@@ -232,7 +243,7 @@ namespace tool { namespace mesh {
 
         for( uint32_t istream = 0; istream < MAX_STREAMS; ++istream )
         {
-            if( streams.data[istream].empty() )
+            if( streams.data[istream].empty() || !opt.HasSlot( istream ) )
                 continue;
 
             const uint32_t index = num_streams++;
@@ -347,5 +358,7 @@ namespace tool { namespace mesh {
 
         return blob;
     }
+
+
 
 }}

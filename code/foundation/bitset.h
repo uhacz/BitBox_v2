@@ -146,6 +146,7 @@ namespace bitset
         void next() { _index = find_next_set( _bs, _index + 1 ); }
         bool ok () const { return _index != _bs.NUM_BITS; }
         bool get() const { return bitset::get( _bs, _index ); }
+        uint32_t index() const { return _index; }
 
     private:
         const Tbitset& _bs;

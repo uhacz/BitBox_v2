@@ -10,6 +10,7 @@
 #include <foundation/hashmap.h>
 #include <algorithm>
 #include "foundation/thread/rw_spin_lock.h"
+#include "foundation/bitset.h"
 
 static constexpr uint32_t MAX_COMP_TYPES = 1 << 8;
 static constexpr uint32_t MAX_ENT = 1 << ECSEntityID::INDEX_BITS_VALUE;
@@ -64,104 +65,7 @@ struct ECSComponentStorage
         array::erase_swap( _components, index );
         _pool.free( comp );
     }
-
-    //uint8_t* _data = nullptr;
-    //uint32_t _size = 0;
-    //uint32_t _capacity = 0;
-    //uint32_t _element_size = 0;
-    //uint32_t _element_alignment = 0;
-
-    //BXIAllocator* _allocator = nullptr;
-
-    //struct RemoveResult
-    //{
-    //    uint32_t removed = UINT32_MAX;
-    //    uint32_t last = UINT32_MAX;
-
-    //    bool Succeed() const { return removed != UINT32_MAX; }
-    //};
-
-    //void StartUp( uint32_t element_size, uint32_t initial_capacity_in_bytes, uint32_t alignment, BXIAllocator* allocator )
-    //{
-    //    SYS_ASSERT( _data == nullptr );
-    //    _allocator = allocator;
-    //    _data = (uint8_t*)BX_MALLOC( allocator, initial_capacity_in_bytes, alignment );
-    //    _capacity = initial_capacity_in_bytes;
-    //    _size = 0;
-
-    //    _element_size = element_size;
-    //    _element_alignment = alignment;
-    //    
-    //}
-    //void ShutDown()
-    //{
-    //    BX_FREE( _allocator, _data );
-    //}
-
-    //uint8_t* Pointer( uint32_t offset )
-    //{
-    //    SYS_ASSERT( offset + _element_size <= _size );
-    //    return _data + offset;
-    //}
-    //const uint8_t* Pointer( uint32_t offset ) const
-    //{
-    //    SYS_ASSERT( offset + _element_size <= _size );
-    //    return _data + offset;
-    //}
-    //
-    //void Grow( uint32_t new_capacity )
-    //{
-    //    SYS_NOT_IMPLEMENTED;
-    //}
-
-    //uint32_t PushBack( const void* data = nullptr )
-    //{
-    //    if( _size + _element_size > _capacity )
-    //    {
-    //        const uint32_t new_capacity = (_capacity) ? _capacity * 2 : 8;
-    //        Grow( new_capacity );
-    //    }
-    //    
-    //    const uint32_t offset = _size;
-    //    if( data )
-    //    {
-    //        memcpy( _data + offset, data, _element_size );
-    //    }
-    //    _size += _element_size;
-
-    //    return offset;
-    //}
-
-    //RemoveResult RemoveAt( uint32_t offset )
-    //{
-    //    SYS_ASSERT( (offset % _element_size) == 0 );
-    //    
-    //    RemoveResult result;
-    //    if( _size )
-    //    {
-    //        result.removed = offset;
-    //        result.last = _size - _element_size;
-
-    //        if( _size != result.last )
-    //        {
-    //            memcpy( _data + offset, _data + result.last, _element_size );
-    //        }
-    //        _size -= _element_size;
-    //    }
-    //    
-    //    return result;
-    //}
 };
-
-//union ECSComponentAddress
-//{
-//    uint64_t hash = UINT64_MAX;
-//    struct
-//    {
-//        uint32_t data_offset;
-//        uint32_t type_index;
-//    };
-//};
 
 struct ECSEntityComponents
 {
@@ -220,9 +124,9 @@ struct ECSEntityComponents
         }
     }
     
-    array_span_t<ECSComponentID> Components( ECSEntityID id )
+    ECSComponentIDSpan Components( ECSEntityID id )
     {
-        return array_span_t<ECSComponentID>( _components[id.index], _num_components[id.index] );
+        return ECSComponentIDSpan( _components[id.index], _num_components[id.index] );
     }
 
 };
@@ -248,28 +152,33 @@ struct ECSImpl
 
     BXIAllocator* allocator = nullptr;
     
-    ECSEntityComponents                     entity_components;
-    static_array_t<rw_spin_lock_t, MAX_ENT> entity_local_lock;
-    ECSEntityTree                           entity_tree;
-    static_array_t<ECSEntityID, MAX_ENT>    live_entities;
-
     uint32_t                                             num_registered_comp = 0;
     hash_t<ECSComponentTypeInfo*>                        comp_type_info_map;
     static_array_t<ECSComponentTypeInfo, MAX_COMP_TYPES> comp_type_info;
     static_array_t<ECSComponentStorage, MAX_COMP_TYPES>  comp_storage;
     static_array_t<rw_spin_lock_t, MAX_COMP_TYPES>       comp_type_lock;
-    
-    hash_t<ECSComponentID>                              comp_ptr_to_id_map;
-    static_array_t<uint16_t, MAX_COMP>                  comp_type_index;
-    static_array_t<ECSRawComponent*, MAX_COMP>          comp_address;
-    static_array_t<ECSEntityID, MAX_COMP>               comp_owner;
+
+    ECSEntityComponents                         entity_components;
+    static_array_t<rw_spin_lock_t, MAX_ENT>     entity_local_lock;
+    ECSEntityTree                               entity_tree;
+    static_array_t<ECSEntityID, MAX_ENT>        entity_live_id;
+    bitset_t<MAX_ENT>                           entity_dead_mask; // stores indices from id
+        
+    hash_t<ECSComponentID>                      comp_ptr_to_id_map;
+    static_array_t<uint16_t, MAX_COMP>          comp_type_index;
+    static_array_t<ECSRawComponent*, MAX_COMP>  comp_address;
+    static_array_t<ECSEntityID, MAX_COMP>       comp_owner;
+    bitset_t<MAX_COMP>                          comp_dead_mask;
 
     EntityIdAlloc entity_id_alloc;
     ComponentIdAlloc comp_id_alloc;
 
-    rw_spin_lock_t comp_ptr_to_id_lock;
     rw_spin_lock_t entity_global_lock;
+    rw_spin_lock_t entity_dead_lock;
+
+    rw_spin_lock_t comp_ptr_to_id_lock;
     rw_spin_lock_t comp_lock;
+    rw_spin_lock_t comp_dead_lock;
 
     void StartUp( BXIAllocator* allocator );
     void ShutDown();
@@ -313,11 +222,11 @@ void ECSImpl::ShutDown()
     }
 }
 
-static inline bool IsAlive( const ECSImpl* impl, ECSComponentID id )
+static inline bool IsAliveImpl( const ECSImpl* impl, ECSComponentID id )
 {
     return id_table::has( impl->comp_id_alloc, id );
 }
-static inline bool IsAlive( const ECSImpl* impl, ECSEntityID id )
+static inline bool IsAliveImpl( const ECSImpl* impl, ECSEntityID id )
 {
     return id_table::has( impl->entity_id_alloc, id );
 }
@@ -352,32 +261,43 @@ ECSEntityID ECS::CreateEntity()
 
     ECSEntityID id = id_table::create( impl->entity_id_alloc );
     
-    SYS_ASSERT( array::find( impl->live_entities.begin(), impl->live_entities.size, id ) == array::npos );
-    array::push_back( impl->live_entities, id );
+    SYS_ASSERT( array::find( impl->entity_live_id.begin(), impl->entity_live_id.size, id ) == array::npos );
+    array::push_back( impl->entity_live_id, id );
     return id;
 }
-
-ECSEntityID ECS::MarkForDestroy( ECSEntityID id )
-{
-    return id_table::invalidate( impl->entity_id_alloc, id );
-}
-
-
-
 void DestroyEntity( ECSImpl* impl, ECSEntityID id )
 {
     scoped_write_spin_lock_t guard( impl->entity_global_lock );
 
-    if( !IsAlive( impl, id ) )
+    if( !IsAliveImpl( impl, id ) )
         return;
-    
-    const uint32_t index = array::find( impl->live_entities.begin(), impl->live_entities.size, id );
+
+    const uint32_t index = array::find( impl->entity_live_id.begin(), impl->entity_live_id.size, id );
     if( index == array::npos )
         return;
-    
+
     //Unlink( id );
-    array::erase_swap( impl->live_entities, index );
+    array::erase_swap( impl->entity_live_id, index );
     id_table::destroy( impl->entity_id_alloc, id );
+}
+
+
+void ECS::MarkForDestroy( ECSEntityID id )
+{
+    id_table::invalidate( impl->entity_id_alloc, id );
+    
+    scoped_write_spin_lock_t guard( impl->entity_dead_lock );
+    bitset::set( impl->entity_dead_mask, id.index );
+}
+
+bool ECS::IsAlive( ECSEntityID id ) const
+{
+    return ::IsAliveImpl( impl, id );
+}
+
+bool ECS::IsAlive( ECSComponentID id ) const
+{
+    return IsAliveImpl( impl, id );
 }
 
 void ECS::RegisterComponent( const char* type_name, const ECSComponentTypeDesc& desc )
@@ -436,14 +356,9 @@ ECSComponentID ECS::CreateComponent( size_t type_hash_code )
     return id;
 }
 
-void ECS::MarkForDestroy( ECSComponentID id )
-{
-    id_table::invalidate( impl->comp_id_alloc, id );
-}
-
 void DestroyComponent( ECSImpl* impl, ECSComponentID id )
 {
-    if( !IsAlive( impl, id ) )
+    if( !IsAliveImpl( impl, id ) )
         return;
 
     id = id_table::invalidate( impl->comp_id_alloc, id );
@@ -468,38 +383,33 @@ void DestroyComponent( ECSImpl* impl, ECSComponentID id )
 
     ECSComponentStorage& storage = impl->comp_storage[type_index];
     impl->comp_type_lock[type_index].lock_write();
-        storage.Free( comp );
-        //const ECSComponentStorage::RemoveResult result = storage.RemoveAt( address.data_offset );
-        //SYS_ASSERT( result.Succeed() );
+    storage.Free( comp );
     impl->comp_type_lock[type_index].unlock_write();
 
     {
         scoped_write_spin_lock_t guard( impl->comp_lock );
-
-        //ECSComponentAddress last_address;
-        //last_address.type_index = address.type_index;
-        //last_address.data_offset = result.last;
-
-        //SYS_ASSERT( hash::has( impl->comp_address_map, last_address.hash ) );
-        //const ECSComponentID last_id = hash::get( impl->comp_address_map, last_address.hash, ECSComponentID() );
-       
-        //impl->comp_address[last_id.index] = address;
-        //impl->comp_address[id.index] = ECSComponentAddress();
-        //hash::set( impl->comp_address_map, address.hash, last_id );
-        //hash::remove( impl->comp_address_map, last_address.hash );
-
         id_table::destroy( impl->comp_id_alloc, id );
     }
 }
-ECSEntityID ECS::Owner( ECSComponentID id )
+
+void ECS::MarkForDestroy( ECSComponentID id )
 {
-    if( !IsAlive( impl, id ) )
+    Unlink( &id, 1 );
+    id_table::invalidate( impl->comp_id_alloc, id );
+    
+    scoped_write_spin_lock_t guard( impl->comp_dead_lock );
+    bitset::set( impl->comp_dead_mask, id.index );
+}
+
+ECSEntityID ECS::Owner( ECSComponentID id ) const
+{
+    if( !IsAliveImpl( impl, id ) )
         return ECSEntityID::Null();
 
     return impl->comp_owner[id.index];
 }
 
-ECSComponentID ECS::Lookup( const ECSRawComponent* pointer )
+ECSComponentID ECS::Lookup( const ECSRawComponent* pointer ) const
 {
     if( !pointer )
         return ECSComponentID::Null();
@@ -508,9 +418,9 @@ ECSComponentID ECS::Lookup( const ECSRawComponent* pointer )
     return hash::get( impl->comp_ptr_to_id_map, (uint64_t)pointer, ECSComponentID::Null() );
 }
 
-ECSRawComponent* ECS::Component( ECSComponentID id )
+ECSRawComponent* ECS::Component( ECSComponentID id ) const
 {
-    if( !IsAlive( impl, id ) )
+    if( !IsAliveImpl( impl, id ) )
         return nullptr;
 
     return impl->comp_address[id.index];
@@ -519,7 +429,7 @@ ECSRawComponent* ECS::Component( ECSComponentID id )
     //return storage.Pointer( address.data_offset );
 }
 
-ECSRawComponentSpan ECS::Components( size_t type_hash_code )
+ECSRawComponentSpan ECS::Components( size_t type_hash_code ) const
 {
     const ECSComponentTypeInfo* info = hash::get( impl->comp_type_info_map, type_hash_code, (ECSComponentTypeInfo*)0 );
     SYS_ASSERT( info != nullptr );
@@ -529,16 +439,24 @@ ECSRawComponentSpan ECS::Components( size_t type_hash_code )
     return ECSRawComponentSpan( storage._components.begin(), storage._components.size );
 }
 
+ECSComponentIDSpan ECS::Components( ECSEntityID id ) const
+{
+    if( !IsAliveImpl( impl, id ) )
+        return ECSComponentIDSpan();
+
+    return impl->entity_components.Components( id );
+}
+
 void ECS::Link( ECSEntityID eid, const ECSComponentID* cid, uint32_t cid_count )
 {
-    if( !IsAlive( impl, eid ) )
+    if( !IsAliveImpl( impl, eid ) )
         return;
 
     static_array_t<ECSComponentID, 128> valid_components;
 
     for( uint32_t i = 0; i < cid_count; ++i )
     {
-        if( IsAlive( impl, cid[i] ) )
+        if( IsAliveImpl( impl, cid[i] ) )
         {
             SYS_ASSERT( impl->comp_owner[cid[i].index].hash == 0 );
             impl->comp_owner[cid[i].index] = eid;
@@ -568,7 +486,7 @@ void ECS::Unlink( const ECSComponentID* cid, uint32_t cid_count )
     for( uint32_t i = 0; i < cid_count; ++i )
     {
         ECSComponentID comp = cid[i];
-        if( IsAlive( impl, comp ) )
+        if( IsAliveImpl( impl, comp ) )
         {
             ECSEntityID& owner = impl->comp_owner[comp.index];
             SYS_ASSERT( owner.hash != 0 );
@@ -595,56 +513,89 @@ void ECS::Unlink( const ECSComponentID* cid, uint32_t cid_count )
     }
 }
 
-void ECS::Link( ECSEntityID parent, ECSEntityID child )
+//void ECS::Link( ECSEntityID parent, ECSEntityID child )
+//{
+//    if( !IsAliveImpl( impl, parent ) || !IsAliveImpl( impl, child ) )
+//        return;
+//
+//    Unlink( child );
+//
+//    ECSEntityTree& tree = impl->entity_tree;
+//
+//
+//    ECSEntityID first_child = tree.first_child[parent.index];
+//    tree.first_child[parent.index] = child;
+//    tree.next_slibling[child.index] = first_child;
+//    tree.parent[child.index] = parent;
+//}
+//
+//void ECS::Unlink( ECSEntityID child )
+//{
+//    if( !IsAliveImpl( impl, child ) )
+//        return;
+//
+//    ECSEntityTree& tree = impl->entity_tree;
+//
+//    ECSEntityID parent = tree.parent[child.index];
+//    if( !IsAliveImpl( impl, parent ) )
+//        return;
+//
+//    if( tree.first_child[parent.index] == child )
+//    {
+//        tree.first_child[parent.index] = tree.next_slibling[child.index];
+//    }
+//    else
+//    {
+//        ECSEntityID prev_slibling = tree.first_child[parent.index];
+//        while( IsAliveImpl( impl, prev_slibling ) )
+//        {
+//            if( tree.next_slibling[prev_slibling.index] == child )
+//                break;
+//        
+//            prev_slibling = tree.next_slibling[prev_slibling.index];
+//        }
+//        
+//        if( IsAliveImpl( impl, prev_slibling ) )
+//        {
+//            tree.next_slibling[prev_slibling.index] = tree.next_slibling[child.index];
+//        }
+//    }
+//
+//    tree.parent[child.index] = ECSEntityID::Null();
+//}
+
+void ECS::Update()
 {
-    if( !IsAlive( impl, parent ) || !IsAlive( impl, child ) )
-        return;
-
-    Unlink( child );
-
-    ECSEntityTree& tree = impl->entity_tree;
-
-
-    ECSEntityID first_child = tree.first_child[parent.index];
-    tree.first_child[parent.index] = child;
-    tree.next_slibling[child.index] = first_child;
-    tree.parent[child.index] = parent;
+    { // release the dead
+        {
+            scoped_write_spin_lock_t guard( impl->entity_dead_lock );
+            for( bitset::const_iterator<bitset_t<MAX_ENT>> it( impl->entity_dead_mask ); it.ok(); it.next() )
+            {
+                ECSEntityID id = id_table::id( impl->entity_id_alloc, it.index() );
+                ECSComponentIDSpan components = Components( id );
+                {
+                    scoped_write_spin_lock_t guard( impl->comp_dead_lock );
+                    for( ECSComponentID comp_id : components )
+                    {
+                        MarkForDestroy( comp_id );
+                    }
+                }
+                DestroyEntity( impl, id );
+            }
+            bitset::clear_all( impl->entity_dead_mask );
+        }
+        {
+            scoped_write_spin_lock_t guard( impl->comp_dead_lock );
+            for( bitset::const_iterator<bitset_t<MAX_COMP>> it( impl->comp_dead_mask ); it.ok(); it.next() )
+            {
+                ECSComponentID id = id_table::id( impl->comp_id_alloc, it.index() );
+                DestroyComponent( impl, id );
+            }
+            bitset::clear_all( impl->comp_dead_mask );
+        }
+    }
 }
 
-void ECS::Unlink( ECSEntityID child )
-{
-    if( !IsAlive( impl, child ) )
-        return;
-
-    ECSEntityTree& tree = impl->entity_tree;
-
-    ECSEntityID parent = tree.parent[child.index];
-    if( !IsAlive( impl, parent ) )
-        return;
-
-    if( tree.first_child[parent.index] == child )
-    {
-        tree.first_child[parent.index] = tree.next_slibling[child.index];
-    }
-    else
-    {
-        ECSEntityID prev_slibling = tree.first_child[parent.index];
-        while( IsAlive( impl, prev_slibling ) )
-        {
-            if( tree.next_slibling[prev_slibling.index] == child )
-                break;
-        
-            prev_slibling = tree.next_slibling[prev_slibling.index];
-        }
-        
-        if( IsAlive( impl, prev_slibling ) )
-        {
-            tree.next_slibling[prev_slibling.index] = tree.next_slibling[child.index];
-        }
-    }
-
-    tree.parent[child.index] = ECSEntityID::Null();
-}
 
 ECSEntityIterator::ECSEntityIterator( ECS* ecs, ECSEntityID id )
     : _impl( ecs->impl )
@@ -652,7 +603,7 @@ ECSEntityIterator::ECSEntityIterator( ECS* ecs, ECSEntityID id )
 {}
 bool ECSEntityIterator::IsValid() const
 {
-    return IsAlive( _impl, _current_id );
+    return IsAliveImpl( _impl, _current_id );
 }
 void ECSEntityIterator::GoToSlibling()
 {
@@ -668,10 +619,5 @@ void ECSEntityIterator::GoToParent()
 {
     SYS_ASSERT( IsValid() );
     _current_id = _impl->entity_tree.parent[_current_id.index];
-}
-
-void ECS::Update()
-{
-    
 }
 

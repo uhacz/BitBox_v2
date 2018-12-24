@@ -37,6 +37,16 @@ namespace tool { namespace mesh {
         uint32_t flag_use_16bit_indices = false;
     };
 
+    struct CompileOptions
+    {
+        uint32_t slot_mask = UINT32_MAX;
+
+        CompileOptions( uint32_t default_slots = UINT32_MAX );
+        CompileOptions& AddSlot( RDIEVertexSlot::Enum slot );
+
+        bool HasSlot( uint32_t slot ) const { return ( slot_mask & (1 << slot) ) != 0; }
+    };
+
     bool Import( Streams* sterams, const void* data, uint32_t data_size );
-    blob_t Compile( const Streams& streams, BXIAllocator* allocator );
+    blob_t Compile( const Streams& streams, const CompileOptions& opt, BXIAllocator* allocator );
 }}

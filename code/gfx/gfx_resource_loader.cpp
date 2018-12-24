@@ -3,6 +3,14 @@
 
 #include <rdi_backend/rdi_backend.h>
 #include "gfx.h"
+#include <rdix/rdix.h>
+
+void GFXMeshResourceLoader::Unload( RSMResourceData* in_out )
+{
+    RDIXRenderSource* rsource = (RDIXRenderSource*)in_out->pointer;
+    DestroyRenderSource( &rsource );
+}
+
 bool GFXTextureResourceLoader::Load( RSMResourceData* out, const void* data, uint32_t size, BXIAllocator* allocator, void* system )
 {
     GFX* gfx = (GFX*)system;
@@ -25,3 +33,5 @@ void GFXTextureResourceLoader::Unload( RSMResourceData* in_out )
     }
     in_out[0] = {};
 }
+
+

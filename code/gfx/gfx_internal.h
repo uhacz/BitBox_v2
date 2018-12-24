@@ -191,8 +191,6 @@ struct GFXPostProcess
 struct GFXFrameContext
 {
     RDICommandQueue* cmdq = nullptr;
-    RSM* rsm = nullptr;
-
     bool Valid() const { return cmdq != nullptr; }
 };
 
@@ -202,7 +200,6 @@ struct GFXSystem
 {
     BXIAllocator* _allocator = nullptr;
     RDIDevice*	  _rdidev = nullptr;
-    RSM*          _rsm = nullptr;
 
     RDIXRenderTarget* _framebuffer = nullptr;
     uint32_t _sync_interval = 0;

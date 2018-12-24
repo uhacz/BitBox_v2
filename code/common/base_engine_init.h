@@ -6,7 +6,6 @@ struct BXPluginRegistry;
 struct RDIDevice;
 struct RDICommandQueue;
 
-struct RSM;
 struct GFX;
 struct ENT;
 struct ECS;
@@ -18,7 +17,6 @@ struct CMNEngine
     RDIDevice* _rdidev = nullptr;
     RDICommandQueue* _rdicmdq = nullptr;
 
-    RSM* _rsm = nullptr;
     GFX* _gfx = nullptr;
     ENT* _ent = nullptr;
 

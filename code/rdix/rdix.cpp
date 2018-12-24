@@ -108,7 +108,7 @@ RDIXPipeline* CreatePipeline( RDIDevice* dev, const RDIXPipelineDesc& desc, BXIA
     impl->allocator = allocator;
 	return impl;
 }
-void DestroyPipeline( RDIDevice* dev, RDIXPipeline** pipeline )
+void DestroyPipeline( RDIXPipeline** pipeline )
 {
 	if( !pipeline[0] )
 		return;
@@ -689,7 +689,7 @@ RDIXRenderSource* CreateRenderSourceFromMemory( RDIDevice* dev, const RDIXMeshFi
     return CreateRenderSource( dev, desc, allocator );
 }
 
-void DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource )
+void DestroyRenderSource( RDIXRenderSource** rsource )
 {
 	if( !rsource[0] )
 		return;
@@ -826,7 +826,7 @@ RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformB
 	return buffer;
 }
 
-void DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAllocator* allocator )
+void DestroyTransformBuffer( RDIXTransformBuffer** buffer, BXIAllocator* allocator )
 {
 	if( !buffer[0] )
 		return;

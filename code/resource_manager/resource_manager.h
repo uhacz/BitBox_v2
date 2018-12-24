@@ -1,6 +1,5 @@
 #pragma once
 
-#include "dll_interface.h"
 #include <foundation/type.h>
 #include "resource_loader.h"
 
@@ -30,23 +29,27 @@ struct RSMResourceID
     static constexpr RSMResourceID Null() { return { 0 }; }
 };
 
-struct RSM
+namespace RSM
 {
-    static RSMResourceHash CreateHash( const char* relative_path );
+    RSMResourceHash CreateHash( const char* relative_path );
 
     RSMResourceID Load( const char* relative_path, void* system = nullptr );
-    RSMResourceID Create( const char* name, const void* data, BXIAllocator* data_allocator );
+    RSMResourceID Create( const char* name, const void* data );
+    RSMResourceID Create( const void* data );
     RSMEState::E  Wait( RSMResourceID rid );
 
-    RSMResourceID Find( const char* relative_path ) const;
-    RSMResourceID Find( RSMResourceHash hash ) const;
-    bool IsAlive( RSMResourceID id ) const;
+    RSMResourceID Find( const char* relative_path );
+    RSMResourceID Find( RSMResourceHash hash );
+    bool IsAlive( RSMResourceID id );
 
-    RSMEState::E State( RSMResourceID id ) const;
-    const void* Get( RSMResourceID id ) const;
-    void  Release( RSMResourceID id );
+    RSMEState::E State( RSMResourceID id );
+    const void* Get( RSMResourceID id );
+    
+    // returns true when ref count has reached zero 
+    bool Release( RSMResourceID id );
+    bool Release( RSMResourceID id, void** resource_pointer );
 
-    const void* Acquire( const char* relative_path ) const
+    inline const void* Acquire( const char* relative_path )
     {
         RSMResourceID rid = Find( relative_path );
         return IsAlive( rid ) ? Get( rid ) : nullptr;
@@ -55,19 +58,17 @@ struct RSM
     void Acquire( RSMResourceID id );
 
    
-    // 
+    template<typename T>
+    inline void RegisterLoader() { Internal_AddLoader( T::Internal_Creator ); }
+    
+    // --- private
+
     BXIFilesystem* Filesystem();
     void Internal_AddLoader( RSMLoaderCreator* creator );
-
-    // --- private
-    template<typename T>
-    static void RegisterLoader( RSM* rsm ) { rsm->Internal_AddLoader( T::Internal_Creator ); }
-    static RSM* StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator );
-    static void ShutDown( RSM** ptr );
-
-    struct RSMImpl;
-    RSMImpl* _rsm;
-};
+    
+    void StartUp( BXIFilesystem* filesystem, BXIAllocator* allocator );
+    void ShutDown( );
+}//
 
 struct RSMLoadState
 {
@@ -75,12 +76,12 @@ struct RSMLoadState
     uint32_t nb_failed = 0;
 };
 template< typename T >
-RSMLoadState GetLoadState( RSM* rsm, T** resources, const RSMResourceID* ids, uint32_t count )
+RSMLoadState GetLoadState( T** resources, const RSMResourceID* ids, uint32_t count )
 {
     RSMLoadState result = {};
     for( uint32_t i = 0; i < count; ++i )
     {
-        RSMEState::E state = rsm->State( ids[i] );
+        RSMEState::E state = RSM::State( ids[i] );
         if( state == RSMEState::READY )
             result.nb_loaded += 1;
         else if( state == RSMEState::FAIL )
@@ -91,7 +92,7 @@ RSMLoadState GetLoadState( RSM* rsm, T** resources, const RSMResourceID* ids, ui
     {
         for( uint32_t i = 0; i < count; ++i )
         {
-            resources[i] = (T*)rsm->Get( ids[i] );
+            resources[i] = (T*)RSM::Get( ids[i] );
             SYS_ASSERT( resources[i] != nullptr );
         }
     }

@@ -44,7 +44,6 @@ struct ENTSystemInfo
 {
     ENT* ent = nullptr;
     GFX* gfx = nullptr;
-    RSM* rsm = nullptr;
 
     BXIAllocator* default_allocator = nullptr;
     BXIAllocator* scratch_allocator = nullptr;

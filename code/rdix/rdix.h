@@ -25,7 +25,7 @@ uint32_t		FindShaderPass( RDIXShaderFile* shaderfile, const char* passname );
 
 // --- Pipeline
 RDIXPipeline*		 CreatePipeline ( RDIDevice* dev, const RDIXPipelineDesc& desc, BXIAllocator* allocator );
-void				 DestroyPipeline( RDIDevice* dev, RDIXPipeline** pipeline );
+void				 DestroyPipeline( RDIXPipeline** pipeline );
 void				 BindPipeline( RDICommandQueue* cmdq, RDIXPipeline* pipeline, bool bindResources );
 RDIXResourceBinding* ResourceBinding( const RDIXPipeline* p );
 
@@ -68,7 +68,7 @@ RDIXRenderSource* CreateRenderSource ( RDIDevice* dev, const RDIXRenderSourceDes
 RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes_mesh* shape, BXIAllocator* allocator );
 RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_t* shape, BXIAllocator* allocator );
 RDIXRenderSource* CreateRenderSourceFromMemory( RDIDevice* dev, const RDIXMeshFile* header, BXIAllocator* allocator );
-void			  DestroyRenderSource( RDIDevice* dev, RDIXRenderSource** rsource );
+void			  DestroyRenderSource( RDIXRenderSource** rsource );
 void			  BindRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource );
 void			  SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t rangeIndex = 0 );
 void			  SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, const RDIXRenderSourceRange& range );
@@ -93,7 +93,7 @@ struct RDIXTransformBufferBindInfo
 };
 
 RDIXTransformBuffer* CreateTransformBuffer( RDIDevice* dev, const RDIXTransformBufferDesc& desc, BXIAllocator* allocator );
-void				 DestroyTransformBuffer( RDIDevice* dev, RDIXTransformBuffer** buffer, BXIAllocator* allocator );
+void				 DestroyTransformBuffer( RDIXTransformBuffer** buffer, BXIAllocator* allocator );
 void				 ClearTransformBuffer( RDIXTransformBuffer* buffer );
 uint32_t             GetDataCapacity( RDIXTransformBuffer* buffer );
 uint32_t			 AppendMatrix( RDIXTransformBuffer* buffer, const struct mat44_t& matrix );

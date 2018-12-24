@@ -19,13 +19,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -74,16 +74,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="asset_app.h" />
+    <ClInclude Include="components.h" />
     <ClInclude Include="material_editor.h" />
     <ClInclude Include="material_library.h" />
+    <ClInclude Include="mesh_tool.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="asset_app.cpp">
       <PreprocessToFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</PreprocessToFile>
       <PreprocessToFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</PreprocessToFile>
     </ClCompile>
+    <ClCompile Include="components.cpp" />
     <ClCompile Include="material_editor.cpp" />
     <ClCompile Include="material_library.cpp" />
+    <ClCompile Include="mesh_tool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\3rd_party\imgui\imgui.vcxproj">

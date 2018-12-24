@@ -18,8 +18,8 @@ struct GFXUtils
 
 struct GFX
 {
-    static GFX* StartUp( RDIDevice* dev, RSM* rsm, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
-    static void ShutDown( GFX**gfx, RSM* rsm );
+    static GFX* StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
+    static void ShutDown( GFX**gfx );
 
     RDIXRenderTarget* Framebuffer();
     RDIXPipeline*     MaterialBase();
@@ -61,7 +61,7 @@ struct GFX
     const GFXSkyParams& SkyParams( GFXSceneID idscene ) const;
 
     // --- frame
-    GFXFrameContext* BeginFrame( RDICommandQueue* cmdq, RSM* rsm );
+    GFXFrameContext* BeginFrame( RDICommandQueue* cmdq );
     void             EndFrame( GFXFrameContext* fctx );
     void             RasterizeFramebuffer( RDICommandQueue* cmdq, uint32_t texture_index, GFXCameraID idcamera );
 

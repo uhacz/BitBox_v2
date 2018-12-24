@@ -28,6 +28,8 @@ bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegi
     BXIFilesystem* filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
     filesystem->SetRoot( "x:/dev/assets/" );
 
+    RSM::StartUp( filesystem, allocator );
+
     RDIDevice* rdidev = nullptr;
     RDICommandQueue* rdicmdq = nullptr;
 
@@ -36,13 +38,10 @@ bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegi
     ::Startup( &rdidev, &rdicmdq, window->GetSystemHandle( window ), window->width, window->height, 0, allocator );
 
     GUI::StartUp( win_plugin, rdidev );
-
-    RSM* rsm = RSM::StartUp( filesystem, allocator );
-
-    RDIXDebug::StartUp( rdidev, rsm, allocator );
+    RDIXDebug::StartUp( rdidev, allocator );
 
     GFXDesc gfxdesc = {};
-    GFX* gfx = GFX::StartUp( rdidev, rsm, gfxdesc, filesystem, allocator );
+    GFX* gfx = GFX::StartUp( rdidev, gfxdesc, filesystem, allocator );
 
     ENT* ent = ENT::StartUp( allocator );
 
@@ -53,7 +52,6 @@ bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegi
     e->_rdidev = rdidev;
     e->_rdicmdq = rdicmdq;
 
-    e->_rsm = rsm;
     e->_gfx = gfx;
     e->_ent = ent;
     e->_ecs = ecs;
@@ -74,16 +72,16 @@ void CMNEngine::Shutdown( CMNEngine* e, BXIAllocator* allocator )
         ENT::ShutDown( &e->_ent, &ent_sys_info );
     }
     
-    GFX::ShutDown( &e->_gfx, e->_rsm );
+    GFX::ShutDown( &e->_gfx );
     RDIXDebug::ShutDown( e->_rdidev );
-    RSM::ShutDown( &e->_rsm );
     GUI::ShutDown();
+    
+    RSM::ShutDown();
     ::Shutdown( &e->_rdidev, &e->_rdicmdq, allocator );
 
     e->_filesystem = nullptr;
     e->_rdidev = nullptr;
     e->_rdicmdq = nullptr;
-    e->_rsm = nullptr;
     e->_gfx = nullptr;
     e->_ent = nullptr;
 }

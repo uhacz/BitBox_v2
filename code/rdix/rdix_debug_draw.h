@@ -19,11 +19,10 @@ struct RDIXDebugParams
 struct BXIAllocator;
 struct RDIDevice;
 struct RDICommandQueue;
-struct RSM;
 
 namespace RDIXDebug
 {
-    void StartUp( RDIDevice* dev, RSM* rsm, BXIAllocator* allocator );
+    void StartUp( RDIDevice* dev, BXIAllocator* allocator );
     void ShutDown( RDIDevice* dev );
     
     void AddAABB( const vec3_t& center, const vec3_t& extents, const RDIXDebugParams& params = {} );

@@ -141,8 +141,6 @@ namespace anim_ext {
         return (ANIMJoint*)BX_MALLOC( allocator, memory_size, 16 );
     }
 
-
-
     void LocalJointsToWorldJoints( ANIMJoint* outJoints, const ANIMJoint* inJoints, const ANIMSkel* skel, const ANIMJoint& rootJoint )
     {
         const uint16_t* parentIndices = TYPE_OFFSET_GET_POINTER( const uint16_t, skel->offsetParentIndices );

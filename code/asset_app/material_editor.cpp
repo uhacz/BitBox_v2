@@ -23,7 +23,7 @@ void MATEditor::SetDefault( GFXMaterialResource* mat )
     }
 }
 
-void MATEditor::SetDefault( GFXMaterialTexture* tex, RSM* rsm )
+void MATEditor::SetDefault( GFXMaterialTexture* tex )
 {
     for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
     {
@@ -32,7 +32,7 @@ void MATEditor::SetDefault( GFXMaterialTexture* tex, RSM* rsm )
     }
 }
 
-void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* allocator )
+void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, BXIAllocator* allocator )
 {
     _allocator = allocator;
 
@@ -58,14 +58,14 @@ void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, RSM* rsm, BXIAllocator* 
 
     GFXMeshInstanceDesc mesh_desc = {};
     mesh_desc.idmaterial = _mat_id;
-    mesh_desc.idmesh_resource = rsm->Find( "sphere" );
+    mesh_desc.idmesh_resource = RSM::Find( "sphere" );
     _mesh_id = gfx->AddMeshToScene( scene_id, mesh_desc, mat44_t::identity() );
 
     _folder = "material/";
     _texture_folder = "texture/";
 }
 
-void MATEditor::ShutDown( GFX* gfx, RSM* rsm )
+void MATEditor::ShutDown( GFX* gfx )
 {
     string::free( &_folder );
     string::free( &_texture_folder );
@@ -93,7 +93,7 @@ static bool ShowTextureMenu( string_t* value,  const char* label, const string_b
     ImGui::Text( "%s", value->c_str() );
     return opened;
 }
-void MATEditor::Tick( GFX* gfx, RSM* rsm, BXIFilesystem* fs )
+void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
 {
     if( ImGui::Begin( "Material" ) )
     {
@@ -102,7 +102,7 @@ void MATEditor::Tick( GFX* gfx, RSM* rsm, BXIFilesystem* fs )
             if( ImGui::MenuItem( "New" ) )
             {
                 SetDefault( &_mat_resource );
-                SetDefault( &_mat_tex, rsm );
+                SetDefault( &_mat_tex );
                 _flags.refresh_material_data = 1;
                 _flags.refresh_material_textures = 1;
                 string::free( &_current_file );
@@ -211,7 +211,7 @@ void MATEditor::Tick( GFX* gfx, RSM* rsm, BXIFilesystem* fs )
         _flags.load_material_textures = 0;
         for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
         {
-            _mat_tex.id[i] = rsm->Load( _mat_resource.textures[i].c_str(), gfx );
+            _mat_tex.id[i] = RSM::Load( _mat_resource.textures[i].c_str(), gfx );
         }
     }
     if( _flags.refresh_material_textures )

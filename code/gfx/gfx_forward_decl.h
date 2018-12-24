@@ -38,6 +38,7 @@ struct RDIXRenderTarget;
 struct RDIXRenderSource;
 struct RDIXCommandBuffer;
 
+struct GFX;
 struct GFXCameraParams;
 struct GFXCameraMatrices;
 struct GFXFrameContext;

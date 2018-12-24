@@ -37,82 +37,45 @@
 #include <gui/gui.h>
 #include <3rd_party/imgui/imgui.h>
 
-#include <entity/entity.h>
+#include "entity/entity_system.h"
 
 #include "material_editor.h"
-#include <asset_compiler/mesh/mesh_compiler.h>
+#include "mesh_tool.h"
+#include "common\ground_mesh.h"
 
-struct GroundMesh
-{
-    mat44_t _world_pose;
-    GFXMeshInstanceID _mesh_id;
-};
-void CreateGroundMesh( GroundMesh* mesh, GFX* gfx, GFXSceneID scene_id, RSM* rsm, const vec3_t& scale = vec3_t( 100.f, 0.5f, 100.f ), const mat44_t& pose = mat44_t::identity() )
-{
-    GFXMeshInstanceDesc desc = {};
-    desc.idmaterial = gfx->FindMaterial( "red" );
-    desc.idmesh_resource = rsm->Find( "box" );
-    const mat44_t final_pose = append_scale( pose, scale );
+#include "components.h"
 
-    mesh->_mesh_id = gfx->AddMeshToScene( scene_id, desc, final_pose );
-    mesh->_world_pose = final_pose;
-}
-void DestroyGroundMesh( GroundMesh* mesh, GFX* gfx )
-{
-    gfx->RemoveMeshFromScene( mesh->_mesh_id );
-}
+
 
 namespace
 {
+    CMNGroundMesh g_ground_mesh;
+    
     GFXCameraInputContext g_camera_input_ctx = {};
     GFXCameraID g_idcamera = { 0 };
     GFXSceneID g_idscene = { 0 };
-    GroundMesh g_ground_mesh;
 }
 
 
 
 static MATEditor g_mat_editor;
+static MESHTool g_mesh_tool;
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
     CMNEngine::Startup( (CMNEngine*)this, argc, argv, plugins, allocator );
+
+    {
+        RegisterComponent< TOOLMeshComponent >( _ecs, "TOOL_Mesh" );
+        RegisterComponent< TOOLAnimComponent >( _ecs, "TOOL_Anim" );
+    }
 
     GFXSceneDesc desc;
     desc.max_renderables = 16 + 1;
     desc.name = "test scene";
     g_idscene = _gfx->CreateScene( desc );
 
-    {
-        const char* filename = ".src/mesh/paladin.fbx";
-        BXFileWaitResult result = _filesystem->LoadFileSync( _filesystem, filename, BXEFIleMode::BIN, allocator );
-    
-        tool::mesh::Streams mesh_streams;
-        if( tool::mesh::Import( &mesh_streams, result.file.pointer, result.file.size ) )
-        {
-            blob_t cmesh = tool::mesh::Compile( mesh_streams, allocator );
-
-            RDIXMeshFile* mesh_file = (RDIXMeshFile*)cmesh.raw;
-
-            RDIXRenderSource* rsource = CreateRenderSourceFromMemory( _rdidev, mesh_file, allocator );
-            RSMResourceID resource_id = _rsm->Create( "test.mesh", rsource, allocator );
-
-            GFXMeshInstanceDesc desc = {};
-            desc.idmaterial = _gfx->FindMaterial( "checkboard" );
-            desc.idmesh_resource = resource_id;
-            const mat44_t final_pose = mat44_t::identity();
-            _gfx->AddMeshToScene( g_idscene, desc, final_pose );
-        }
-               
-
-
-    }
-
-
-
-    
-	
-    CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, _rsm, vec3_t(100.f, 0.5f, 100.f), mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) ) );
+    CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, vec3_t(100.f, 0.5f, 100.f), mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) ) );
     
     {// sky
         BXFileWaitResult filewait = _filesystem->LoadFileSync( _filesystem, "texture/sky_cubemap.dds", BXEFIleMode::BIN, allocator );
@@ -128,22 +91,17 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     }
     g_idcamera = _gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) ) );
 
-    g_mat_editor.StartUp( _gfx, g_idscene, _rsm, allocator );
+    g_mat_editor.StartUp( _gfx, g_idscene, allocator );
+    g_mesh_tool.StartUp( this, ".src/mesh/", g_idscene, allocator );
 
     return true;
 }
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    g_mat_editor.ShutDown( _gfx, _rsm );
+    g_mesh_tool.ShutDown( this );
+    g_mat_editor.ShutDown( _gfx );
     
-    {
-        ENTSystemInfo ent_sys_info = {};
-        ent_sys_info.ent = _ent;
-        ent_sys_info.gfx = _gfx;
-        ENT::ShutDown( &_ent, &ent_sys_info );
-    }
-
     DestroyGroundMesh( &g_ground_mesh, _gfx );
     _gfx->DestroyScene( g_idscene );
     _gfx->DestroyCamera( g_idcamera );
@@ -159,6 +117,8 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     GUI::NewFrame();
 
 	const float delta_time_sec = (float)BXTime::Micro_2_Sec( deltaTimeUS );
+
+    _ecs->Update();
 
     if( !ImGui::GetIO().WantCaptureMouse )
 	{
@@ -183,9 +143,10 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     _gfx->SetCameraWorld( g_idcamera, new_camera_world );
     _gfx->ComputeCamera( g_idcamera );
 
-    g_mat_editor.Tick( _gfx, _rsm, _filesystem );
+    g_mat_editor.Tick( _gfx, _filesystem );
+    g_mesh_tool.Tick( this );
 
-    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq, _rsm );
+    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
     {
         _gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_idcamera );
     }
