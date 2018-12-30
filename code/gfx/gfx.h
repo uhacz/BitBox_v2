@@ -52,6 +52,7 @@ struct GFX
     GFXMeshInstanceID AddMeshToScene( GFXSceneID idscene, const GFXMeshInstanceDesc& desc, const mat44_t& pose );
     void              RemoveMeshFromScene( GFXMeshInstanceID idmeshi );
     RSMResourceID     Mesh( GFXMeshInstanceID idmeshi );
+    GFXMaterialID     Material( GFXMeshInstanceID idmeshi );
     void              SetWorldPose( GFXMeshInstanceID idmeshi, const mat44_t& pose );
 
     // --- sky

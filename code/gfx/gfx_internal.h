@@ -94,12 +94,12 @@ struct GFXMaterialContainer
 
     mutex_t                   lock;
     id_table_t<GFX_MAX_MATERIALS> idtable;
-    gfx_shader::Material      data[GFX_MAX_MATERIALS] = {};
+    gfx_shader::Material      data    [GFX_MAX_MATERIALS] = {};
     GFXMaterialTexture        textures[GFX_MAX_MATERIALS] = {};
-    RDIXResourceBinding*      binding[GFX_MAX_MATERIALS] = {};
-    string_t                  name[GFX_MAX_MATERIALS] = {};
-    uint8_t                   flags[GFX_MAX_MATERIALS] = {};
-    id_t                      idself[GFX_MAX_MATERIALS] = {};
+    RDIXResourceBinding*      binding [GFX_MAX_MATERIALS] = {};
+    string_t                  name    [GFX_MAX_MATERIALS] = {};
+    uint8_t                   flags   [GFX_MAX_MATERIALS] = {};
+    id_t                      idself  [GFX_MAX_MATERIALS] = {};
 
     mutex_t to_remove_lock;
     IDArray to_remove;
@@ -107,8 +107,8 @@ struct GFXMaterialContainer
     mutex_t to_refresh_lock;
     IDArray to_refresh;
 
-    mutex_t resource_to_release_lock;
-    ResourceIDArray resource_to_release;
+    //mutex_t resource_to_release_lock;
+    //ResourceIDArray resource_to_release;
 
     bool IsAlive( id_t id ) const { return id_table::has( idtable, id ); }
     uint32_t DataIndex( id_t id ) const { return id.index; }

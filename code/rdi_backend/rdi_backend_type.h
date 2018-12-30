@@ -219,7 +219,7 @@ namespace RDIEVertexSlot
         0, //BLENDINDICES
     };
 	RDIEVertexSlot::Enum FromString( const char* n );
-
+    bool ToString( char* output, uint32_t output_size, RDIEVertexSlot::Enum slot );
 };
 
 

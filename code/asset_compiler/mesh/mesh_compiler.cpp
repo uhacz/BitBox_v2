@@ -233,6 +233,22 @@ namespace tool { namespace mesh {
         return *this;
     }
 
+    CompileOptions& CompileOptions::RemSlot( RDIEVertexSlot::Enum slot )
+    {
+        slot_mask &= ~(1 << slot);
+        return *this;
+    }
+
+    CompileOptions& CompileOptions::EnableSlot( RDIEVertexSlot::Enum slot, bool value )
+    {
+        if( value )
+            AddSlot( slot );
+        else
+            RemSlot( slot );
+        
+        return *this;
+    }
+
     blob_t Compile( const Streams& streams, const CompileOptions& opt, BXIAllocator* allocator )
     {
         constexpr uint32_t MAX_STREAMS = RDIEVertexSlot::COUNT;

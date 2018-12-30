@@ -32,7 +32,7 @@ void MATEditor::SetDefault( GFXMaterialTexture* tex )
     }
 }
 
-void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, BXIAllocator* allocator )
+void MATEditor::StartUp( GFX* gfx, BXIAllocator* allocator )
 {
     _allocator = allocator;
 
@@ -46,20 +46,15 @@ void MATEditor::StartUp( GFX* gfx, GFXSceneID scene_id, BXIAllocator* allocator 
         "texture/not_metal.DDS",
     };
 
-    //_mat_tex.id[GFXEMaterialTextureSlot::BASE_COLOR] = rsm->Load( tex_names[0], gfx );
-    //_mat_tex.id[GFXEMaterialTextureSlot::NORMAL]     = rsm->Load( tex_names[1], gfx );
-    //_mat_tex.id[GFXEMaterialTextureSlot::ROUGHNESS]  = rsm->Load( tex_names[2], gfx );
-    //_mat_tex.id[GFXEMaterialTextureSlot::METALNESS]  = rsm->Load( tex_names[3], gfx );
-
     GFXMaterialDesc desc;
     desc.data = _mat_resource.data;
     desc.textures = _mat_tex;
     _mat_id = gfx->CreateMaterial( "editable", desc );
 
-    GFXMeshInstanceDesc mesh_desc = {};
-    mesh_desc.idmaterial = _mat_id;
-    mesh_desc.idmesh_resource = RSM::Find( "sphere" );
-    _mesh_id = gfx->AddMeshToScene( scene_id, mesh_desc, mat44_t::identity() );
+    //GFXMeshInstanceDesc mesh_desc = {};
+    //mesh_desc.idmaterial = _mat_id;
+    //mesh_desc.idmesh_resource = RSM::Find( "sphere" );
+    //_mesh_id = gfx->AddMeshToScene( scene_id, mesh_desc, mat44_t::identity() );
 
     _folder = "material/";
     _texture_folder = "texture/";
@@ -169,35 +164,6 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
                 _flags.refresh_material_textures = 1;
             }
         }
-        //if( ImGui::BeginMenu() )
-        //{
-        //    if( ImGui::BeginMenu( "->" ) )
-        //    {
-        //        //if( _texture_file_list.null() )
-        //        {
-        //            _flags.refresh_files_texture = 1;
-        //        }
-
-        //        string_buffer_it selected_it = MenuFileSelector( _texture_file_list );
-        //        if( !selected_it.null() )
-        //        {
-        //            string::create( &_mat_resource.textures[0], selected_it.pointer, _allocator );
-        //        }
-        //        ImGui::EndMenu();
-        //    }
-        //    ImGui::SameLine();
-        //    ImGui::LabelText( "Base", "%s", _mat_resource.textures[0].c_str() );
-
-
-        //    ImGui::Text( "Normal: %s", _mat_resource.textures[1].c_str() );
-        //    ImGui::Text( "Roughness: %s", _mat_resource.textures[2].c_str() );
-        //    ImGui::Text( "Metalness: %s", _mat_resource.textures[3].c_str() );
-        //}
-
-
-        //ImGui::InputText
-
-
     }
     ImGui::End();
 

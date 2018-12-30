@@ -43,6 +43,8 @@ namespace tool { namespace mesh {
 
         CompileOptions( uint32_t default_slots = UINT32_MAX );
         CompileOptions& AddSlot( RDIEVertexSlot::Enum slot );
+        CompileOptions& RemSlot( RDIEVertexSlot::Enum slot );
+        CompileOptions& EnableSlot( RDIEVertexSlot::Enum slot, bool value );
 
         bool HasSlot( uint32_t slot ) const { return ( slot_mask & (1 << slot) ) != 0; }
     };

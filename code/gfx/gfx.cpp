@@ -181,16 +181,6 @@ namespace gfx_internal
                 array::push_back( mc.to_refresh, to_queue[i] );
             }
         }
-        {
-            scope_mutex_t guard( mc.resource_to_release_lock );
-            while( !array::empty( mc.resource_to_release ) )
-            {
-                RSMResourceID resource_id = array::back( mc.resource_to_release );
-                array::pop_back( mc.resource_to_release );
-
-                RSM::Release( resource_id );
-            }
-        }
     }
 
     static void ReleaseMeshInstance( GFXSceneContainer* sc, id_t idscene, id_t idinst )
@@ -209,7 +199,6 @@ namespace gfx_internal
             (void)remove_info;
 
 
-            // render source will be destroyed by resource loader
             RSMResourceID mesh_res_id = sc->mesh_data[scene_index]->idmesh_resource[data_index];
             RDIXRenderSource* rsource = (RDIXRenderSource*)RSM::Get( mesh_res_id );
             if( RSM::Release( mesh_res_id ) )
@@ -333,13 +322,14 @@ namespace gfx_internal
         mc.data[id.index] = data;
     }
 
-    static void QueueResourceToRelease( GFXMaterialContainer* mc, array_span_t<RSMResourceID> ids )
+    static void ReleaseResources( array_span_t<RSMResourceID> ids )
     {
-        scope_mutex_t guard( mc->resource_to_release_lock );
+        //scope_mutex_t guard( mc->resource_to_release_lock );
         for( RSMResourceID id : ids )
         {
-            if( id.i != RSMResourceID::Null().i )
-                array::push_back( mc->resource_to_release, id );
+            RSM::Release( id );
+            //if( id.i != RSMResourceID::Null().i )
+            //    array::push_back( mc->resource_to_release, id );
         }
     }
     static void ChangeTextures( GFXSystem* gfx, id_t id, const GFXMaterialTexture& tex )
@@ -359,7 +349,7 @@ namespace gfx_internal
                 mc.binding[index] = CloneResourceBinding( ResourceBinding( mc.pipeline.full ), gfx->_allocator );
                 mc.flags[index] = GFXEMaterialFlag::PIPELINE_FULL;
             }
-            QueueResourceToRelease( &mc, array_span_t<RSMResourceID>( mc.textures[index].id, GFXEMaterialTextureSlot::_COUNT_ ) );
+            ReleaseResources( array_span_t<RSMResourceID>( mc.textures[index].id, GFXEMaterialTextureSlot::_COUNT_ ) );
             mc.textures[index] = tex;
 
             ClearTextures( mc.binding[index] );
@@ -372,7 +362,7 @@ namespace gfx_internal
         {
             if( mc.flags[index] == GFXEMaterialFlag::PIPELINE_FULL || mc.flags[index] == 0 )
             {
-                QueueResourceToRelease( &mc, array_span_t<RSMResourceID>( mc.textures[index].id, GFXEMaterialTextureSlot::_COUNT_ ) );
+                ReleaseResources( array_span_t<RSMResourceID>( mc.textures[index].id, GFXEMaterialTextureSlot::_COUNT_ ) );
                 DestroyResourceBinding( &mc.binding[index] );
                 mc.binding[index] = CloneResourceBinding( ResourceBinding( mc.pipeline.base_with_skybox ), gfx->_allocator );
                 mc.flags[index] = GFXEMaterialFlag::PIPELINE_BASE;
@@ -625,7 +615,7 @@ void GFX::ShutDown( GFX** gfx_interface_handle )
         gfx_interface->DestroyMaterial( gfx->_default_materials[i] );
     }
     
-
+    gfx_internal::RemovePendingObjects( gfx );
     SYS_ASSERT( gfx->_frame_ctx.Valid() == false );
 
     {// --- samplers
@@ -972,6 +962,18 @@ RSMResourceID GFX::Mesh( GFXMeshInstanceID idmeshi )
     return sc.mesh_data[idscene.index]->idmesh_resource[idinst.index];
 }
 
+GFXMaterialID GFX::Material( GFXMeshInstanceID idmeshi )
+{
+    const id_t idscene = DecodeSceneID( idmeshi );
+    const id_t idinst = DecodeMeshInstanceID( idmeshi );
+
+    GFXSceneContainer& sc = gfx->_scene;
+    if( !sc.IsMeshAlive( idscene, idinst ) )
+        return { 0 };
+
+    return sc.mesh_data[idscene.index]->idmat[idinst.index];
+}
+
 void GFX::SetWorldPose( GFXMeshInstanceID idmeshi, const mat44_t& pose )
 {
     const id_t idscene = DecodeSceneID( idmeshi );
@@ -1043,7 +1045,7 @@ GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq )
 
     {// cameras
         GFXCameraContainer& cc = gfx->_camera;
-        gfx_shader::CameraData cdata;// = (gfx_shader::CameraData*)Map( cmdq, gfx->_gpu_camera_buffer, 0 );
+        gfx_shader::CameraData cdata;
         const uint32_t n = cc.Size();
         for( uint32_t i = 0; i < n; ++i )
         {

@@ -110,6 +110,20 @@ struct RSMImpl
 
 static RSMImpl* _rsm = nullptr;
 
+static void RemoveResourceEntry( RSMImpl* rsm, id_t id )
+{
+    string::free( &rsm->rname[id.index] );
+    rsm->rhash        [id.index] = { 0 };
+    rsm->rid          [id.index] = { 0 };
+    rsm->rstate       [id.index] = RSMEState::UNLOADED;
+    rsm->rdata        [id.index] = {};
+    rsm->rloader_index[id.index] = RSMImpl::INVALID_LOADER_INDEX;
+    {
+        scope_mutex_t guard( rsm->id_lock );
+        id_table::destroy( rsm->id_alloc, id );
+    }
+}
+
 static void BackgroundThread( RSMImpl* rsm )
 {
     while( rsm->is_running )
@@ -162,16 +176,7 @@ static void BackgroundThread( RSMImpl* rsm )
                     BX_FREE( data->allocator, (void*)data->pointer );
                 }
 
-                string::free( &rsm->rname[pending.id.index] );
-                rsm->rhash[pending.id.index]         = { 0 };
-                rsm->rid[pending.id.index]           = { 0 };
-                rsm->rstate[pending.id.index]        = RSMEState::UNLOADED;
-                rsm->rdata[pending.id.index]         = {};
-                rsm->rloader_index[pending.id.index] = RSMImpl::INVALID_LOADER_INDEX;
-                {
-                    scope_mutex_t guard( rsm->id_lock );
-                    id_table::destroy( rsm->id_alloc, pending.id );
-                }
+                RemoveResourceEntry( rsm, pending.id );
             }
         }
     }
@@ -454,11 +459,7 @@ bool RSM::Release( RSMResourceID id )
             }
             else
             {
-                _rsm->rstate[iid.index] = RSMEState::UNLOADED;
-                {
-                    scope_mutex_t guard( _rsm->id_lock );
-                    id_table::destroy( _rsm->id_alloc, iid );
-                }
+                RemoveResourceEntry( _rsm, iid );
             }
             
             return true;

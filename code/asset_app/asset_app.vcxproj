@@ -78,6 +78,7 @@
     <ClInclude Include="material_editor.h" />
     <ClInclude Include="material_library.h" />
     <ClInclude Include="mesh_tool.h" />
+    <ClInclude Include="tool_context.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="asset_app.cpp">

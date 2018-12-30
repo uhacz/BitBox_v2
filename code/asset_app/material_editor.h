@@ -10,7 +10,7 @@ struct MATEditor
     static void SetDefault( GFXMaterialResource* mat );
     static void SetDefault( GFXMaterialTexture* tex );
 
-    void StartUp( GFX* gfx, GFXSceneID scene_id, BXIAllocator* allocator );
+    void StartUp( GFX* gfx, BXIAllocator* allocator );
     void ShutDown( GFX* gfx );
     void Tick( GFX* gfx, BXIFilesystem* fs );
 

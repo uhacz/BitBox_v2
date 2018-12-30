@@ -32,6 +32,38 @@ RDIEVertexSlot::Enum RDIEVertexSlot::FromString( const char* n )
 
     return RDIEVertexSlot::COUNT;
 }
+bool RDIEVertexSlot::ToString( char* output, uint32_t output_size, RDIEVertexSlot::Enum slot )
+{
+    int res = 0;
+    switch( slot )
+    {
+    case RDIEVertexSlot::POSITION:
+    case RDIEVertexSlot::NORMAL:
+    case RDIEVertexSlot::TANGENT:
+    case RDIEVertexSlot::BINORMAL:
+    case RDIEVertexSlot::BLENDWEIGHT:
+    case RDIEVertexSlot::BLENDINDICES:
+        res = snprintf( output, output_size, "%s", name[slot] );
+        break;
+    case RDIEVertexSlot::COLOR0:
+    case RDIEVertexSlot::COLOR1:
+    case RDIEVertexSlot::TEXCOORD0:
+    case RDIEVertexSlot::TEXCOORD1:
+    case RDIEVertexSlot::TEXCOORD2:
+    case RDIEVertexSlot::TEXCOORD3:
+    case RDIEVertexSlot::TEXCOORD4:
+    case RDIEVertexSlot::TEXCOORD5:
+    {
+        res = snprintf( output, output_size, "%s%d", name[slot], semanticIndex[slot] );
+    }break;
+
+   default:
+       return false;
+       break;
+    }
+
+    return res && (uint32_t)res < output_size;
+}
 
 void Startup( RDIDevice** dev, RDICommandQueue** cmdq, uintptr_t hWnd, int winWidth, int winHeight, int fullScreen, BXIAllocator* allocator )
 {

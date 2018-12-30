@@ -54,6 +54,7 @@ namespace
     GFXCameraInputContext g_camera_input_ctx = {};
     GFXCameraID g_idcamera = { 0 };
     GFXSceneID g_idscene = { 0 };
+    ECSEntityID g_identity = {};
 }
 
 
@@ -91,8 +92,10 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     }
     g_idcamera = _gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) ) );
 
-    g_mat_editor.StartUp( _gfx, g_idscene, allocator );
-    g_mesh_tool.StartUp( this, ".src/mesh/", g_idscene, allocator );
+    g_identity = _ecs->CreateEntity();
+
+    g_mat_editor.StartUp( _gfx, allocator );
+    g_mesh_tool.StartUp( this, ".src/mesh/", allocator );
 
     return true;
 }
@@ -102,6 +105,8 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     g_mesh_tool.ShutDown( this );
     g_mat_editor.ShutDown( _gfx );
     
+    _ecs->MarkForDestroy( g_identity );
+
     DestroyGroundMesh( &g_ground_mesh, _gfx );
     _gfx->DestroyScene( g_idscene );
     _gfx->DestroyCamera( g_idcamera );
@@ -143,8 +148,15 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     _gfx->SetCameraWorld( g_idcamera, new_camera_world );
     _gfx->ComputeCamera( g_idcamera );
 
-    g_mat_editor.Tick( _gfx, _filesystem );
-    g_mesh_tool.Tick( this );
+    {
+        TOOLContext tool_ctx;
+        tool_ctx.camera = g_idcamera;
+        tool_ctx.gfx_scene = g_idscene;
+        tool_ctx.entity = g_identity;
+
+        g_mat_editor.Tick( _gfx, _filesystem );
+        g_mesh_tool.Tick( this, tool_ctx );
+    }
 
     GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
     {
