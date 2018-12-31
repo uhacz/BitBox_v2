@@ -32,6 +32,17 @@ void BX_DELETE( BXIAllocator* alloc, T* ptr )
 }
 #define BX_DELETE0( a, ptr ) { BX_DELETE( a, ptr ); ptr = 0; }
 
+template< typename T, typename... Args >
+inline T* BX_RENEW( BXIAllocator* alloc, T** inout, Args&&... args )
+{
+    if( inout[0] )
+        BX_DELETE( alloc, inout[0] );
+
+    inout[0] = BX_NEW( alloc, T, std::forward<Args>( args )... );
+    return inout[0];
+}
+
+
 #include "dll_interface.h"
 
 

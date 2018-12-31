@@ -5,7 +5,7 @@
 #include <gfx/gfx.h>
 
 struct FSName;
-struct MATEditor
+struct MATERIALTool
 {
     static void SetDefault( GFXMaterialResource* mat );
     static void SetDefault( GFXMaterialTexture* tex );

@@ -54,7 +54,7 @@ namespace tool { namespace anim {
         
         struct ImportParams
         {
-            float scale = 1.f;
+            float scale = 0.01f;
             int16_t root_motion_joint = -1;
             bool extract_root_motion = false;
             bool remove_root_motion = false;

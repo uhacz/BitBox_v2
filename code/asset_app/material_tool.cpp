@@ -1,4 +1,4 @@
-#include "material_editor.h"
+#include "material_tool.h"
 #include <3rd_party/imgui/imgui.h>
 #include <util/file_system_name.h>
 #include <gfx/gfx_type.h>
@@ -10,7 +10,7 @@
 
 static constexpr char MATERIAL_FILE_EXT[] = ".material";
 
-void MATEditor::SetDefault( GFXMaterialResource* mat )
+void MATERIALTool::SetDefault( GFXMaterialResource* mat )
 {
     mat->data.diffuse_albedo = vec3_t( 1.f, 1.f, 1.f );
     mat->data.specular_albedo = vec3_t( 1.f, 1.f, 1.f );
@@ -23,7 +23,7 @@ void MATEditor::SetDefault( GFXMaterialResource* mat )
     }
 }
 
-void MATEditor::SetDefault( GFXMaterialTexture* tex )
+void MATERIALTool::SetDefault( GFXMaterialTexture* tex )
 {
     for( uint32_t i = 0; i < GFXEMaterialTextureSlot::_COUNT_; ++i )
     {
@@ -32,7 +32,7 @@ void MATEditor::SetDefault( GFXMaterialTexture* tex )
     }
 }
 
-void MATEditor::StartUp( GFX* gfx, BXIAllocator* allocator )
+void MATERIALTool::StartUp( GFX* gfx, BXIAllocator* allocator )
 {
     _allocator = allocator;
 
@@ -60,7 +60,7 @@ void MATEditor::StartUp( GFX* gfx, BXIAllocator* allocator )
     _texture_folder = "texture/";
 }
 
-void MATEditor::ShutDown( GFX* gfx )
+void MATERIALTool::ShutDown( GFX* gfx )
 {
     string::free( &_folder );
     string::free( &_texture_folder );
@@ -88,7 +88,7 @@ static bool ShowTextureMenu( string_t* value,  const char* label, const string_b
     ImGui::Text( "%s", value->c_str() );
     return opened;
 }
-void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
+void MATERIALTool::Tick( GFX* gfx, BXIFilesystem* fs )
 {
     if( ImGui::Begin( "Material" ) )
     {
@@ -198,7 +198,7 @@ void MATEditor::Tick( GFX* gfx, BXIFilesystem* fs )
     }
 }
 
-void MATEditor::_CreateRelativePath( FSName* fs_name, const char* filename )
+void MATERIALTool::_CreateRelativePath( FSName* fs_name, const char* filename )
 {
     if( string::find( filename, _folder.c_str() ) != filename )
     {
@@ -213,7 +213,7 @@ void MATEditor::_CreateRelativePath( FSName* fs_name, const char* filename )
     }
 }
 
-void MATEditor::_Save( const char* filename, BXIFilesystem* fs )
+void MATERIALTool::_Save( const char* filename, BXIFilesystem* fs )
 {
     static constexpr uint32_t DATA_SIZE = 2048;
     uint8_t data[DATA_SIZE] = {};
@@ -230,7 +230,7 @@ void MATEditor::_Save( const char* filename, BXIFilesystem* fs )
     }
 }
 
-void MATEditor::_Load( const char* filename, BXIFilesystem* fs )
+void MATERIALTool::_Load( const char* filename, BXIFilesystem* fs )
 {
     FSName relative_filename;
     _CreateRelativePath( &relative_filename, filename );

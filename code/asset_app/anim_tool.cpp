@@ -11,17 +11,19 @@
 
 #include <rdix/rdix_debug_draw.h>
 #include <3rd_party/imgui/imgui.h>
+#include "common/base_engine_init.h"
+#include "tool_context.h"
 
 
 
-void AnimTool::StartUp( const char* src_folder, const char* dst_folder, BXIAllocator* allocator )
+void ANIMTool::StartUp( const char* src_folder, const char* dst_folder, BXIAllocator* allocator )
 {
     _allocator = allocator;
     string::create( &_src_folder, src_folder, allocator );
     string::create( &_dst_folder, dst_folder, allocator );
 }
 
-void AnimTool::ShutDown()
+void ANIMTool::ShutDown()
 {
     string::free( &_current_src_file );
     string::free( &_dst_folder );
@@ -41,10 +43,12 @@ void AnimTool::ShutDown()
     _clip_blob.destroy();
 }
 
-
-
-void AnimTool::Tick( BXIFilesystem* fs, float dt )
+void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 {
+    DrawMenu();
+
+    BXIFilesystem* fs = e->_filesystem;
+
     if( _flags.refresh_src_files )
     {
         _flags.refresh_src_files = 0;
@@ -68,11 +72,8 @@ void AnimTool::Tick( BXIFilesystem* fs, float dt )
         BXFile file = {};
         if( fs->File( &file, _hfile ) == BXEFileStatus::READY )
         {
-            BX_DELETE0( _allocator, _in_skel );
-            BX_DELETE0( _allocator, _in_anim );
-
-            _in_skel = BX_NEW( _allocator, tool::anim::Skeleton );
-            _in_anim = BX_NEW( _allocator, tool::anim::Animation );
+            BX_RENEW( _allocator, &_in_skel );
+            BX_RENEW( _allocator, &_in_anim );
 
             if( tool::anim::Import( _in_skel, _in_anim, file.bin, file.size, _import_params ) )
             {
@@ -83,9 +84,8 @@ void AnimTool::Tick( BXIFilesystem* fs, float dt )
                 _skel_blob = tool::anim::CompileSkeleton( *_in_skel, _allocator );
                 _clip_blob = tool::anim::CompileClip( *_in_anim, *_in_skel, _allocator );
 
-                BX_DELETE0( _allocator, _player );
-                _player = BX_NEW( _allocator, ANIMSimplePlayer );
-                
+                BX_RENEW( _allocator, &_player );
+
                 ANIMSkel* skel = (ANIMSkel*)_skel_blob.raw;
                 ANIMClip* clip = (ANIMClip*)_clip_blob.raw;
                 _player->Prepare( skel, _allocator );
@@ -178,7 +178,7 @@ static void DrawSkeletonTree( array_t<int16_t>& selected_joints, const tool::ani
     }
 }
 
-void AnimTool::DrawMenu()
+void ANIMTool::DrawMenu()
 {
     if( ImGui::Begin( "AnimTool" ) )
     {

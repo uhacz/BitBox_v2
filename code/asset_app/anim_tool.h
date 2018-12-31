@@ -14,12 +14,15 @@ struct BXIAllocator;
 struct ANIMSimplePlayer;
 struct ANIMJoint;
 
-struct AnimTool
+struct CMNEngine;
+struct TOOLContext;
+
+struct ANIMTool
 {
     void StartUp( const char* src_folder, const char* dst_folder, BXIAllocator* allocator );
     void ShutDown();
 
-    void Tick( BXIFilesystem* fs, float dt );
+    void Tick( CMNEngine* e, const TOOLContext& ctx, float dt );
     void DrawMenu();
 
     BXIAllocator* _allocator = nullptr;

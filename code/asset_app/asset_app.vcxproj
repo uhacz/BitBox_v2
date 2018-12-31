@@ -73,26 +73,31 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="anim_tool.h" />
     <ClInclude Include="asset_app.h" />
     <ClInclude Include="components.h" />
-    <ClInclude Include="material_editor.h" />
     <ClInclude Include="material_library.h" />
+    <ClInclude Include="material_tool.h" />
     <ClInclude Include="mesh_tool.h" />
     <ClInclude Include="tool_context.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="anim_tool.cpp" />
     <ClCompile Include="asset_app.cpp">
       <PreprocessToFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</PreprocessToFile>
       <PreprocessToFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</PreprocessToFile>
     </ClCompile>
     <ClCompile Include="components.cpp" />
-    <ClCompile Include="material_editor.cpp" />
     <ClCompile Include="material_library.cpp" />
+    <ClCompile Include="material_tool.cpp" />
     <ClCompile Include="mesh_tool.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\3rd_party\imgui\imgui.vcxproj">
       <Project>{3420b694-89a1-4e00-814e-c8da87b0143d}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\anim\anim.vcxproj">
+      <Project>{a647b6f9-cc23-4361-ac2d-1e71bebbb3a9}</Project>
     </ProjectReference>
     <ProjectReference Include="..\asset_compiler\asset_compiler.vcxproj">
       <Project>{af9a3270-b31d-4e46-a096-339139ecb124}</Project>

@@ -424,9 +424,6 @@ ECSRawComponent* ECS::Component( ECSComponentID id ) const
         return nullptr;
 
     return impl->comp_address[id.index];
-    //const ECSComponentAddress& address = impl->comp_address[id.index];
-    //ECSComponentStorage& storage = impl->comp_storage[address.type_index];
-    //return storage.Pointer( address.data_offset );
 }
 
 ECSRawComponentSpan ECS::Components( size_t type_hash_code ) const

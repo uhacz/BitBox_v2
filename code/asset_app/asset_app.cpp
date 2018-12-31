@@ -1,51 +1,23 @@
 #include "asset_app.h"
 
-#include <memory\memory.h>
-#include <rtti\rtti.h>
-#include <plugin\plugin_registry.h>
-#include <plugin\plugin_load.h>
-
 #include <window\window.h>
 #include <window\window_interface.h>
 
-#include <filesystem\filesystem_plugin.h>
-
-#include <string.h>
 #include <foundation/time.h>
-#include <foundation/array.h>
-#include <foundation/id_array.h>
-#include <foundation/id_table.h>
-#include <foundation/string_util.h>
-#include <foundation\buffer.h>
-#include <foundation\id_allocator_dense.h>
-#include <foundation\container_soa.h>
-
-#include <util/guid.h>
-#include <util/random\random.h>
-#include <util/grid.h>
-#include <util/poly_shape/poly_shape.h>
-
-#include <resource_manager\resource_manager.h>
 #include <rdix/rdix.h>
-#include <rdix/rdix_command_buffer.h>
-
-#include <gfx/gfx.h>
-#include <gfx/gfx_camera.h>
-#include <gfx/gfx_shader_interop.h>
-
+#include <rdix/rdix_debug_draw.h>
 
 #include <gui/gui.h>
 #include <3rd_party/imgui/imgui.h>
 
-#include "entity/entity_system.h"
-
-#include "material_editor.h"
-#include "mesh_tool.h"
-#include "common\ground_mesh.h"
+#include <entity/entity_system.h>
+#include <common/ground_mesh.h>
 
 #include "components.h"
 
-
+#include "material_tool.h"
+#include "mesh_tool.h"
+#include "anim_tool.h"
 
 namespace
 {
@@ -57,10 +29,9 @@ namespace
     ECSEntityID g_identity = {};
 }
 
-
-
-static MATEditor g_mat_editor;
+static MATERIALTool g_mat_tool;
 static MESHTool g_mesh_tool;
+static ANIMTool g_anim_tool;
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
@@ -69,6 +40,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     {
         RegisterComponent< TOOLMeshComponent >( _ecs, "TOOL_Mesh" );
         RegisterComponent< TOOLAnimComponent >( _ecs, "TOOL_Anim" );
+        RegisterComponentNoPOD< TOOLSkinningComponent >( _ecs, "TOOL_Skinning" );
     }
 
     GFXSceneDesc desc;
@@ -94,16 +66,18 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
     g_identity = _ecs->CreateEntity();
 
-    g_mat_editor.StartUp( _gfx, allocator );
+    g_mat_tool.StartUp( _gfx, allocator );
     g_mesh_tool.StartUp( this, ".src/mesh/", allocator );
+    g_anim_tool.StartUp( ".src/anim/", "anim/", allocator );
 
     return true;
 }
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
+    g_anim_tool.ShutDown();
     g_mesh_tool.ShutDown( this );
-    g_mat_editor.ShutDown( _gfx );
+    g_mat_tool.ShutDown( _gfx );
     
     _ecs->MarkForDestroy( g_identity );
 
@@ -154,8 +128,10 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         tool_ctx.gfx_scene = g_idscene;
         tool_ctx.entity = g_identity;
 
-        g_mat_editor.Tick( _gfx, _filesystem );
+        g_mat_tool.Tick( _gfx, _filesystem );
         g_mesh_tool.Tick( this, tool_ctx );
+        g_anim_tool.Tick( this, tool_ctx, delta_time_sec );
+        
     }
 
     GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
@@ -175,6 +151,14 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     _gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
 
     _gfx->PostProcess( frame_ctx, g_idcamera );
+
+    {
+        const GFXCameraMatrices& camera_matrices = _gfx->CameraMatrices( g_idcamera );
+        const mat44_t viewproj = camera_matrices.proj_api * camera_matrices.view;
+
+        BindRenderTarget( _rdicmdq, _gfx->Framebuffer(), { 1 }, true );
+        RDIXDebug::Flush( _rdicmdq, viewproj );
+    }
 
     _gfx->RasterizeFramebuffer( _rdicmdq, 1, g_idcamera );
 
