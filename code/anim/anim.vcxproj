@@ -46,6 +46,7 @@
   <ItemGroup>
     <ClCompile Include="anim.cpp" />
     <ClCompile Include="anim_blend_joints_linear.cpp" />
+    <ClCompile Include="anim_common.cpp" />
     <ClCompile Include="anim_evaluate.cpp" />
     <ClCompile Include="anim_local_joints_to_world_joints.cpp" />
     <ClCompile Include="anim_local_joints_to_world_matrices4x4.cpp" />

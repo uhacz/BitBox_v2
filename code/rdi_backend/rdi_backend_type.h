@@ -220,6 +220,12 @@ namespace RDIEVertexSlot
     };
 	RDIEVertexSlot::Enum FromString( const char* n );
     bool ToString( char* output, uint32_t output_size, RDIEVertexSlot::Enum slot );
+
+    inline uint32_t SkinningMaskPosNrm()
+    {
+        return BIT_OFFSET( POSITION ) | BIT_OFFSET( NORMAL );
+    }
+
 };
 
 

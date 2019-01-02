@@ -88,6 +88,7 @@
     <ClInclude Include="data_buffer.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="hash.h" />
+    <ClInclude Include="hashed_string.h" />
     <ClInclude Include="hashmap.h" />
     <ClInclude Include="id_allocator_dense.h" />
     <ClInclude Include="id_array.h" />

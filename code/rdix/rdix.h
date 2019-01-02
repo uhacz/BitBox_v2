@@ -65,6 +65,7 @@ RDITextureDepth   TextureDepth( RDIXRenderTarget* rtarget );
 
 // --- RenderSource
 RDIXRenderSource* CreateRenderSource ( RDIDevice* dev, const RDIXRenderSourceDesc& desc, BXIAllocator* allocator );
+RDIXRenderSource* CloneForSkinning( RDIDevice* dev, const RDIXRenderSource* base, uint32_t slot_mask = RDIEVertexSlot::SkinningMaskPosNrm() );
 RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes_mesh* shape, BXIAllocator* allocator );
 RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_t* shape, BXIAllocator* allocator );
 RDIXRenderSource* CreateRenderSourceFromMemory( RDIDevice* dev, const RDIXMeshFile* header, BXIAllocator* allocator );

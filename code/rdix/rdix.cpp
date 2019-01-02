@@ -574,14 +574,20 @@ RDITextureDepth TextureDepth( RDIXRenderTarget * rtarget )
 // --- RenderSource
 struct RDIXRenderSource
 {
-	uint16_t num_vertex_buffers = 0;
+	uint8_t num_vertex_buffers = 0;
 	uint8_t num_draw_ranges = 0;
-	uint8_t has_shared_index_buffer = 0;
-	RDIIndexBuffer index_buffer;
+    uint16_t managed_buffers_mask = 0;
+    
+    RDIIndexBuffer index_buffer;
 	RDIVertexBuffer* vertex_buffers = nullptr;
 	RDIXRenderSourceRange* draw_ranges = nullptr;
 
     BXIAllocator* allocator = nullptr;
+
+    static constexpr uint16_t MANAGED_INDEX_BUFFER_MASK = BIT_OFFSET( 15 );
+
+    bool IsIndexBufferManaged() const { return (managed_buffers_mask & MANAGED_INDEX_BUFFER_MASK) != 0; }
+    bool IsBufferManaged( uint32_t index ) const { return (managed_buffers_mask & BIT_OFFSET( index )) != 0; }
 };
 RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc& desc, BXIAllocator* allocator )
 {
@@ -608,6 +614,7 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
 	{
 		const void* data = desc.vertex_data[i];
 		impl->vertex_buffers[i] = CreateVertexBuffer( dev, desc.vertex_layout.descs[i], desc.num_vertices, data );
+        impl->managed_buffers_mask |= BIT_OFFSET( i );
 	}
 
 	RDIXRenderSourceRange& default_range = impl->draw_ranges[impl->num_draw_ranges-1];
@@ -615,12 +622,11 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
 	{
 		impl->index_buffer = CreateIndexBuffer( dev, desc.index_type, desc.num_indices, desc.index_data );
 		default_range.count = desc.num_indices;
-		impl->has_shared_index_buffer = 0;
+        impl->managed_buffers_mask |= RDIXRenderSource::MANAGED_INDEX_BUFFER_MASK;
 	}
 	else if( desc.shared_index_buffer.id )
 	{
 		impl->index_buffer = desc.shared_index_buffer;
-		impl->has_shared_index_buffer = 1;
 		default_range.count = desc.num_indices;
 	}
 	else
@@ -636,6 +642,54 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
     impl->allocator = allocator;
 
 	return impl;
+}
+
+RDIXRenderSource* CloneForSkinning( RDIDevice* dev, const RDIXRenderSource* base, uint32_t slot_mask )
+{
+    BXIAllocator* allocator = base->allocator;
+    const uint32_t num_streams = base->num_vertex_buffers;
+    const uint32_t num_draw_ranges = base->num_draw_ranges;
+
+    uint32_t mem_size = sizeof( RDIXRenderSource );
+    mem_size += num_streams * sizeof( RDIVertexBuffer );
+    mem_size += num_draw_ranges * sizeof( RDIXRenderSourceRange );
+
+    void* mem = BX_MALLOC( allocator, mem_size, ALIGNOF( RDIXRenderSource ) );
+    memset( mem, 0x00, mem_size );
+
+    BufferChunker chunker( mem, mem_size );
+    RDIXRenderSource* impl = chunker.Add< RDIXRenderSource >();
+    impl->vertex_buffers = chunker.Add< RDIVertexBuffer >( num_streams );
+    impl->draw_ranges = chunker.Add< RDIXRenderSourceRange >( num_draw_ranges );
+    chunker.Check();
+
+    impl->num_vertex_buffers = num_streams;
+    impl->num_draw_ranges = num_draw_ranges;
+
+    for( uint32_t i = 0; i < num_streams; ++i )
+    {
+        const RDIVertexBuffer vbuffer = base->vertex_buffers[i];
+        const RDIVertexBufferDesc& desc = vbuffer.desc;
+        if( BIT_OFFSET( desc.slot ) & slot_mask )
+        {
+            impl->vertex_buffers[i] = CreateVertexBuffer( dev, desc, vbuffer.numElements, nullptr );
+            impl->managed_buffers_mask |= BIT_OFFSET( i );
+        }
+        else
+        {
+            impl->vertex_buffers[i] = vbuffer;
+        }
+    }
+
+    for( uint32_t i = 0; i < num_draw_ranges; ++i )
+    {
+        impl->draw_ranges[i] = base->draw_ranges[i];
+    }
+
+    impl->index_buffer = base->index_buffer;
+    impl->allocator = allocator;
+
+    return impl;
 }
 
 RDIXRenderSource * CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes_mesh* shape, BXIAllocator* allocator )
@@ -657,8 +711,6 @@ RDIXRenderSource* CreateRenderSourceFromShape( RDIDevice* dev, const poly_shape_
     desc.VertexBuffer( RDIVertexBufferDesc::POS(), shape->positions );
     desc.VertexBuffer( RDIVertexBufferDesc::NRM(), shape->normals );
     desc.VertexBuffer( RDIVertexBufferDesc::UV0(), shape->texcoords );
-    //desc.VertexBuffer( RDIVertexBufferDesc::TAN(), shape->tangents );
-    //desc.VertexBuffer( RDIVertexBufferDesc::BIN(), shape->bitangents );
     desc.IndexBuffer( RDIEType::UINT, shape->indices );
 
     return CreateRenderSource( dev, desc, allocator );
@@ -696,14 +748,17 @@ void DestroyRenderSource( RDIXRenderSource** rsource )
 
 	RDIXRenderSource* impl = rsource[0];
 
-	if( impl->has_shared_index_buffer == 0 )
+	if( impl->IsIndexBufferManaged() )
 	{
 		Destroy( &impl->index_buffer );
 	}
 	for( uint32_t i = 0; i < impl->num_vertex_buffers; ++i )
 	{
-		Destroy( &impl->vertex_buffers[i] );
-	}
+        if( impl->IsBufferManaged( i ) )
+        {
+            Destroy( &impl->vertex_buffers[i] );
+        }
+    }
 
     BXIAllocator* allocator = impl->allocator;
 	BX_FREE0( allocator, rsource[0] );

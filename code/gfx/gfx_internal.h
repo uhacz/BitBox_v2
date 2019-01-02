@@ -123,6 +123,7 @@ struct GFXSceneContainer
         mat44_t* world_matrix;
         gfx_shader::InstanceData* instance_data;
         RSMResourceID* idmesh_resource;
+        RDIXRenderSource** skinning_rsource;
         GFXMaterialID* idmat;
         id_t* idinstance;
     };

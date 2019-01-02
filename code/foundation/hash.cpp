@@ -1,4 +1,5 @@
 #include "hash.h"
+#include <string.h>
 
 #if defined(_MSC_VER)
 
@@ -299,6 +300,48 @@ void murmur3_128x64_hash( void* out, const void* key, unsigned int len, unsigned
 	uint64_t* out64 = (uint64_t*)out;
 	out64[0] = h1;
 	out64[1] = h2;
+}
+
+unsigned int elf_hash_string( const char* str, unsigned int prev_value )
+{
+    unsigned int hash = prev_value;
+    unsigned int x = prev_value;
+
+    char c = *str;
+    while( c )
+    {
+        hash = (hash << 4) + c;
+        c = *(++str);
+        if( (x = hash & 0xF0000000L) != 0 )
+        {
+            hash ^= (x >> 24);
+        }
+        hash &= ~x;
+    }
+
+    return hash;
+}
+
+unsigned int elf_hash_data( const void* data, unsigned size, unsigned int prev_value )
+{
+    unsigned int hash = prev_value;
+    unsigned int x = prev_value;
+
+    char* str = (char*)data;
+
+    for( unsigned i = 0; i < size; ++i )
+    {
+        char c = *str;
+        hash = (hash << 4) + c;
+        c = *(++str);
+        if( (x = hash & 0xF0000000L) != 0 )
+        {
+            hash ^= (x >> 24);
+        }
+        hash &= ~x;
+    }
+
+    return hash;
 }
 
 //

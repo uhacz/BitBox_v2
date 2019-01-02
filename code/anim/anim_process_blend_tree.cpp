@@ -1,5 +1,6 @@
 #include "anim.h"
 #include <foundation/debug.h>
+#include <string.h>
 
 static inline void PushCmdLeaf( Cmd* cmdArray, uint8_t* cmdArraySize, uint16_t currentLeaf, const ANIMBlendLeaf* blendLeaves, uint32_t numLeaves, ANIMECmdOp::Enum op )
 {

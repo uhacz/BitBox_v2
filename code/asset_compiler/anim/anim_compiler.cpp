@@ -6,6 +6,8 @@
 #include <foundation/common.h>
 #include <foundation/io.h>
 #include <foundation/math/vmath.h>
+#include <foundation/hashed_string.h>
+#include <foundation/string_util.h>
 #include <memory/memory.h>
 #include <filesystem/filesystem_plugin.h>
 
@@ -302,7 +304,7 @@ namespace tool{ namespace anim {
         const uint32_t num_joints = (uint32_t)in_skeleton.jointNames.size();
         const uint32_t parent_indices_size = num_joints * sizeof( uint16_t );
         const uint32_t base_pose_size = num_joints * sizeof( Joint );
-        const uint32_t joint_name_hashes_size = num_joints * sizeof( uint32_t );
+        const uint32_t joint_name_hashes_size = num_joints * sizeof( hashed_string_t );
 
         uint32_t memory_size = 0;
         memory_size += sizeof( ANIMSkel );
@@ -334,10 +336,10 @@ namespace tool{ namespace anim {
         memcpy( base_pose_address, world_bind_pose.data(), base_pose_size );
         memcpy( parent_indices_address, &in_skeleton.parentIndices[0], parent_indices_size );
 
-        uint32_t* joint_name_hashes = (uint32_t*)joint_name_hashes_address;
+        hashed_string_t* joint_name_hashes = (hashed_string_t*)joint_name_hashes_address;
         for( size_t i = 0; i < in_skeleton.jointNames.size(); ++i )
         {
-            joint_name_hashes[0] = GenerateJointNameHash( in_skeleton.jointNames[i].c_str() );
+            joint_name_hashes[0] = hashed_string( in_skeleton.jointNames[i].c_str() );
             ++joint_name_hashes;
         }
         SYS_ASSERT( (uintptr_t)(joint_name_hashes) == (uintptr_t)(joint_name_hashes_address + joint_name_hashes_size) );

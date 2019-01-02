@@ -206,6 +206,8 @@ namespace gfx_internal
                 DestroyRenderSource( &rsource );
             }
 
+            DestroyRenderSource( &sc->mesh_data[scene_index]->skinning_rsource[data_index] );
+
             container_soa::remove_packed( sc->mesh_data[scene_index], data_index );
         }
     }
@@ -919,6 +921,11 @@ GFXMeshInstanceID GFX::AddMeshToScene( GFXSceneID idscene, const GFXMeshInstance
     SYS_ASSERT( data_index ==  id_allocator::dense_index( sc.mesh_idalloc[index], idinst ) );
     data->world_matrix   [data_index] = pose;
     data->idmesh_resource[data_index] = desc.idmesh_resource;
+    if( desc.flags.skinning )
+    {
+        RDIXRenderSource* base_rsource = (RDIXRenderSource*)RSM::Get( desc.idmesh_resource );
+        data->skinning_rsource[data_index] = CloneForSkinning( gfx->_rdidev, base_rsource );
+    }
     data->idmat          [data_index] = idmat;
     data->idinstance     [data_index] = idinst;
 

@@ -3,6 +3,7 @@
 #include <gfx/gfx_type.h>
 #include <resource_manager/resource_manager.h>
 #include <foundation/math/vmath_type.h>
+#include <entity/entity_system.h>
 
 struct RDIXRenderSource;
 struct TOOLMeshComponent
@@ -27,12 +28,11 @@ struct TOOLSkinningComponent
 {
     ECS_NON_POD_COMPONENT( TOOLSkinningComponent );
 
-    array_t<mat44_t> skinning_matrices;
+    GFXMeshInstanceID id_mesh;
     array_t<mat44_t> bone_offsets;
     array_t<SKINBoneMapping> mapping;
 
-    void ComputeSkinningMatrices( const mat44_t* anim_matrices );
-    void Initialize( const RDIXMeshFile* mesh_file, const ANIMSkel* skel );
+    void Initialize( const RDIXMeshFile* mesh_file, const ANIMSkel* skel, GFXMeshInstanceID mesh );
     void Uninitialize();
 };
 

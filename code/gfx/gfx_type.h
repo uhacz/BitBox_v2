@@ -54,6 +54,15 @@ struct GFXMeshInstanceDesc
     GFXDrawCallback* callback = nullptr;
     GFXERenderMask::E rmask = GFXERenderMask::COLOR_SHADOW;
 
+    union
+    {
+        uint32_t all;
+        struct  
+        {
+            uint32_t skinning : 1;
+        };
+    } flags;
+
     void AddRenderSource( const RDIXRenderSource* rsource );
 };
 

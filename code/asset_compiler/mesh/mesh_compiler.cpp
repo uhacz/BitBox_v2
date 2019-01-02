@@ -2,12 +2,16 @@
 
 #include <iostream>
 
+#include "memory/memory.h"
+#include <foundation/buffer.h>
+#include <foundation/hashed_string.h>
+#include "rdix/rdix_type.h"
+
 #include <3rd_party/assimp/cimport.h>
 #include <3rd_party/assimp/scene.h>
 #include "assimp/postprocess.h"
-#include "rdix/rdix_type.h"
-#include "memory/memory.h"
-#include "foundation/buffer.h"
+
+
 
 namespace tool { namespace mesh {
 
@@ -274,10 +278,13 @@ namespace tool { namespace mesh {
 
         const uint32_t bone_size_in_bytes = sizeof( BoneDataArray::value_type );
         const uint32_t memory_size_for_bones = bone_size_in_bytes * streams.num_bones;
+        const uint32_t memory_size_for_bones_names = sizeof( hashed_string_t ) * streams.num_bones;
+
 
         uint32_t memory_size_for_all_streams = 0;
         memory_size_for_all_streams += memory_size_for_indices;
         memory_size_for_all_streams += memory_size_for_bones;
+        memory_size_for_all_streams += memory_size_for_bones_names;
 
         for( uint32_t i = 0; i < MAX_STREAMS; ++i )
             memory_size_for_all_streams += memory_size_streams[i];
@@ -368,6 +375,21 @@ namespace tool { namespace mesh {
             SYS_ASSERT( (uintptr_t)dst_bones == (uintptr_t)data_end );
 
             header->offset_bones = TYPE_POINTER_GET_OFFSET( &header->offset_bones, data_begin );
+        }
+        // bones names
+        {
+            uint8_t* data_begin = chunker.AddBlock( memory_size_for_bones_names );
+            uint8_t* data_end = data_begin + memory_size_for_bones_names;
+
+            hashed_string_t* dst_bones_names = (hashed_string_t*)data_begin;
+            for( uint32_t i = 0; i < streams.num_bones; ++i )
+            {
+                dst_bones_names[0] = hashed_string( streams.bones_names[i].c_str() );
+                ++dst_bones_names;
+            }
+            SYS_ASSERT( (uintptr_t)dst_bones_names == (uintptr_t)data_end );
+
+            header->offset_bones_names = TYPE_POINTER_GET_OFFSET( &header->offset_bones_names, data_begin );
         }
 
         chunker.Check();

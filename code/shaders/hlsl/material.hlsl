@@ -49,7 +49,6 @@ struct OUT_PS
 	float4 rgba : SV_Target0;
 };
 
-
 #define SHADER_IMPLEMENTATION
 
 #include "common.h"

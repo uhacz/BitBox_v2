@@ -203,13 +203,14 @@ struct RDIXMeshFile
 
     uint32_t num_vertices = 0;
     uint32_t num_indices = 0;
-    uint32_t num_bones = 0;
-    uint32_t num_draw_ranges = 0;
+    uint16_t num_bones = 0;
+    uint16_t num_draw_ranges = 0;
     uint32_t flag_use_16bit_indices = 0;
-    
+
     uint32_t offset_streams[RDIEVertexSlot::COUNT] = {};
     uint32_t offset_indices = 0;
     uint32_t offset_bones = 0;
+    uint32_t offset_bones_names = 0;
     uint32_t offset_draw_ranges = 0;   
 };
 SYS_STATIC_ASSERT( sizeof( RDIXMeshFile ) == 128 );

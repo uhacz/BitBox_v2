@@ -4,21 +4,18 @@
 #define BX_UTIL_TAG32( a,b,c,d ) uint32_t( a << 0 | b << 8| c << 16 | d << 24 )
 #define BX_UTIL_MAKE_VERSION( major, minor, patch ) uint32_t( ('V' << 24) | (major << 16) | (minor << 8) | (patch) )
 
-struct tag32_t
+union tag32_t
 {
 	tag32_t() : _tag(0) {}
 	explicit tag32_t( const char tag[5] )	{ _tag = *((uint32_t*)tag); }
 		
-	union
+    uint32_t _tag;
+	struct
 	{
-		struct
-		{
-			uint8_t _byte1;
-			uint8_t _byte2;
-			uint8_t _byte3;
-			uint8_t _byte4;
-		};
-		uint32_t _tag;
+		uint8_t _byte1;
+		uint8_t _byte2;
+		uint8_t _byte3;
+		uint8_t _byte4;
 	};
 	
 	operator const uint32_t() const { return _tag; }

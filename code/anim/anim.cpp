@@ -1,6 +1,7 @@
 #include "anim.h"
 #include <foundation/debug.h>
 #include <memory/memory.h>
+#include <string.h>
 
 ANIMContext* ContextInit( const ANIMSkel& skel, BXIAllocator* allocator )
 {

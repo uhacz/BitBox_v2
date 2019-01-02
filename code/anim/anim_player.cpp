@@ -3,6 +3,7 @@
 
 #include <memory/memory.h>
 #include <foundation/common.h>
+#include <string.h>
 
 void ANIMCascadePlayer::prepare( const ANIMSkel* skel, BXIAllocator* allocator /*= nullptr */ )
 {
