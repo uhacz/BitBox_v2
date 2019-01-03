@@ -77,13 +77,14 @@ void			  SubmitRenderSource( RDICommandQueue* cmdq, RDIXRenderSource* renderSour
 void			  SubmitRenderSourceInstanced( RDICommandQueue* cmdq, RDIXRenderSource* renderSource, uint32_t numInstances, uint32_t rangeIndex = 0 );
 
 
-uint32_t             NumVertexBuffers( RDIXRenderSource* rsource );
-uint32_t             NumVertices( RDIXRenderSource* rsource );
-uint32_t             NumIndices( RDIXRenderSource* rsource );
-uint32_t             NumRanges( RDIXRenderSource* rsource );
-RDIVertexBuffer      VertexBuffer( RDIXRenderSource* rsource, uint32_t index );
-RDIIndexBuffer       IndexBuffer( RDIXRenderSource* rsource );
-RDIXRenderSourceRange Range( RDIXRenderSource* rsource, uint32_t index );
+uint32_t             NumVertexBuffers( const RDIXRenderSource* rsource );
+uint32_t             NumVertices     ( const RDIXRenderSource* rsource );
+uint32_t             NumIndices      ( const RDIXRenderSource* rsource );
+uint32_t             NumRanges       ( const RDIXRenderSource* rsource );
+RDIVertexBuffer      FindVertexBuffer( const RDIXRenderSource* rsource, RDIEVertexSlot::Enum slot );
+RDIVertexBuffer      VertexBuffer    ( const RDIXRenderSource* rsource, uint32_t index );
+RDIIndexBuffer       IndexBuffer     ( const RDIXRenderSource* rsource );
+RDIXRenderSourceRange Range          ( const RDIXRenderSource* rsource, uint32_t index );
 
 // --- TransformBuffer
 struct RDIXTransformBufferBindInfo

@@ -19,8 +19,8 @@ struct TOOLContext;
 
 struct ANIMTool
 {
-    void StartUp( const char* src_folder, const char* dst_folder, BXIAllocator* allocator );
-    void ShutDown();
+    void StartUp( CMNEngine* e, const char* src_folder, const char* dst_folder, BXIAllocator* allocator );
+    void ShutDown( CMNEngine* e );
 
     void Tick( CMNEngine* e, const TOOLContext& ctx, float dt );
     void DrawMenu();

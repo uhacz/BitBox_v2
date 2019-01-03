@@ -354,10 +354,26 @@ RDIVertexBuffer CreateVertexBuffer( RDIDevice* dev,const RDIVertexBufferDesc& de
 
     D3D11_BUFFER_DESC bdesc;
     memset( &bdesc, 0, sizeof( bdesc ) );
-    bdesc.ByteWidth      = numElements * stride;
-    bdesc.Usage          = ( data ) ? D3D11_USAGE_IMMUTABLE : D3D11_USAGE_DYNAMIC;
-    bdesc.BindFlags      = D3D11_BIND_VERTEX_BUFFER;
-    bdesc.CPUAccessFlags = ( data ) ? 0 : D3D11_CPU_ACCESS_WRITE;
+    bdesc.ByteWidth = numElements * stride;
+    
+    if( desc.cpuAccess == RDIECpuAccess::WRITE )
+    {
+        bdesc.Usage = D3D11_USAGE_DYNAMIC;
+        bdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    }
+    else if( desc.cpuAccess == 0 )
+    {
+        bdesc.Usage = D3D11_USAGE_IMMUTABLE;
+        bdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    }
+    else
+    {
+        bdesc.Usage = D3D11_USAGE_DEFAULT;
+        bdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+    }
+
+    
+    bdesc.CPUAccessFlags = to_D3D11_CPU_ACCESS_FLAG( desc.cpuAccess );;
 
     D3D11_SUBRESOURCE_DATA resource_data;
     resource_data.pSysMem          = data;
@@ -1365,7 +1381,7 @@ void ChangeRenderTargets( RDICommandQueue* cmdq, RDITextureRW* colorTex, unsigne
     }
 }
 
-unsigned char* _MapResource( ID3D11DeviceContext* ctx, ID3D11Resource* resource, D3D11_MAP dxMapType, int offsetInBytes )
+static inline unsigned char* _MapResource( ID3D11DeviceContext* ctx, ID3D11Resource* resource, D3D11_MAP dxMapType, int offsetInBytes )
 {
     D3D11_MAPPED_SUBRESOURCE mappedRes;
     mappedRes.pData      = NULL;
@@ -1376,9 +1392,22 @@ unsigned char* _MapResource( ID3D11DeviceContext* ctx, ID3D11Resource* resource,
     return (uint8_t*)mappedRes.pData + offsetInBytes;
 }
 
-unsigned char* Map( RDICommandQueue* cmdq, RDIResource resource, int offsetInBytes, int mapType )
+static inline D3D11_MAP ToD3D11_MAP( RDIEMapType::Enum mapType )
 {
-    const D3D11_MAP dxMapType = ( mapType == RDIEMapType::WRITE ) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE;
+    switch( mapType )
+    {
+    case RDIEMapType::WRITE           : return D3D11_MAP_WRITE_DISCARD;
+    case RDIEMapType::WRITE_NO_DISCARD: return D3D11_MAP_WRITE;
+    case RDIEMapType::READ            : return D3D11_MAP_READ;
+    default:
+        SYS_NOT_IMPLEMENTED;
+        return D3D11_MAP_READ_WRITE;
+    }
+}
+
+unsigned char* Map( RDICommandQueue* cmdq, RDIResource resource, int offsetInBytes, RDIEMapType::Enum mapType )
+{
+    const D3D11_MAP dxMapType = ToD3D11_MAP( mapType );
     return _MapResource( cmdq->dx11(), resource.resource, dxMapType, offsetInBytes );
 }
 void Unmap( RDICommandQueue* cmdq, RDIResource resource )
@@ -1386,22 +1415,22 @@ void Unmap( RDICommandQueue* cmdq, RDIResource resource )
     cmdq->dx11()->Unmap( resource.resource, 0 );
 }
 
-unsigned char* Map( RDICommandQueue* cmdq, RDIVertexBuffer vbuffer, int firstElement, int numElements, int mapType )
+unsigned char* Map( RDICommandQueue* cmdq, RDIVertexBuffer vbuffer, int firstElement, int numElements, RDIEMapType::Enum mapType )
 {
     SYS_ASSERT( (uint32_t)( firstElement + numElements ) <= vbuffer.numElements );
 
     const int offsetInBytes = firstElement * vbuffer.desc.ByteWidth();
-    const D3D11_MAP dxMapType = ( mapType == RDIEMapType::WRITE ) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE;
+    const D3D11_MAP dxMapType = ToD3D11_MAP( mapType );
 
     return _MapResource( cmdq->dx11(), vbuffer.resource, dxMapType, offsetInBytes );
 }
-unsigned char* Map( RDICommandQueue* cmdq, RDIIndexBuffer ibuffer, int firstElement, int numElements, int mapType )
+unsigned char* Map( RDICommandQueue* cmdq, RDIIndexBuffer ibuffer, int firstElement, int numElements, RDIEMapType::Enum mapType )
 {
     SYS_ASSERT( (uint32_t)( firstElement + numElements ) <= ibuffer.numElements );
     SYS_ASSERT( ibuffer.dataType == RDIEType::USHORT || ibuffer.dataType == RDIEType::UINT );
 
     const int offsetInBytes = firstElement * RDIEType::stride[ibuffer.dataType];
-    const D3D11_MAP dxMapType = ( mapType == RDIEMapType::WRITE ) ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE;
+    const D3D11_MAP dxMapType = ToD3D11_MAP( mapType );
 
     return _MapResource( cmdq->dx11(), ibuffer.resource, dxMapType, offsetInBytes );
 }

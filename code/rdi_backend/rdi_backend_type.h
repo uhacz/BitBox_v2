@@ -147,7 +147,8 @@ namespace RDIEMapType
     enum Enum
     {
         WRITE = 0,
-        NO_DISCARD,
+        WRITE_NO_DISCARD,
+        READ,
     };
 };
 
@@ -515,16 +516,19 @@ union RDIVertexBufferDesc
         return *this; 
     }
     RDIVertexBufferDesc& Normalized() { typeNorm = 1; return *this; }
+    RDIVertexBufferDesc& CPURead()  { cpuAccess = RDIECpuAccess::READ; return *this; }
+    RDIVertexBufferDesc& CPUWrite() { cpuAccess = RDIECpuAccess::WRITE; return *this; }
 
     inline uint32_t ByteWidth() const { return RDIEType::stride[dataType] * numElements; }
 
     uint16_t hash = 0;
     struct
     {
-        uint16_t slot : 7;
+        uint16_t slot : 5;
         uint16_t dataType : 4;
         uint16_t typeNorm : 1;
         uint16_t numElements : 4;
+        uint16_t cpuAccess : 2;
     };
 
 	static RDIVertexBufferDesc POS()  { return RDIVertexBufferDesc( RDIEVertexSlot::POSITION ).DataType( RDIEType::FLOAT, 3 ); }

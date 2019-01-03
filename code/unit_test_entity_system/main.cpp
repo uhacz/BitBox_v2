@@ -58,8 +58,8 @@ public:
     {
         for( uint32_t i = 0; i < N_COMP; ++i )
         {
-            compA_id.push_back( CreateComponent<TestCompA>( _ecs ) );
-            compB_id.push_back( CreateComponent<TestCompB>( _ecs ) );
+            compA_id.push_back( CreateComponent<TestCompA>( _ecs ).id );
+            compB_id.push_back( CreateComponent<TestCompB>( _ecs ).id );
         }
     }
     void DestroyComponents()

@@ -2,10 +2,12 @@
 #include "gfx_internal.h"
 #include "gfx_resource_loader.h"
 #include <foundation/serializer.h>
-
+#include "entity/entity_system.h"
+#include "asset_app/components.h"
 namespace gfx_shader
 {
 #include <shaders/hlsl/shadow_data.h>
+
 }//
 
 void Serialize( SRLInstance* srl, gfx_shader::Material* obj )
@@ -846,6 +848,7 @@ GFXSceneID GFX::CreateScene( const GFXSceneDesc& desc )
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, world_matrix );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, instance_data );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmesh_resource );
+    container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, skinning_rsource );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmat );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idinstance );
 
@@ -1041,6 +1044,82 @@ const GFXSkyParams& GFX::SkyParams( GFXSceneID idscene ) const
     return sc.sky_data[index].params;
 }
 
+void GFX::DoSkinning( RDICommandQueue* cmdq, ECS* ecs )
+{
+    array_span_t<TOOLSkinningComponent*> components = Components<TOOLSkinningComponent>( ecs );
+    GFXSceneContainer& sc = gfx->_scene;
+
+    union BlendIndices
+    {
+        struct { uint8_t x, y, z, w; };
+        uint8_t i[4];
+    };
+
+    for( TOOLSkinningComponent* comp : components )
+    {
+        const id_t idscene = DecodeSceneID( comp->id_mesh );
+        const id_t idinst = DecodeMeshInstanceID( comp->id_mesh );
+                
+        if( !sc.IsMeshAlive( idscene, idinst ) )
+            continue;
+
+        const array_span_t<mat44_t> skinning_matrices = ToArraySpan( comp->skinning_matrices );
+
+        const RSMResourceID base_id = sc.mesh_data[idscene.index]->idmesh_resource[idinst.index];
+        const RDIXRenderSource* base = (RDIXRenderSource*)RSM::Get( base_id );
+        const RDIXRenderSource* skinned = sc.mesh_data[idscene.index]->skinning_rsource[idinst.index];
+
+        const RDIVertexBuffer vb_blendweights      = FindVertexBuffer( base, RDIEVertexSlot::BLENDWEIGHT );
+        const RDIVertexBuffer vb_blendindices      = FindVertexBuffer( base, RDIEVertexSlot::BLENDINDICES );
+        const RDIVertexBuffer vb_base_positions    = FindVertexBuffer( base, RDIEVertexSlot::POSITION );
+        const RDIVertexBuffer vb_base_normals      = FindVertexBuffer( base, RDIEVertexSlot::NORMAL );
+      
+        const RDIVertexBuffer vb_skinned_positions = FindVertexBuffer( skinned, RDIEVertexSlot::POSITION );
+        const RDIVertexBuffer vb_skinned_normals   = FindVertexBuffer( skinned, RDIEVertexSlot::NORMAL );
+
+        const vec4_t* blendweights = (vec4_t*)Map( cmdq, vb_blendweights, RDIEMapType::READ );
+        const BlendIndices* blendindices = (BlendIndices*)Map( cmdq, vb_blendindices, RDIEMapType::READ );
+
+        const vec3_t* base_positions = (vec3_t*)Map( cmdq, vb_base_positions, RDIEMapType::READ );
+        const vec3_t* base_normals = (vec3_t*)Map( cmdq, vb_base_normals, RDIEMapType::READ );
+
+        vec3_t* skinned_positions = (vec3_t*)Map( cmdq, vb_skinned_positions, RDIEMapType::WRITE );
+        vec3_t* skinned_normals = (vec3_t*)Map( cmdq, vb_skinned_normals, RDIEMapType::WRITE );
+
+        const uint32_t num_vertices = NumVertices( base );
+        SYS_ASSERT( NumVertices( skinned ) == num_vertices );
+
+        for( uint32_t ivertex = 0; ivertex < num_vertices; ++ivertex )
+        {
+            const vec4_t& bw = blendweights[ivertex];
+            const BlendIndices bi = blendindices[ivertex];
+                        
+            const vec3_t& base_pos = base_positions[ivertex];
+            const vec3_t& base_nrm = base_normals[ivertex];
+
+            vec3_t& skinned_pos = skinned_positions[ivertex];
+            vec3_t& skinned_nrm = skinned_normals[ivertex];
+
+            skinned_pos = mul_as_point( skinning_matrices[bi.x], base_pos ) * bw.x;
+            skinned_pos += mul_as_point( skinning_matrices[bi.y], base_pos ) * bw.y;
+            skinned_pos += mul_as_point( skinning_matrices[bi.z], base_pos ) * bw.z;
+            skinned_pos += mul_as_point( skinning_matrices[bi.w], base_pos ) * bw.w;
+
+            skinned_nrm = rotate( skinning_matrices[bi.x], base_nrm ) * bw.x;
+            skinned_nrm += rotate( skinning_matrices[bi.y], base_nrm ) * bw.y;
+            skinned_nrm += rotate( skinning_matrices[bi.z], base_nrm ) * bw.z;
+            skinned_nrm += rotate( skinning_matrices[bi.w], base_nrm ) * bw.w;
+        }
+
+        Unmap( cmdq, vb_skinned_normals );
+        Unmap( cmdq, vb_skinned_positions );
+        Unmap( cmdq, vb_base_normals );
+        Unmap( cmdq, vb_base_positions );
+        Unmap( cmdq, vb_blendindices );
+        Unmap( cmdq, vb_blendweights );
+    }
+}
+
 GFXFrameContext* GFX::BeginFrame( RDICommandQueue* cmdq )
 {
     gfx_internal::RefreshPendingMaterials( gfx );
@@ -1167,6 +1246,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, GFXC
 
     const uint32_t num_meshes = container_soa::size( sc.mesh_data[scene_index] );
     const array_span_t<RSMResourceID> idmesh_array( sc.mesh_data[scene_index]->idmesh_resource, num_meshes );
+    const array_span_t<RDIXRenderSource*> skinned_mesh_array( sc.mesh_data[scene_index]->skinning_rsource, num_meshes );
     const array_span_t<GFXMaterialID> idmat_array( sc.mesh_data[scene_index]->idmat, num_meshes );
     const array_span_t<mat44_t> matrix_array( sc.mesh_data[scene_index]->world_matrix, num_meshes );
     
@@ -1232,7 +1312,12 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, GFXC
         
         if( RDIXDrawRenderSourceCmd* draw_cmd = chain.AppendCmd<RDIXDrawRenderSourceCmd>() )
         {
-            RDIXRenderSource* rsource = (RDIXRenderSource*)RSM::Get( idmesh_array[i] );
+            RDIXRenderSource* rsource = skinned_mesh_array[i];
+            if( !rsource )
+            {
+                rsource = (RDIXRenderSource*)RSM::Get( idmesh_array[i] );
+            }
+            
             draw_cmd->rsource = rsource ? rsource : gfx->_fallback_mesh;
             draw_cmd->num_instances = 1;
         }

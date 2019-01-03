@@ -34,6 +34,8 @@ struct ECSComponentTypeInfo
     {
         string::free( &name );
     }
+
+    bool IsPOD() const { return !desc.Ctor && !desc.Dtor; }
 };
 
 
@@ -41,6 +43,7 @@ struct ECSComponentStorage
 {
     dynamic_pool_t _pool;
     array_t<ECSRawComponent*> _components;
+    array_t<ECSRawComponent*> _pending_components;
 
     void StartUp( uint32_t element_size, uint32_t initial_num_elements, uint32_t alignment, BXIAllocator* allocator )
     {
@@ -54,7 +57,7 @@ struct ECSComponentStorage
     ECSRawComponent* Allocate()
     {
         ECSRawComponent* comp = _pool.alloc();
-        array::push_back( _components, comp );
+        array::push_back( _pending_components, comp );
         return comp;
     };
     void Free( ECSRawComponent* comp )
@@ -64,6 +67,15 @@ struct ECSComponentStorage
 
         array::erase_swap( _components, index );
         _pool.free( comp );
+    }
+
+    void Flush()
+    {
+        for( ECSRawComponent* comp : _pending_components )
+        {
+            array::push_back( _components, comp );
+        }
+        array::clear( _pending_components );
     }
 };
 
@@ -316,11 +328,11 @@ void ECS::RegisterComponent( const char* type_name, const ECSComponentTypeDesc& 
     storage.StartUp( cinfo.desc.size, cinfo.desc.pool_chunk_size, 16, impl->allocator );
 }
 
-ECSComponentID ECS::CreateComponent( size_t type_hash_code )
+ECSNewComponent ECS::CreateComponent( size_t type_hash_code )
 {
     const ECSComponentTypeInfo* info = hash::get( impl->comp_type_info_map, type_hash_code, (ECSComponentTypeInfo*)0 );
     if( !info )
-        return ECSComponentID();
+        return ECSNewComponent::Null();
 
     ECSComponentID id = ECSComponentID::Null();
 
@@ -353,7 +365,7 @@ ECSComponentID ECS::CreateComponent( size_t type_hash_code )
     impl->comp_type_index[index] = type_index;
     impl->comp_address[id.index] = comp;
 
-    return id;
+    return { comp, id };
 }
 
 void DestroyComponent( ECSImpl* impl, ECSComponentID id )
@@ -416,6 +428,31 @@ ECSComponentID ECS::Lookup( const ECSRawComponent* pointer ) const
 
     scoped_read_spin_lock_t guard( impl->comp_ptr_to_id_lock );
     return hash::get( impl->comp_ptr_to_id_map, (uint64_t)pointer, ECSComponentID::Null() );
+}
+
+ECSComponentID ECS::Lookup( ECSEntityID id, size_t type_hash_code ) const
+{
+    if( !IsAliveImpl( impl, id ) )
+        return ECSComponentID::Null();
+
+    const ECSComponentTypeInfo* type_info = hash::get( impl->comp_type_info_map, type_hash_code, (ECSComponentTypeInfo*)0 );
+    SYS_ASSERT( type_info != nullptr );
+
+    const uint32_t type_index = type_info->index;
+
+    ECSComponentIDSpan span = impl->entity_components.Components( id );
+    for( ECSComponentID cid : span )
+    {
+        if( IsAliveImpl( impl, cid ) )
+        {
+            if( impl->comp_type_index[cid.index] == type_index )
+            {
+                return cid;
+            }
+        }
+    }
+
+    return ECSComponentID::Null();
 }
 
 ECSRawComponent* ECS::Component( ECSComponentID id ) const
@@ -486,15 +523,12 @@ void ECS::Unlink( const ECSComponentID* cid, uint32_t cid_count )
         if( IsAliveImpl( impl, comp ) )
         {
             ECSEntityID& owner = impl->comp_owner[comp.index];
-            SYS_ASSERT( owner.hash != 0 );
-
+            if( owner.hash != 0 )
             {
                 scoped_write_spin_lock_t guard( impl->entity_local_lock[owner.index] );
                 ec.Remove( owner, &comp, 1 );
+                array::push_back( owners, owner );
             }
-            
-            array::push_back( owners, owner );
-
             owner.hash = 0;
         }
     }
@@ -563,6 +597,14 @@ void ECS::Unlink( const ECSComponentID* cid, uint32_t cid_count )
 
 void ECS::Update()
 {
+    { // flush pending components
+        for( uint32_t i = 0; i < impl->num_registered_comp; ++i )
+        {
+            scoped_write_spin_lock_t guard( impl->comp_type_lock[i] );
+            impl->comp_storage[i].Flush();
+        }
+    }
+
     { // release the dead
         {
             scoped_write_spin_lock_t guard( impl->entity_dead_lock );

@@ -146,14 +146,16 @@ namespace tool { namespace mesh {
             const uint32_t num_bones = inputMesh->mNumBones;
             streams->num_bones = num_bones;
 
+            streams->slots[RDIEVertexSlot::POSITION].CPURead();
+            streams->slots[RDIEVertexSlot::NORMAL].CPURead();
+
             if( num_bones <= MAX_BONES )
             {
+                streams->bones.resize( num_bones );
+                streams->bones_names.resize( num_bones );
 
-                streams->bones.reserve( num_bones );
-                streams->bones_names.reserve( num_bones );
-
-                streams->slots[RDIEVertexSlot::BLENDWEIGHT] = RDIVertexBufferDesc::BW();
-                streams->slots[RDIEVertexSlot::BLENDINDICES] = RDIVertexBufferDesc::BI();
+                streams->slots[RDIEVertexSlot::BLENDWEIGHT] = RDIVertexBufferDesc::BW().CPURead();
+                streams->slots[RDIEVertexSlot::BLENDINDICES] = RDIVertexBufferDesc::BI().CPURead();
                 
                 VertexDataArray& blendw = streams->data[RDIEVertexSlot::BLENDWEIGHT];
                 VertexDataArray& blendi = streams->data[RDIEVertexSlot::BLENDINDICES];
@@ -165,8 +167,8 @@ namespace tool { namespace mesh {
                 {
                     const aiBone* bone = inputMesh->mBones[ibone];
 
-                    streams->bones.emplace_back( ToMat44( bone->mOffsetMatrix ) );
-                    streams->bones_names.emplace_back( bone->mName.C_Str() );
+                    streams->bones[ibone] = ToMat44( bone->mOffsetMatrix );
+                    streams->bones_names[ibone] = bone->mName.C_Str();
 
                     for( uint32_t iweight = 0; iweight < bone->mNumWeights; ++iweight )
                     {

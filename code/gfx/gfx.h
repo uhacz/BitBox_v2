@@ -16,6 +16,8 @@ struct GFXUtils
     GFXUtilsData* data = nullptr;
 };
 
+struct ECS;
+
 struct GFX
 {
     static GFX* StartUp( RDIDevice* dev, const GFXDesc& desc, BXIFilesystem* filesystem, BXIAllocator* allocator );
@@ -60,6 +62,10 @@ struct GFX
     bool SetSkyTextureDDS( GFXSceneID idscene, const void* data, uint32_t size );
     void SetSkyParams( GFXSceneID idscene, const GFXSkyParams& params );
     const GFXSkyParams& SkyParams( GFXSceneID idscene ) const;
+
+    // --- pre frame
+    void DoSkinning( RDICommandQueue* cmdq, ECS* ecs );
+    // ---
 
     // --- frame
     GFXFrameContext* BeginFrame( RDICommandQueue* cmdq );

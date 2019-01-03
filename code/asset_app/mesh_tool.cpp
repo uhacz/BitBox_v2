@@ -1,14 +1,18 @@
 #include "mesh_tool.h"
 #include <3rd_party/imgui/imgui.h>
 
+#include <foundation/array.h>
 #include <entity/entity_system.h>
 
-#include "common/common.h"
+
 #include "common/base_engine_init.h"
 #include "components.h"
 #include "filesystem/filesystem_plugin.h"
 #include "rdix/rdix_type.h"
 #include "rdix/rdix.h"
+
+#include "common/common.h"
+#include "foundation/hashed_string.h"
 
 namespace helper
 {
@@ -143,8 +147,9 @@ void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx )
         RDIXMeshFile* mesh_file = (RDIXMeshFile*)cmesh.raw;
         RDIXRenderSource* rsource = CreateRenderSourceFromMemory( e->_rdidev, mesh_file, _allocator );
 
-        ECSComponentID mesh_comp = CreateComponent< TOOLMeshComponent >( e->_ecs );
-        TOOLMeshComponent* comp_data = Component<TOOLMeshComponent>( e->_ecs, mesh_comp );
+        ECSNewComponent new_comp = CreateComponent< TOOLMeshComponent >( e->_ecs );
+        ECSComponentID mesh_comp = new_comp.id;
+        TOOLMeshComponent* comp_data = new_comp.Cast<TOOLMeshComponent>();
 
         GFXMeshInstanceDesc desc = {};
         desc.AddRenderSource( rsource );
@@ -157,11 +162,41 @@ void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx )
         {
             desc.idmaterial = e->_gfx->FindMaterial( "editable" );
         }
+        desc.flags.skinning = mesh_file->num_bones > 0;
         comp_data->Initialize( e->_gfx, ctx.gfx_scene, desc, mat44_t::identity() );
 
         helper::UnloadComponent( e, _id_mesh_comp );
         _id_mesh_comp = mesh_comp;
         e->_ecs->Link( ctx.entity, &mesh_comp, 1 );
+
+        {
+            ECSComponentID desc_comp_id;
+            TOOLMeshDescComponent* desc_comp;
+            common::CreateComponentIfNotExists( &desc_comp_id, &desc_comp, e->_ecs, ctx.entity );
+        
+            const uint32_t num_bones = mesh_file->num_bones;
+            array::clear( desc_comp->bones_names );
+            array::clear( desc_comp->bones_offsets );
+            array::reserve( desc_comp->bones_names, num_bones );
+            array::reserve( desc_comp->bones_offsets, num_bones );
+
+            const hashed_string_t* bones_names = TYPE_OFFSET_GET_POINTER( hashed_string_t, mesh_file->offset_bones_names );
+            const mat44_t* bones_offsets = TYPE_OFFSET_GET_POINTER( mat44_t, mesh_file->offset_bones );
+
+            for( uint32_t i = 0; i < num_bones; ++i )
+            {
+                array::push_back( desc_comp->bones_names, bones_names[i] );
+                array::push_back( desc_comp->bones_offsets, bones_offsets[i] );
+            }
+        }
+
+        {
+            ECSComponentID skinning_id;
+            TOOLSkinningComponent* skinning_comp = nullptr;
+            common::CreateComponentIfNotExists( &skinning_id, &skinning_comp, e->_ecs, ctx.entity );
+            InitializeFromDescComponents( skinning_comp, e->_ecs, ctx.entity );
+            skinning_comp->id_mesh = comp_data->id_mesh;
+        }
     }
 
     cmesh.destroy();

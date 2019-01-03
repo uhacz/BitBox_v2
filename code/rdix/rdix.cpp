@@ -669,9 +669,10 @@ RDIXRenderSource* CloneForSkinning( RDIDevice* dev, const RDIXRenderSource* base
     for( uint32_t i = 0; i < num_streams; ++i )
     {
         const RDIVertexBuffer vbuffer = base->vertex_buffers[i];
-        const RDIVertexBufferDesc& desc = vbuffer.desc;
+        RDIVertexBufferDesc desc = vbuffer.desc;
         if( BIT_OFFSET( desc.slot ) & slot_mask )
         {
+            desc.CPUWrite();
             impl->vertex_buffers[i] = CreateVertexBuffer( dev, desc, vbuffer.numElements, nullptr );
             impl->managed_buffers_mask |= BIT_OFFSET( i );
         }
@@ -807,17 +808,29 @@ void SubmitRenderSourceInstanced( RDICommandQueue* cmdq, RDIXRenderSource* rende
 		DrawInstanced( cmdq, range.count, range.begin, numInstances );
 }
 
-uint32_t NumVertexBuffers( RDIXRenderSource* rsource ){ return rsource->num_vertex_buffers; }
-uint32_t NumVertices     ( RDIXRenderSource* rsource ){ return rsource->vertex_buffers[0].numElements; }
-uint32_t NumIndices      ( RDIXRenderSource* rsource ){ return rsource->index_buffer.numElements; }
-uint32_t NumRanges       ( RDIXRenderSource* rsource ){ return rsource->num_draw_ranges; }
-RDIVertexBuffer VertexBuffer( RDIXRenderSource* rsource, uint32_t index )
+uint32_t NumVertexBuffers( const RDIXRenderSource* rsource ){ return rsource->num_vertex_buffers; }
+uint32_t NumVertices     ( const RDIXRenderSource* rsource ){ return rsource->vertex_buffers[0].numElements; }
+uint32_t NumIndices      ( const RDIXRenderSource* rsource ){ return rsource->index_buffer.numElements; }
+uint32_t NumRanges       ( const RDIXRenderSource* rsource ){ return rsource->num_draw_ranges; }
+
+RDIVertexBuffer FindVertexBuffer( const RDIXRenderSource* rsource, RDIEVertexSlot::Enum slot )
+{
+    for( uint32_t i = 0; i < rsource->num_vertex_buffers; ++i )
+    {
+        if( rsource->vertex_buffers[i].desc.slot == slot )
+            return rsource->vertex_buffers[i];
+    }
+
+    return RDIVertexBuffer();
+}
+
+RDIVertexBuffer VertexBuffer( const RDIXRenderSource* rsource, uint32_t index )
 {
 	SYS_ASSERT( index < rsource->num_vertex_buffers );
 	return rsource->vertex_buffers[index];
 }
-RDIIndexBuffer IndexBuffer( RDIXRenderSource* rsource ){ return rsource->index_buffer; }
-RDIXRenderSourceRange Range( RDIXRenderSource* rsource, uint32_t index )
+RDIIndexBuffer IndexBuffer( const RDIXRenderSource* rsource ){ return rsource->index_buffer; }
+RDIXRenderSourceRange Range( const RDIXRenderSource* rsource, uint32_t index )
 {
 	SYS_ASSERT( index < rsource->num_draw_ranges );
 	return rsource->draw_ranges[index];

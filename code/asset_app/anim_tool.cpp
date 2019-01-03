@@ -4,8 +4,6 @@
 #include <memory/memory.h>
 #include <util/color.h>
 
-#include <common/common.h>
-
 #include <anim/anim.h>
 #include <anim/anim_player.h>
 
@@ -13,17 +11,20 @@
 #include <3rd_party/imgui/imgui.h>
 #include "common/base_engine_init.h"
 #include "tool_context.h"
+#include "components.h"
+
+#include <common/common.h>
 
 
 
-void ANIMTool::StartUp( const char* src_folder, const char* dst_folder, BXIAllocator* allocator )
+void ANIMTool::StartUp( CMNEngine* e, const char* src_folder, const char* dst_folder, BXIAllocator* allocator )
 {
     _allocator = allocator;
     string::create( &_src_folder, src_folder, allocator );
     string::create( &_dst_folder, dst_folder, allocator );
 }
 
-void ANIMTool::ShutDown()
+void ANIMTool::ShutDown( CMNEngine* e )
 {
     string::free( &_current_src_file );
     string::free( &_dst_folder );
@@ -45,6 +46,10 @@ void ANIMTool::ShutDown()
 
 void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 {
+    ECSComponentID desc_comp_id = ECSComponentID::Null();
+    TOOLAnimDescComponent* desc_comp = nullptr;
+    common::CreateComponentIfNotExists( &desc_comp_id, &desc_comp, e->_ecs, ctx.entity );
+
     DrawMenu();
 
     BXIFilesystem* fs = e->_filesystem;
@@ -96,6 +101,22 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
                 _joints_ms = anim_ext::AllocateJoints( skel, _allocator );
                 array::clear( _selected_joints );
+
+                {
+                    const hashed_string_t* bones_names = TYPE_OFFSET_GET_POINTER( hashed_string_t, skel->offsetJointNames );
+                    array::clear( desc_comp->bones_names );
+                    array::reserve( desc_comp->bones_names, skel->numJoints );
+                    for( uint32_t ijoint = 0; ijoint < skel->numJoints; ++ijoint )
+                        array::push_back( desc_comp->bones_names, bones_names[ijoint] );
+                }
+
+                {
+                    if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->_ecs, ctx.entity ) )
+                    {
+                        TOOLSkinningComponent* skinning_comp = Component<TOOLSkinningComponent>( e->_ecs, skinning_id );
+                        InitializeFromDescComponents( skinning_comp, e->_ecs, ctx.entity );
+                    }
+                }
             }
             fs->CloseFile( &_hfile, true );
         }
@@ -110,6 +131,12 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
         anim_ext::LocalJointsToWorldJoints( _joints_ms, joints_ls, skel, ANIMJoint::identity() );
         anim_ext::LocalJointsToWorldMatrices( _matrices_ms.begin(), joints_ls, skel, ANIMJoint::identity() );
+
+        if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->_ecs, ctx.entity ) )
+        {
+            TOOLSkinningComponent* skinning_comp = Component<TOOLSkinningComponent>( e->_ecs, skinning_id );
+            skinning_comp->ComputeSkinningMatrices( array_span_t<const mat44_t>( _matrices_ms.begin(), _matrices_ms.end() ) );
+        }
 
         const uint32_t color = color32_t::TEAL();
 

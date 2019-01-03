@@ -58,6 +58,7 @@ namespace tool { namespace anim {
             int16_t root_motion_joint = -1;
             bool extract_root_motion = false;
             bool remove_root_motion = false;
+            bool strip_namespace_name = true;
         };
 
         uint32_t SkelTag();

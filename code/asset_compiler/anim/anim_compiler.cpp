@@ -291,6 +291,18 @@ namespace tool{ namespace anim {
                 }
             }
 
+            if( params.strip_namespace_name )
+            {
+                for( std::string& name : skeleton->jointNames )
+                {
+                    const size_t separator_pos = name.rfind( ':' );
+                    if( separator_pos != std::string::npos )
+                    {
+                        name = name.substr( separator_pos + 1 );
+                    }
+                }
+            }
+
             return true;
         }
 

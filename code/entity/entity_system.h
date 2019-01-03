@@ -3,6 +3,7 @@
 #include "entity_id.h"
 #include <typeinfo>
 #include <foundation/containers.h>
+#include <foundation/blob.h>
 
 struct BXIAllocator;
 struct ECSImpl;
@@ -21,6 +22,17 @@ struct ECSComponentTypeDesc
     uint16_t pool_chunk_size = 64;
 };
 
+struct ECSNewComponent
+{
+    ECSRawComponent* pointer;
+    ECSComponentID id;
+
+    static ECSNewComponent Null() { return { nullptr, ECSComponentID::Null() }; }
+    bool IsNull() const { return pointer == nullptr && id == ECSComponentID::Null(); }
+
+    template<typename T> T* Cast() { return (T*)pointer; }
+};
+
 struct ECS
 {
     ECSEntityID CreateEntity();
@@ -29,12 +41,13 @@ struct ECS
 
     void RegisterComponent( const char* name, const ECSComponentTypeDesc& desc );
 
-    ECSComponentID CreateComponent( size_t type_hash_code );
+    ECSNewComponent CreateComponent( size_t type_hash_code );
     void MarkForDestroy( ECSComponentID id );
     bool IsAlive( ECSComponentID id ) const;
 
     ECSEntityID Owner( ECSComponentID id ) const;
     ECSComponentID Lookup( const ECSRawComponent* pointer ) const;
+    ECSComponentID Lookup( ECSEntityID id, size_t type_hash_code ) const;
     ECSRawComponent* Component( ECSComponentID id ) const;
     ECSRawComponentSpan Components( size_t type_hash_code ) const;
     ECSComponentIDSpan  Components( ECSEntityID id ) const;
@@ -84,7 +97,7 @@ inline void RegisterComponentNoPOD( ECS* ecs, const char* type_name )
 }
 
 template< typename T>
-inline ECSComponentID CreateComponent( ECS* ecs ) 
+inline ECSNewComponent CreateComponent( ECS* ecs )
 { 
     return ecs->CreateComponent( typeid(T).hash_code() );
 }
@@ -102,3 +115,8 @@ inline array_span_t<T*> Components( ECS* ecs )
     return array_span_t<T*>( (T**)raw_span.begin(), raw_span.size() ); 
 }
 
+template< typename T>
+inline ECSComponentID Lookup( ECS* ecs, ECSEntityID id )
+{
+    return ecs->Lookup( id, typeid(T).hash_code() );
+}

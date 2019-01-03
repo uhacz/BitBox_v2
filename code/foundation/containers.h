@@ -14,9 +14,9 @@ struct array_t
 
     uint32_t size;
     uint32_t capacity;
-    BXIAllocator* allocator;
     T* data;
-    
+    BXIAllocator* allocator;
+
     explicit array_t( BXIAllocator* alloc = BXDefaultAllocator() )
         : size( 0 ), capacity( 0 ), allocator( alloc ), data( 0 ) 
     {
@@ -107,8 +107,16 @@ struct array_span_t
 
     uint32_t size() const { return _size; }
 
-    T& operator[] ( uint32_t i ) { return _begin[i]; }
-    const T& operator[] ( uint32_t i ) const { return _begin[i]; }
+    T& operator[] ( uint32_t i ) 
+    { 
+        SYS_ASSERT( i < _size );
+        return _begin[i]; 
+    }
+    const T& operator[] ( uint32_t i ) const 
+    { 
+        SYS_ASSERT( i < _size );
+        return _begin[i]; 
+    }
 
 private:
     T* _begin = nullptr;
@@ -121,6 +129,15 @@ inline array_span_t<T> ToArraySpan( const Blob& blob )
     SYS_ASSERT( (blob.size % sizeof( T )) == 0 );
     return array_span_t<T>( (T*)blob.data, (T*)( blob.data + blob.size ) );
 }
+
+template< typename T >
+inline array_span_t<T> ToArraySpan( array_t<T>& arr ) { return array_span_t<T>( arr.begin(), arr.end() ); }
+
+template< typename T >
+inline array_span_t<const T> ToArraySpan( const array_t<T>& arr ) { return array_span_t<const T>( arr.begin(), arr.end() ); }
+
+template< typename T >
+inline array_span_t<const T> ToArraySpan( const T* begin, uint32_t size ) { return array_span_t<const T>( begin, size ); }
 
 template< typename T >
 struct queue_t

@@ -33,8 +33,8 @@ bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins,
     RegisterComponent<CMPMesh>( _ecs, "Mesh" );
     RegisterComponent<CMPWorldXForm>( _ecs, "WorldXForm" );
     
-    ECSComponentID meshid = CreateComponent<CMPMesh>( _ecs );
-    ECSComponentID xformid = CreateComponent<CMPWorldXForm>( _ecs );
+    ECSComponentID meshid = CreateComponent<CMPMesh>( _ecs ).id;
+    ECSComponentID xformid = CreateComponent<CMPWorldXForm>( _ecs ).id;
 
     CMPWorldXForm* xform_data = Component<CMPWorldXForm>( _ecs, xformid );
     xform_data->data = xform_t::identity();
@@ -51,7 +51,7 @@ bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins,
         char buff[64];
         snprintf( buff, 64, "%c", 65 + i );
 
-        ECSComponentID id = CreateComponent<CMPName>( _ecs );
+        ECSComponentID id = CreateComponent<CMPName>( _ecs ).id;
         CMPName* comp = Component<CMPName>( _ecs, id );
         string::create( &comp->value, buff, allocator );
 

@@ -72,11 +72,14 @@ void SetTopology      ( RDICommandQueue* cmdq, int topology );
 void ChangeToMainFramebuffer( RDICommandQueue* cmdq );
 void ChangeRenderTargets	( RDICommandQueue* cmdq, RDITextureRW* colorTex, unsigned nColor, RDITextureDepth depthTex = RDITextureDepth(), bool changeViewport = true );
 
-unsigned char* Map	( RDICommandQueue* cmdq, RDIResource resource, int offsetInBytes, int mapType = RDIEMapType::WRITE );
+unsigned char* Map	( RDICommandQueue* cmdq, RDIResource resource, int offsetInBytes, RDIEMapType::Enum mapType = RDIEMapType::WRITE );
 void           Unmap( RDICommandQueue* cmdq, RDIResource resource );
 
-unsigned char* Map( RDICommandQueue* cmdq, RDIVertexBuffer vbuffer, int firstElement, int numElements, int mapType );
-unsigned char* Map( RDICommandQueue* cmdq, RDIIndexBuffer ibuffer, int firstElement, int numElements, int mapType );
+unsigned char* Map( RDICommandQueue* cmdq, RDIVertexBuffer vbuffer, int firstElement, int numElements, RDIEMapType::Enum mapType );
+unsigned char* Map( RDICommandQueue* cmdq, RDIIndexBuffer ibuffer, int firstElement, int numElements, RDIEMapType::Enum mapType );
+
+inline unsigned char* Map( RDICommandQueue* cmdq, RDIVertexBuffer vbuffer, RDIEMapType::Enum mapType ) { return Map( cmdq, vbuffer, 0, vbuffer.numElements, mapType ); }
+inline unsigned char* Map( RDICommandQueue* cmdq, RDIIndexBuffer ibuffer , RDIEMapType::Enum mapType ) { return Map( cmdq, ibuffer, 0, ibuffer.numElements, mapType ); }
 
 void UpdateCBuffer( RDICommandQueue* cmdq, RDIConstantBuffer cbuffer, const void* data );
 void UpdateTexture( RDICommandQueue* cmdq, RDITextureRW texture, const void* data );

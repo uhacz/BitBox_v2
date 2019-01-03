@@ -248,7 +248,7 @@ void StartUp( RDIDevice* dev, BXIAllocator* allocator )
     { // render source
         RDIXRenderSourceDesc desc;
         desc.Count( GPU_LINE_VBUFFER_CAPACITY );
-        desc.VertexBuffer( RDIVertexBufferDesc::POS4(), nullptr );
+        desc.VertexBuffer( RDIVertexBufferDesc::POS4().CPUWrite(), nullptr );
         
         g_data.rsource[RSOURCE_LINES] = CreateRenderSource( dev, desc, allocator );
     }

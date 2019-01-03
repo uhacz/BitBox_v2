@@ -39,8 +39,9 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
     {
         RegisterComponent< TOOLMeshComponent >( _ecs, "TOOL_Mesh" );
-        RegisterComponent< TOOLAnimComponent >( _ecs, "TOOL_Anim" );
         RegisterComponentNoPOD< TOOLSkinningComponent >( _ecs, "TOOL_Skinning" );
+        RegisterComponentNoPOD< TOOLMeshDescComponent >( _ecs, "TOOL_MeshDesc" );
+        RegisterComponentNoPOD< TOOLAnimDescComponent >( _ecs, "TOOL_AnimDesc" );
     }
 
     GFXSceneDesc desc;
@@ -68,14 +69,14 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
     g_mat_tool.StartUp( _gfx, allocator );
     g_mesh_tool.StartUp( this, ".src/mesh/", allocator );
-    g_anim_tool.StartUp( ".src/anim/", "anim/", allocator );
+    g_anim_tool.StartUp( this, ".src/anim/", "anim/", allocator );
 
     return true;
 }
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    g_anim_tool.ShutDown();
+    g_anim_tool.ShutDown( this );
     g_mesh_tool.ShutDown( this );
     g_mat_tool.ShutDown( _gfx );
     
@@ -145,6 +146,8 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     }
     ImGui::End();
 		
+    _gfx->DoSkinning( _rdicmdq, _ecs );
+
     BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
     ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );
 	
