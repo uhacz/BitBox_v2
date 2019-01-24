@@ -19,15 +19,27 @@ struct BufferChunker
 		current = next;
 		return (T*)result;
 	}
-	unsigned char* AddBlock( int size, int alignment = 4 )
+
+    struct Block
+    {
+        unsigned char* begin;
+        unsigned char* end;
+    };
+	Block AddBlock( int size, int alignment = 4 )
 	{
 		unsigned char* result = (unsigned char*)TYPE_ALIGN( current, alignment );
 
 		unsigned char* next = result + size;
         SYS_ASSERT( next <= end );
 		current = next;
-		return result;
+        
+        return { result, next };
 	}
+
+    void Checkpoint( const void* ptr )
+    {
+        SYS_ASSERT( (uintptr_t)ptr == (uintptr_t)current );
+    }
 
 	void Check()
 	{

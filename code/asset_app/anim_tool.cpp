@@ -110,12 +110,9 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
                         array::push_back( desc_comp->bones_names, bones_names[ijoint] );
                 }
 
+                if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->_ecs, ctx.entity ) )
                 {
-                    if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->_ecs, ctx.entity ) )
-                    {
-                        TOOLSkinningComponent* skinning_comp = Component<TOOLSkinningComponent>( e->_ecs, skinning_id );
-                        InitializeFromDescComponents( skinning_comp, e->_ecs, ctx.entity );
-                    }
+                    InitializeSkinningComponent( skinning_id, e->_ecs );
                 }
             }
             fs->CloseFile( &_hfile, true );
@@ -152,8 +149,8 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
             const ANIMJoint& parent = _joints_ms[parent_index];
             const ANIMJoint& joint = _joints_ms[i];
 
-            //const mat44_t& parent_matrix = _matrices_ms[parent_index];
-            //const mat44_t& child_matrix = _matrices_ms[i];
+            const mat44_t& parent_matrix = _matrices_ms[parent_index];
+            const mat44_t& child_matrix = _matrices_ms[i];
 
             RDIXDebug::AddLine( parent.position.xyz(), joint.position.xyz(), RDIXDebugParams( color ) );
             {
@@ -163,8 +160,8 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
                     RDIXDebug::AddAxes( toMatrix4( joint ), RDIXDebugParams().Scale( _import_params.scale * 5.f ) );
                 }
             }
-            //RDIXDebug::AddAxes( mat44_t( parent.rotation, parent.position ), RDIXDebugParams().Scale(0.12f) );
-            //RDIXDebug::AddAxes( parent_matrix, RDIXDebugParams().Scale( 0.2f ) );
+            RDIXDebug::AddAxes( mat44_t( parent.rotation, parent.position ), RDIXDebugParams().Scale(0.12f) );
+            RDIXDebug::AddAxes( parent_matrix, RDIXDebugParams().Scale( 0.2f ) );
         }
     }
 }

@@ -18,8 +18,6 @@ struct CMNEngine
     RDICommandQueue* _rdicmdq = nullptr;
 
     GFX* _gfx = nullptr;
-    ENT* _ent = nullptr;
-
     ECS* _ecs = nullptr;
   
     bool Startup( CMNEngine* engine, int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator );

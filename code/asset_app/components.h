@@ -49,6 +49,7 @@ struct TOOLSkinningComponent
     array_t<mat44_t> bone_offsets;
     array_t<mat44_t> skinning_matrices;
     array_t<SKINBoneMapping> mapping;
+    uint32_t num_valid_mappings = 0;
 
     void Initialize( const RDIXMeshFile* mesh_file, const ANIMSkel* skel, GFXMeshInstanceID mesh );
     void Uninitialize();
@@ -56,7 +57,7 @@ struct TOOLSkinningComponent
     void ComputeSkinningMatrices( const array_span_t<const mat44_t> anim_matrices );
 };
 
-bool InitializeFromDescComponents( TOOLSkinningComponent* output, ECS* ecs, ECSEntityID entity );
+bool InitializeSkinningComponent( ECSComponentID skinning_id, ECS* ecs );
 void InitializeSkinningComponent( TOOLSkinningComponent* output, const TOOLMeshDescComponent* mesh_desc, const TOOLAnimDescComponent* anim_desc, GFXMeshInstanceID mesh );
 
 

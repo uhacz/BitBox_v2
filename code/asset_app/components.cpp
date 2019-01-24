@@ -16,7 +16,7 @@ void TOOLMeshComponent::Uninitialize( GFX* gfx )
     gfx->RemoveMeshFromScene( id_mesh );
 }
 
-static void InitializeSkinningMapping( 
+static uint32_t InitializeSkinningMapping( 
     array_t<SKINBoneMapping>& mapping, 
     array_span_t<const hashed_string_t> mesh_bones_names,
     array_span_t<const hashed_string_t> anim_bones_names )
@@ -44,6 +44,14 @@ static void InitializeSkinningMapping(
         const uint32_t hash_b = (uint32_t)b.anim_idx << 16 | (uint32_t)b.skin_idx;
         return hash_a < hash_b;
     } );
+
+    uint32_t num_valid_mappings = 0;
+    for( ; num_valid_mappings < mapping.size; ++num_valid_mappings )
+    {
+        if( mapping[num_valid_mappings].anim_idx == UINT16_MAX )
+            break;
+    }
+    return num_valid_mappings;
 }
 
 static void InitializeSkinningBones( array_t<mat44_t>& bone_offsets, array_t<mat44_t>& skinning_matrices, array_span_t<const mat44_t> input_offsets )
@@ -76,13 +84,15 @@ void TOOLSkinningComponent::Initialize( const RDIXMeshFile* mesh_file, const ANI
     const hashed_string_t* skel_bones_names = TYPE_OFFSET_GET_POINTER( const hashed_string_t, skel->offsetJointNames );
 
     InitializeSkinningBones( bone_offsets, skinning_matrices, ToArraySpan( mesh_bone_offsets, num_mesh_bones ) );
-    InitializeSkinningMapping( mapping, ToArraySpan( mesh_bones_names, num_mesh_bones ), ToArraySpan( skel_bones_names, skel->numJoints ) );
+    num_valid_mappings = InitializeSkinningMapping( mapping, ToArraySpan( mesh_bones_names, num_mesh_bones ), ToArraySpan( skel_bones_names, skel->numJoints ) );
 }
 
-bool InitializeFromDescComponents( TOOLSkinningComponent* output, ECS* ecs, ECSEntityID entity )
+bool InitializeSkinningComponent( ECSComponentID skinning_id, ECS* ecs )
 {
-    if( !output )
+    if( !ecs->IsAlive( skinning_id ) )
         return false;
+
+    const ECSEntityID entity = ecs->Owner( skinning_id );
 
     ECSComponentID anim_desc_id = Lookup<TOOLAnimDescComponent>( ecs, entity );
     ECSComponentID mesh_desc_id = Lookup<TOOLMeshDescComponent>( ecs, entity );
@@ -92,6 +102,7 @@ bool InitializeFromDescComponents( TOOLSkinningComponent* output, ECS* ecs, ECSE
         return false;    
     }
 
+    TOOLSkinningComponent* output = Component<TOOLSkinningComponent>( ecs, skinning_id );
     const TOOLAnimDescComponent* anim_desc = Component<TOOLAnimDescComponent>( ecs, anim_desc_id );
     const TOOLMeshDescComponent* mesh_desc = Component<TOOLMeshDescComponent>( ecs, mesh_desc_id );
 
@@ -106,7 +117,7 @@ void InitializeSkinningComponent( TOOLSkinningComponent* output, const TOOLMeshD
         output->id_mesh = mesh;
 
     InitializeSkinningBones( output->bone_offsets, output->skinning_matrices, ToArraySpan( mesh_desc->bones_offsets ) );
-    InitializeSkinningMapping( output->mapping, ToArraySpan( mesh_desc->bones_names ), ToArraySpan( anim_desc->bones_names ) );
+    output->num_valid_mappings = InitializeSkinningMapping( output->mapping, ToArraySpan( mesh_desc->bones_names ), ToArraySpan( anim_desc->bones_names ) );
 }
 
 void TOOLSkinningComponent::Uninitialize()
@@ -118,12 +129,18 @@ void TOOLSkinningComponent::ComputeSkinningMatrices( const array_span_t<const ma
 {
     array_span_t<mat44_t> output_span = ToArraySpan( skinning_matrices );
 
-    for( uint32_t i = 0; i < array::size( mapping ); ++i )
+    for( uint32_t i = 0; i < num_valid_mappings; ++i )
     {
         const SKINBoneMapping& m = mapping[i];
-        const mat44_t& offset = bone_offsets[i];
+        const mat44_t& offset = bone_offsets[m.skin_idx];
 
         const mat44_t& anim_matrix = anim_matrices[m.anim_idx];
-        output_span[m.skin_idx] = offset * anim_matrix;
+        output_span[m.skin_idx] = anim_matrix * offset;
+    }
+
+    for( uint32_t i = num_valid_mappings; i < array::size( mapping ); ++i )
+    {
+        const SKINBoneMapping& m = mapping[i];
+        output_span[m.skin_idx] = mat44_t::identity();
     }
  }

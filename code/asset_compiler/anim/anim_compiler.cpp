@@ -43,6 +43,8 @@ namespace tool{ namespace anim {
     static void _ReadNode( Skeleton* skel, uint16_t* current_index, uint16_t parent_index, aiNode* node )
     {
         //const uint32_t name_hash = simple_hash( node->mName.C_Str() );
+        if( node->mNumMeshes )
+            return;
 
         aiVector3D translation;
         aiQuaternion rotation;
@@ -206,30 +208,6 @@ namespace tool{ namespace anim {
 
             }
         }
-
-        //const unsigned removeRootMotionMask = eEXPORT_REMOVE_ROOT_TRANSLATION_X | eEXPORT_REMOVE_ROOT_TRANSLATION_Y | eEXPORT_REMOVE_ROOT_TRANSLATION_Z;
-        //const unsigned removeRootMotionFlag = flags & removeRootMotionMask;
-        //if( removeRootMotionFlag )
-        //{
-        //    JointAnimation& janim = anim->joints[0];
-        //    int nFrames = (int)janim.translation.size();
-        //    for( int iframe = 0; iframe < nFrames; ++iframe )
-        //    {
-        //        float4_t& translation = janim.translation[iframe].data;
-        //        if( removeRootMotionFlag & eEXPORT_REMOVE_ROOT_TRANSLATION_X )
-        //        {
-        //            translation.x = 0.f;
-        //        }
-        //        if( removeRootMotionFlag & eEXPORT_REMOVE_ROOT_TRANSLATION_Y )
-        //        {
-        //            translation.y = 0.f;
-        //        }
-        //        if( removeRootMotionFlag & eEXPORT_REMOVE_ROOT_TRANSLATION_Z )
-        //        {
-        //            translation.z = 0.f;
-        //        }
-        //    }
-        //}
     }
 }}///
 

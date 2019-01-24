@@ -13,7 +13,6 @@
 #include <resource_manager\resource_manager.h>
 #include <gui\gui.h>
 #include <gfx\gfx.h>
-#include <entity\entity.h>
 #include <entity\entity_system.h>
 
 #include <entity/components/name_component.h>
@@ -43,8 +42,6 @@ bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegi
     GFXDesc gfxdesc = {};
     GFX* gfx = GFX::StartUp( rdidev, gfxdesc, filesystem, allocator );
 
-    ENT* ent = ENT::StartUp( allocator );
-
     ECS* ecs = ECS::StartUp( allocator );
     RegisterCommonComponents( ecs );
 
@@ -53,7 +50,6 @@ bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegi
     e->_rdicmdq = rdicmdq;
 
     e->_gfx = gfx;
-    e->_ent = ent;
     e->_ecs = ecs;
 
     return true;
@@ -61,17 +57,7 @@ bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegi
 
 void CMNEngine::Shutdown( CMNEngine* e, BXIAllocator* allocator )
 {
-    {
-        ECS::ShutDown( &e->_ecs );
-    }
-    
-    {
-        ENTSystemInfo ent_sys_info = {};
-        ent_sys_info.ent = e->_ent;
-        ent_sys_info.gfx = e->_gfx;
-        ENT::ShutDown( &e->_ent, &ent_sys_info );
-    }
-    
+    ECS::ShutDown( &e->_ecs );
     GFX::ShutDown( &e->_gfx );
     RDIXDebug::ShutDown( e->_rdidev );
     GUI::ShutDown();
@@ -83,5 +69,4 @@ void CMNEngine::Shutdown( CMNEngine* e, BXIAllocator* allocator )
     e->_rdidev = nullptr;
     e->_rdicmdq = nullptr;
     e->_gfx = nullptr;
-    e->_ent = nullptr;
 }

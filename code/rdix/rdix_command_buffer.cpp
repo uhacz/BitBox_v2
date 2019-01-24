@@ -121,7 +121,7 @@ void RDIXCommandBuffer::AllocateData( uint32_t maxCommands, uint32_t dataCapacit
 
 	BufferChunker chunker( mem, mem_size );
 	newdata.commands = chunker.Add< CmdInternal >( maxCommands );
-	newdata.data = chunker.AddBlock( dataCapacity );
+	newdata.data = chunker.AddBlock( dataCapacity ).begin;
 	chunker.Check();
 
 	FreeData( allocator );

@@ -399,16 +399,6 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
     _gfx->ComputeCamera( g_idcamera );
 
     {
-        ENTSystemInfo ent_sys_info = {};
-        ent_sys_info.ent = _ent;
-        ent_sys_info.gfx = _gfx;
-        ent_sys_info.default_allocator = allocator;
-        ent_sys_info.scratch_allocator = allocator;
-        ent_sys_info.gfx_scene_id = g_idscene;
-        _ent->Step( &ent_sys_info, deltaTimeUS );
-    }
-
-    {
         const vec3_t snake_input = SnakeCollectInput( win->input, new_camera_world.upper3x3() );
         SnakeSteer( &g_snake, snake_input );
         SnakeMove( &g_snake, g_level.grid, 1.f, delta_time_sec );

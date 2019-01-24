@@ -79,6 +79,9 @@ unsigned string::length( const char* str )
 }
 bool string::equal( const char* str0, const char* str1 )
 {
+    if( !str0 || !str1 )
+        return false;
+
     return strcmp( str0, str1 ) == 0;
 }
 

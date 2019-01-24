@@ -15,6 +15,11 @@
 
 namespace tool { namespace mesh {
 
+    inline aiVector3D to_aiVector3D( const vec3_t& v )
+    {
+        return aiVector3D( v.x, v.y, v.z );
+    }
+
     inline VertexData ToVertexData( const aiVector3D& v )
     {
         VertexData vd;
@@ -63,12 +68,7 @@ namespace tool { namespace mesh {
 
     }
 
-    struct CompilationOptions
-    {
-        aiMatrix4x4 xform = {};
-    };
-
-    bool _Compile( Streams* streams, const aiMesh* inputMesh, const CompilationOptions& options )
+    bool _Import( Streams* streams, const aiMesh* inputMesh, const ImportOptions& options )
     {
         static constexpr uint32_t MAX_BLEND_WEIGHTS = 4;
         static constexpr uint32_t MAX_BONES = UINT8_MAX;
@@ -76,10 +76,15 @@ namespace tool { namespace mesh {
         const uint32_t num_vertices = inputMesh->mNumVertices;
         streams->num_vertices = num_vertices;
 
+        aiMatrix4x4 scale_matrix;
+        aiMatrix4x4::Scaling( to_aiVector3D( options.scale ), scale_matrix );
+
+        streams->name = inputMesh->mName.C_Str();
+
         if( inputMesh->HasPositions() )
         {
             streams->slots[RDIEVertexSlot::POSITION] = RDIVertexBufferDesc::POS();
-            ToVertexDataWithTransformAsPoints( &streams->data[RDIEVertexSlot::POSITION], inputMesh->mVertices, num_vertices, options.xform );
+            ToVertexDataWithTransformAsPoints( &streams->data[RDIEVertexSlot::POSITION], inputMesh->mVertices, num_vertices, scale_matrix );
         }
         if( inputMesh->HasNormals() )
         {
@@ -167,7 +172,18 @@ namespace tool { namespace mesh {
                 {
                     const aiBone* bone = inputMesh->mBones[ibone];
 
-                    streams->bones[ibone] = ToMat44( bone->mOffsetMatrix );
+                    aiVector3D translation;
+                    aiQuaternion rotation;
+                    aiVector3D scale;
+
+                    bone->mOffsetMatrix.Decompose( scale, rotation, translation );
+
+                    translation = translation.SymMul( to_aiVector3D( options.scale ) );
+
+                    aiMatrix4x4 tmp( scale, rotation, translation );
+                    aiMatrix4x4 bone_offset_matrix = tmp;
+
+                    streams->bones[ibone] = ToMat44( bone_offset_matrix );
                     streams->bones_names[ibone] = bone->mName.C_Str();
 
                     for( uint32_t iweight = 0; iweight < bone->mNumWeights; ++iweight )
@@ -178,7 +194,7 @@ namespace tool { namespace mesh {
                         VertexData& bone_indices = blendi[vw.mVertexId];
 
                         uint32_t i = 0;
-                        while( bone_weights.f32[i] > 0.f && i < MAX_BLEND_WEIGHTS )
+                        while( bone_weights.u32[i] && i < MAX_BLEND_WEIGHTS )
                         {
                             ++i;
                         }
@@ -196,7 +212,7 @@ namespace tool { namespace mesh {
     };
 
     
-    bool Import( Streams* sterams, const void* data, uint32_t data_size )
+    StreamsArray Import( const void* data, uint32_t data_size, const ImportOptions& options )
     {
         const uint32_t flags = 
             aiProcess_GenSmoothNormals | 
@@ -205,27 +221,38 @@ namespace tool { namespace mesh {
             aiProcess_JoinIdenticalVertices |
             aiProcess_Triangulate |
             aiProcess_SortByPType |
-            aiProcess_GlobalScale;
+            aiProcess_ValidateDataStructure |
+            aiProcess_ImproveCacheLocality;
 
         const aiScene* scene = aiImportFileFromMemory( (const char*)data, data_size, flags, nullptr );
-       
-        bool result = false;
+        const char* error_str = aiGetErrorString();
+
+        std::vector<Streams> output;
+
         if( scene )
         {
             if( scene->HasMeshes() )
             {
-                const aiMesh* mesh = scene->mMeshes[0];
+                output.reserve( scene->mNumMeshes );
 
-                CompilationOptions opt;
-                aiMatrix4x4::Scaling( aiVector3D( 0.01f ), opt.xform );
-                result = _Compile( sterams, mesh, opt );
+                for( uint32_t i = 0; i < scene->mNumMeshes; ++i )
+                {
+                    const aiMesh* mesh = scene->mMeshes[i];
+
+                    Streams streams;
+                    if( _Import( &streams, mesh, options ) )
+                    {
+                        output.emplace_back( std::move( streams ) );
+                    }
+                }
+                
             }
 
             aiReleaseImport( scene );
         }
 
 
-        return result;
+        return output;
     }
 
     CompileOptions::CompileOptions( uint32_t default_slots /*= UINT32_MAX */ )
@@ -318,9 +345,8 @@ namespace tool { namespace mesh {
 
             const uint32_t vertex_stride = desc.ByteWidth();
             
-            uint8_t* data_begin = chunker.AddBlock( memory_size_streams[i], 4 );
-            uint8_t* data_end = data_begin + memory_size_streams[i];
-            uint8_t* data_iterator = data_begin;
+            BufferChunker::Block data_block = chunker.AddBlock( memory_size_streams[i], 4 );
+            uint8_t* data_iterator = data_block.begin;
 
             const VertexDataArray& src_vertices = streams.data[desc.slot];
             for( uint32_t ivertex = 0; ivertex < streams.num_vertices; ++ivertex )
@@ -329,69 +355,76 @@ namespace tool { namespace mesh {
                 memcpy( data_iterator, src, vertex_stride );
                 data_iterator += vertex_stride;
             }
-            SYS_ASSERT( data_iterator == data_end );
+            chunker.Checkpoint( data_iterator );
         
             header->descs[i] = streams_descs[i];
-            header->offset_streams[i] = TYPE_POINTER_GET_OFFSET( &header->offset_streams[i], data_begin );
+            header->offset_streams[i] = TYPE_POINTER_GET_OFFSET( &header->offset_streams[i], data_block.begin );
         }
 
-        // indices
         {
-            uint8_t* data_begin = chunker.AddBlock( memory_size_for_indices, 2 );
-            uint8_t* data_end = data_begin + memory_size_for_indices;
+            uint8_t* tmp = data_memory;
+            for( uint32_t i = 0; i < num_streams; ++i )
+                tmp += memory_size_streams[i];
 
-            if( streams.flag_use_16bit_indices )
-            {
-                uint16_t* dst_indices16 = (uint16_t*)data_begin;
-                for( uint32_t i = 0; i < streams.num_indices; ++i )
-                {
-                    dst_indices16[0] = streams.indices16[i];
-                    ++dst_indices16;
-                }
-                SYS_ASSERT( (uintptr_t)dst_indices16 == (uintptr_t)data_end );
-            }
-            else
-            {
-                uint32_t* dst_indices32 = (uint32_t*)data_begin;
-                for( uint32_t i = 0; i < streams.num_indices; ++i )
-                {
-                    dst_indices32[0] = streams.indices32[i];
-                    ++dst_indices32;
-                }
-                SYS_ASSERT( (uintptr_t)dst_indices32 == (uintptr_t)data_end );
-            }
-            header->offset_indices = TYPE_POINTER_GET_OFFSET( &header->offset_indices, data_begin );
+            chunker.Checkpoint( tmp );
         }
+
+        
 
         // bones
         {
-            uint8_t* data_begin = chunker.AddBlock( memory_size_for_bones );
-            uint8_t* data_end = data_begin + memory_size_for_bones;
+            BufferChunker::Block data_block = chunker.AddBlock( memory_size_for_bones );
 
-            mat44_t* dst_bones = (mat44_t*)data_begin;
+            mat44_t* dst_bones = (mat44_t*)data_block.begin;
             for( uint32_t i = 0; i < streams.num_bones; ++i )
             {
                 dst_bones[0] = streams.bones[i];
                 ++dst_bones;
             }
-            SYS_ASSERT( (uintptr_t)dst_bones == (uintptr_t)data_end );
+            chunker.Checkpoint( dst_bones );
 
-            header->offset_bones = TYPE_POINTER_GET_OFFSET( &header->offset_bones, data_begin );
+            header->offset_bones = TYPE_POINTER_GET_OFFSET( &header->offset_bones, data_block.begin );
         }
         // bones names
         {
-            uint8_t* data_begin = chunker.AddBlock( memory_size_for_bones_names );
-            uint8_t* data_end = data_begin + memory_size_for_bones_names;
+            BufferChunker::Block data_block = chunker.AddBlock( memory_size_for_bones_names );
 
-            hashed_string_t* dst_bones_names = (hashed_string_t*)data_begin;
+            hashed_string_t* dst_bones_names = (hashed_string_t*)data_block.begin;
             for( uint32_t i = 0; i < streams.num_bones; ++i )
             {
                 dst_bones_names[0] = hashed_string( streams.bones_names[i].c_str() );
                 ++dst_bones_names;
             }
-            SYS_ASSERT( (uintptr_t)dst_bones_names == (uintptr_t)data_end );
+            chunker.Checkpoint( dst_bones_names );
 
-            header->offset_bones_names = TYPE_POINTER_GET_OFFSET( &header->offset_bones_names, data_begin );
+            header->offset_bones_names = TYPE_POINTER_GET_OFFSET( &header->offset_bones_names, data_block.begin );
+        }
+
+        // indices
+        {
+            BufferChunker::Block data_block = chunker.AddBlock( memory_size_for_indices, 2 );
+
+            if( streams.flag_use_16bit_indices )
+            {
+                uint16_t* dst_indices16 = (uint16_t*)data_block.begin;
+                for( uint32_t i = 0; i < streams.num_indices; ++i )
+                {
+                    dst_indices16[0] = streams.indices16[i];
+                    ++dst_indices16;
+                }
+                chunker.Checkpoint( dst_indices16 );
+            }
+            else
+            {
+                uint32_t* dst_indices32 = (uint32_t*)data_block.begin;
+                for( uint32_t i = 0; i < streams.num_indices; ++i )
+                {
+                    dst_indices32[0] = streams.indices32[i];
+                    ++dst_indices32;
+                }
+                chunker.Checkpoint( dst_indices32 );
+            }
+            header->offset_indices = TYPE_POINTER_GET_OFFSET( &header->offset_indices, data_block.begin );
         }
 
         chunker.Check();

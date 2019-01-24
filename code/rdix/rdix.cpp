@@ -14,6 +14,8 @@
 
 #include <algorithm>
 
+SRL_TYPE_DEFINE( RDIXMeshFile );
+
 // --- Shader
 RDIXShaderFile* LoadShaderFile( const char* name, BXIFilesystem* filesystem, BXIAllocator* allocator )
 {
@@ -644,8 +646,10 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
 	return impl;
 }
 
-RDIXRenderSource* CloneForSkinning( RDIDevice* dev, const RDIXRenderSource* base, uint32_t slot_mask )
+RDIXRenderSource* CloneForCPUSkinning( RDIDevice* dev, const RDIXRenderSource* base, uint32_t skinned_slot_mask )
 {
+    constexpr uint32_t ignore_slot_mask = BIT_OFFSET( RDIEVertexSlot::BLENDINDICES ) | BIT_OFFSET( RDIEVertexSlot::BLENDWEIGHT );
+
     BXIAllocator* allocator = base->allocator;
     const uint32_t num_streams = base->num_vertex_buffers;
     const uint32_t num_draw_ranges = base->num_draw_ranges;
@@ -670,13 +674,14 @@ RDIXRenderSource* CloneForSkinning( RDIDevice* dev, const RDIXRenderSource* base
     {
         const RDIVertexBuffer vbuffer = base->vertex_buffers[i];
         RDIVertexBufferDesc desc = vbuffer.desc;
-        if( BIT_OFFSET( desc.slot ) & slot_mask )
+        const uint32_t current_slot_mask = BIT_OFFSET( desc.slot );
+        if( current_slot_mask & skinned_slot_mask )
         {
             desc.CPUWrite();
             impl->vertex_buffers[i] = CreateVertexBuffer( dev, desc, vbuffer.numElements, nullptr );
             impl->managed_buffers_mask |= BIT_OFFSET( i );
         }
-        else
+        else if( (current_slot_mask & ignore_slot_mask) == 0 )
         {
             impl->vertex_buffers[i] = vbuffer;
         }

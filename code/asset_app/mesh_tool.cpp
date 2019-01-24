@@ -25,23 +25,62 @@ namespace helper
             e->_ecs->MarkForDestroy( mesh_comp );
         }
     }
+
+    static void SetToDefaults( tool::mesh::CompileOptions* opt )
+    {
+        opt[0].slot_mask = 0;
+        opt[0].AddSlot( RDIEVertexSlot::POSITION )
+              .AddSlot( RDIEVertexSlot::NORMAL )
+              .AddSlot( RDIEVertexSlot::TEXCOORD0 )
+              .AddSlot( RDIEVertexSlot::BLENDWEIGHT )
+              .AddSlot( RDIEVertexSlot::BLENDINDICES );
+    }
+
+    static void SetToDefaults( tool::mesh::ImportOptions* opt, const char* filename )
+    {
+        if( string::find( filename, ".fbx" ) )
+        {
+            opt->scale = vec3_t( 0.01f );
+        }
+        else
+        {
+            opt->scale = vec3_t( 1.f );
+        }
+    }
 }//
 
-void MESHTool::StartUp( CMNEngine* e, const char* asset_root, BXIAllocator* allocator )
+void MESHTool::StartUp( CMNEngine* e, const char* src_root, const char* dst_root, BXIAllocator* allocator )
 {
     _allocator = allocator;
-    _root_folder_ctx.SetUp( e->_filesystem, allocator );
-    _root_folder_ctx.SetFolder( asset_root );
+    _root_src_folder_ctx.SetUp( e->_filesystem, allocator );
+    _root_src_folder_ctx.SetFolder( src_root );
+
+    _root_dst_folder_ctx.SetUp( e->_filesystem, allocator );
+    _root_dst_folder_ctx.SetFolder( dst_root );
+
+    helper::SetToDefaults( &_compile_options );
 }
 
 void MESHTool::ShutDown( CMNEngine* e )
 {
     helper::UnloadComponent( e, _id_mesh_comp );
-    
-    BX_DELETE0( _allocator, _loaded_streams );
-
     _allocator = nullptr;
 }
+
+uint32_t find_r( const char* begin, uint32_t len, const char needle )
+{
+    int32_t pos = len;
+    while( pos )
+    {
+        if( begin[pos] == needle )
+            break;
+
+        --pos;
+    }
+    return pos;
+}
+
+
 
 void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx )
 {
@@ -51,21 +90,35 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx )
         {
             if( ImGui::MenuItem( "New" ) )
             {
+                ImGui::EndMenu();
             }
             ImGui::Separator();
+
             if( ImGui::BeginMenu( "Load" ) )
             {
-                const string_buffer_t& file_list = _root_folder_ctx.FileList();
+                const string_buffer_t& file_list = _root_dst_folder_ctx.FileList();
                 string_buffer_it selected_it = common::MenuFileSelector( file_list );
                 if( !selected_it.null() )
                 {
-                    string::create( &_current_file, selected_it.pointer, _allocator );
-                    if( auto streams = _Import( e ) )
+                    string::create( &_current_dst_file, selected_it.pointer, _allocator );
+                }
+                ImGui::EndMenu();
+            }
+
+            ImGui::Separator();
+            if( ImGui::BeginMenu( "Import" ) )
+            {
+                const string_buffer_t& file_list = _root_src_folder_ctx.FileList();
+                string_buffer_it selected_it = common::MenuFileSelector( file_list );
+                if( !selected_it.null() )
+                {
+                    const bool the_same_file = string::equal( selected_it.pointer, _current_src_file.c_str() );
+                    if( !the_same_file )
                     {
-                        BX_DELETE( _allocator, _loaded_streams );
-                        _compile_options = {};
-                        _loaded_streams = streams;
+                        string::create( &_current_src_file, selected_it.pointer, _allocator );
+                        helper::SetToDefaults( &_import_options, _current_src_file.c_str() );
                     }
+                    _flags.show_import_dialog = 1;
                 }
                 ImGui::EndMenu();
             }
@@ -74,74 +127,141 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx )
             ImGui::EndMenu();
         }
         ImGui::Separator();
-        if( _loaded_streams )
+        if( !_loaded_streams.empty() )
         {
-            if( ImGui::Button( "Compile" ) )
+            for( const tool::mesh::Streams& streams : _loaded_streams )
             {
-                _Compile( e, ctx );
-            }
-            ImGui::Separator();
-            if( ImGui::TreeNodeEx( "Stats", ImGuiTreeNodeFlags_DefaultOpen ) )
-            {
-                ImGui::Value( "Num vertices", _loaded_streams->num_vertices );
-                ImGui::Value( "Num indices", _loaded_streams->num_indices );
-                ImGui::Value( "Num bones", _loaded_streams->num_bones );
-                ImGui::TreePop();
-            }
-
-            if( ImGui::TreeNodeEx( "Loaded streams", ImGuiTreeNodeFlags_DefaultOpen ) )
-            {
-                for( uint32_t islot = 0; islot < RDIEVertexSlot::COUNT; ++islot )
+                if( ImGui::TreeNode( streams.name.c_str() ) )
                 {
-                    const RDIVertexBufferDesc desc = _loaded_streams->slots[islot];
-                    if( !desc.hash )
-                        continue;
-
-                    bool has_slot = _compile_options.HasSlot( islot );
-                    char slot_name[127];
-                    if( RDIEVertexSlot::ToString( slot_name, 127, (RDIEVertexSlot::Enum)islot ) )
+                    if( ImGui::Button( "Compile" ) )
                     {
-                        if( ImGui::Checkbox( slot_name, &has_slot ) )
-                        {
-                            _compile_options.EnableSlot( (RDIEVertexSlot::Enum)islot, has_slot );
-                        }
+                        _Compile( e, ctx, streams );
                     }
+
+                    ImGui::Separator();
+                    if( ImGui::TreeNodeEx( "Stats", ImGuiTreeNodeFlags_DefaultOpen ) )
+                    {
+                        ImGui::Value( "Num vertices", streams.num_vertices );
+                        ImGui::Value( "Num indices" , streams.num_indices );
+                        ImGui::Value( "Num bones"   , streams.num_bones );
+                        ImGui::TreePop();
+                    }
+
+                    if( ImGui::TreeNodeEx( "Loaded streams", ImGuiTreeNodeFlags_DefaultOpen ) )
+                    {
+                        for( uint32_t islot = 0; islot < RDIEVertexSlot::COUNT; ++islot )
+                        {
+                            const RDIVertexBufferDesc desc = streams.slots[islot];
+                            if( !desc.hash )
+                                continue;
+
+                            bool has_slot = _compile_options.HasSlot( islot );
+                            char slot_name[127];
+                            if( RDIEVertexSlot::ToString( slot_name, 127, (RDIEVertexSlot::Enum)islot ) )
+                            {   
+                                if( ImGui::Checkbox( slot_name, &has_slot ) )
+                                {
+                                    _compile_options.EnableSlot( (RDIEVertexSlot::Enum)islot, has_slot );
+                                }
+                            }
+                        }
+                        ImGui::TreePop();
+                    }
+                    if( ImGui::TreeNode( "Bones" ) )
+                    {
+                        for( const std::string& name : streams.bones_names )
+                        {
+                            ImGui::Text( name.c_str() );
+                        }
+                        ImGui::TreePop();
+                    }
+
+                    ImGui::TreePop();
                 }
-                ImGui::TreePop();
             }
-            if( ImGui::TreeNode( "Bones" ) )
+        }
+
+        if( _current_src_file.c_str() && _mesh_file )
+        {
+            if( ImGui::Button( "Save" ) )
             {
-                for( const std::string& name : _loaded_streams->bones_names )
+                const char d = '.';
+                const char s = '/';
+
+                const uint32_t src_len = _current_src_file.length();
+                const uint32_t s_pos = find_r( _current_src_file.c_str(), src_len, s );
+
+                char tmp[255] = {};
+
+                const char* src_name = _current_src_file.c_str();
+                if( s_pos != UINT32_MAX )
+                    src_name += s_pos + 1;
+                
+                uint32_t len = snprintf( tmp, 255, "%s", src_name );
+                
+                const uint32_t d_pos = find_r( tmp, len, d );
+                if( d_pos != UINT32_MAX )
                 {
-                    ImGui::Text( name.c_str() );
+                    snprintf( tmp + d_pos + 1, 255 - (len + d_pos + 1), "mesh" );
                 }
-                ImGui::TreePop();
+
+                char tmp_path[255] = {};
+                string::append( tmp_path, 255, "%s/%s", _root_dst_folder_ctx.Folder(), tmp );
+                string::create( &_current_dst_file, tmp_path, _allocator );
+
+                WriteFileSync( e->_filesystem, _current_dst_file.c_str(), _mesh_file, _mesh_file->size );
+                _root_dst_folder_ctx.RequestRefresh();
             }
         }
     }
     ImGui::End();
+    
+    if( _flags.show_import_dialog )
+    {
+        ImGui::OpenPopup( "ImportOptions" );
+        if( ImGui::BeginPopup( "ImportOptions" ) )
+        {
+            ImGui::InputFloat3( "Scale", _import_options.scale.xyz, 4 );
+
+            if( ImGui::Button( "Import" ) )
+            {
+                if( _Import( e ) )
+                {
+                    helper::SetToDefaults( &_compile_options );
+
+                    BX_FREE0( _allocator, _mesh_file );
+                    _flags.show_import_dialog = 0;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            ImGui::EndPopup();
+        }
+    }
 }
 
-tool::mesh::Streams* MESHTool::_Import( CMNEngine* e )
+bool MESHTool::_Import( CMNEngine* e )
 {
-    const char* filename = _current_file.c_str();
+    const char* filename = _current_src_file.c_str();
 
     BXFileWaitResult result = e->_filesystem->LoadFileSync( e->_filesystem, filename, BXEFIleMode::BIN, _allocator );
     
-    tool::mesh::Streams* mesh_streams = BX_NEW( _allocator, tool::mesh::Streams );
-    if( !tool::mesh::Import( mesh_streams, result.file.pointer, result.file.size ) )
+    bool success = false;
+
+    tool::mesh::StreamsArray streams = tool::mesh::Import( result.file.pointer, result.file.size, _import_options );
+    if( !streams.empty() )
     {
-        BX_DELETE0( _allocator, mesh_streams );
+        _loaded_streams.clear();
+        _loaded_streams = std::move( streams );
+        success = true;
     }
     e->_filesystem->CloseFile( &result.handle );
 
-    return mesh_streams;
+    return success;
 }
 
-void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx )
+void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx, const tool::mesh::Streams& streams )
 {
-    tool::mesh::CompileOptions opt;
-    blob_t cmesh = tool::mesh::Compile( *_loaded_streams, _compile_options, _allocator );
+    blob_t cmesh = tool::mesh::Compile( streams, _compile_options, _allocator );
     if( !cmesh.empty() )
     {
         RDIXMeshFile* mesh_file = (RDIXMeshFile*)cmesh.raw;
@@ -194,8 +314,13 @@ void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx )
             ECSComponentID skinning_id;
             TOOLSkinningComponent* skinning_comp = nullptr;
             common::CreateComponentIfNotExists( &skinning_id, &skinning_comp, e->_ecs, ctx.entity );
-            InitializeFromDescComponents( skinning_comp, e->_ecs, ctx.entity );
+            InitializeSkinningComponent( skinning_id, e->_ecs );
             skinning_comp->id_mesh = comp_data->id_mesh;
+        }
+
+        { // file to serialize
+            BX_FREE0( _allocator, _mesh_file );
+            _mesh_file = srl_file::serialize( (RDIXMeshFile*)cmesh.raw, cmesh.size, _allocator );
         }
     }
 

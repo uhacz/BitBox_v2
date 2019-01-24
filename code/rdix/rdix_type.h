@@ -4,7 +4,7 @@
 #include <foundation/debug.h>
 #include <foundation/tag.h>
 #include <rdi_backend/rdi_backend_type.h>
-
+#include <foundation/serializer.h>
 // --- 
 struct RDIXShaderFile
 {
@@ -191,29 +191,42 @@ struct RDIXRenderSourceDesc
 	}
 };
 
-struct RDIXMeshFile
+struct BIT_ALIGNMENT_16 RDIXMeshFile
 {
     static constexpr uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
-
-    uint32_t tag = tag32_t( "MESH" );
-    uint32_t version = VERSION;
-
-    RDIVertexBufferDesc descs[RDIEVertexSlot::COUNT] = {};
-    uint16_t num_streams = 0;
+    static constexpr uint32_t TAG = BX_UTIL_TAG32( 'M','E','S','H' );
 
     uint32_t num_vertices = 0;
     uint32_t num_indices = 0;
+
+    RDIVertexBufferDesc descs[RDIEVertexSlot::COUNT] = {};
+    uint16_t num_streams = 0;
     uint16_t num_bones = 0;
     uint16_t num_draw_ranges = 0;
-    uint32_t flag_use_16bit_indices = 0;
+    uint16_t flag_use_16bit_indices = 0;
 
     uint32_t offset_streams[RDIEVertexSlot::COUNT] = {};
     uint32_t offset_indices = 0;
     uint32_t offset_bones = 0;
     uint32_t offset_bones_names = 0;
     uint32_t offset_draw_ranges = 0;   
+
+    SRL_TYPE( RDIXMeshFile,
+        SRL_PROPERTY( descs );
+        SRL_PROPERTY( num_streams );
+        SRL_PROPERTY( num_vertices );
+        SRL_PROPERTY( num_indices );
+        SRL_PROPERTY( num_bones );
+        SRL_PROPERTY( num_draw_ranges );
+        SRL_PROPERTY( flag_use_16bit_indices );
+        SRL_PROPERTY( offset_streams );
+        SRL_PROPERTY( offset_indices );
+        SRL_PROPERTY( offset_bones );
+        SRL_PROPERTY( offset_bones_names );
+        SRL_PROPERTY( offset_draw_ranges );
+    );
+
 };
-SYS_STATIC_ASSERT( sizeof( RDIXMeshFile ) == 128 );
 
 // --- 
 struct RDIXTransformBufferDesc

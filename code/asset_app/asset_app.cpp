@@ -29,9 +29,9 @@ namespace
     ECSEntityID g_identity = {};
 }
 
-static MATERIALTool g_mat_tool;
-static MESHTool g_mesh_tool;
-static ANIMTool g_anim_tool;
+static MATERIALTool* g_mat_tool = nullptr;
+static MESHTool* g_mesh_tool = nullptr;
+static ANIMTool* g_anim_tool = nullptr;
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
@@ -49,7 +49,7 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     desc.name = "test scene";
     g_idscene = _gfx->CreateScene( desc );
 
-    CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, vec3_t(100.f, 0.5f, 100.f), mat44_t::translation( vec3_t( 0.f, -2.f, 0.f ) ) );
+    CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, vec3_t(100.f, 1.f, 100.f), mat44_t::translation( vec3_t( 0.f, -0.5f, 0.f ) ) );
     
     {// sky
         BXFileWaitResult filewait = _filesystem->LoadFileSync( _filesystem, "texture/sky_cubemap.dds", BXEFIleMode::BIN, allocator );
@@ -67,18 +67,26 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
     g_identity = _ecs->CreateEntity();
 
-    g_mat_tool.StartUp( _gfx, allocator );
-    g_mesh_tool.StartUp( this, ".src/mesh/", allocator );
-    g_anim_tool.StartUp( this, ".src/anim/", "anim/", allocator );
+    g_mat_tool = BX_NEW( allocator, MATERIALTool );
+    g_mesh_tool = BX_NEW( allocator, MESHTool );
+    g_anim_tool = BX_NEW( allocator, ANIMTool );
+
+    g_mat_tool->StartUp( _gfx, allocator );
+    g_mesh_tool->StartUp( this, ".src/mesh/", "mesh/", allocator );
+    g_anim_tool->StartUp( this, ".src/anim/", "anim/", allocator );
 
     return true;
 }
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    g_anim_tool.ShutDown( this );
-    g_mesh_tool.ShutDown( this );
-    g_mat_tool.ShutDown( _gfx );
+    g_anim_tool->ShutDown( this );
+    g_mesh_tool->ShutDown( this );
+    g_mat_tool->ShutDown( _gfx );
+
+    BX_DELETE0( allocator, g_anim_tool );
+    BX_DELETE0( allocator, g_mesh_tool );
+    BX_DELETE0( allocator, g_mat_tool );
     
     _ecs->MarkForDestroy( g_identity );
 
@@ -129,9 +137,9 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         tool_ctx.gfx_scene = g_idscene;
         tool_ctx.entity = g_identity;
 
-        g_mat_tool.Tick( _gfx, _filesystem );
-        g_mesh_tool.Tick( this, tool_ctx );
-        g_anim_tool.Tick( this, tool_ctx, delta_time_sec );
+        g_mat_tool->Tick( _gfx, _filesystem );
+        g_mesh_tool->Tick( this, tool_ctx );
+        g_anim_tool->Tick( this, tool_ctx, delta_time_sec );
         
     }
 

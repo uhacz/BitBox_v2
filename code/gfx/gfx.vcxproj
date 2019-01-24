@@ -58,6 +58,7 @@
     <Link>
       <AdditionalDependencies>rtti.lib;resource_manager.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -72,6 +73,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>rtti.lib;resource_manager.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib />
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="dll_interface.h" />

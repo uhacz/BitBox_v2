@@ -23,6 +23,8 @@ namespace tool { namespace mesh {
     {
         static constexpr uint32_t COUNT = RDIEVertexSlot::COUNT;
 
+        std::string name;
+
         std::array<RDIVertexBufferDesc, COUNT> slots;
         std::array<VertexDataArray, COUNT > data;
         std::vector<uint32_t> indices32;
@@ -35,6 +37,12 @@ namespace tool { namespace mesh {
         uint32_t num_bones = 0;
         uint32_t num_indices = 0;
         uint32_t flag_use_16bit_indices = false;
+    };
+    using StreamsArray = std::vector< Streams >;
+
+    struct ImportOptions
+    {
+        vec3_t scale{ 1.f };
     };
 
     struct CompileOptions
@@ -49,6 +57,6 @@ namespace tool { namespace mesh {
         bool HasSlot( uint32_t slot ) const { return ( slot_mask & (1 << slot) ) != 0; }
     };
 
-    bool Import( Streams* sterams, const void* data, uint32_t data_size );
+    StreamsArray Import( const void* data, uint32_t data_size, const ImportOptions& options = ImportOptions() );
     blob_t Compile( const Streams& streams, const CompileOptions& opt, BXIAllocator* allocator );
 }}

@@ -927,7 +927,7 @@ GFXMeshInstanceID GFX::AddMeshToScene( GFXSceneID idscene, const GFXMeshInstance
     if( desc.flags.skinning )
     {
         RDIXRenderSource* base_rsource = (RDIXRenderSource*)RSM::Get( desc.idmesh_resource );
-        data->skinning_rsource[data_index] = CloneForSkinning( gfx->_rdidev, base_rsource );
+        data->skinning_rsource[data_index] = CloneForCPUSkinning( gfx->_rdidev, base_rsource );
     }
     data->idmat          [data_index] = idmat;
     data->idinstance     [data_index] = idinst;
@@ -1097,18 +1097,21 @@ void GFX::DoSkinning( RDICommandQueue* cmdq, ECS* ecs )
             const vec3_t& base_pos = base_positions[ivertex];
             const vec3_t& base_nrm = base_normals[ivertex];
 
-            vec3_t& skinned_pos = skinned_positions[ivertex];
-            vec3_t& skinned_nrm = skinned_normals[ivertex];
-
-            skinned_pos = mul_as_point( skinning_matrices[bi.x], base_pos ) * bw.x;
+            vec3_t skinned_pos( 0.f );
+            vec3_t skinned_nrm( 0.f );
+            
+            skinned_pos += mul_as_point( skinning_matrices[bi.x], base_pos ) * bw.x;
             skinned_pos += mul_as_point( skinning_matrices[bi.y], base_pos ) * bw.y;
             skinned_pos += mul_as_point( skinning_matrices[bi.z], base_pos ) * bw.z;
             skinned_pos += mul_as_point( skinning_matrices[bi.w], base_pos ) * bw.w;
 
-            skinned_nrm = rotate( skinning_matrices[bi.x], base_nrm ) * bw.x;
+            skinned_nrm += rotate( skinning_matrices[bi.x], base_nrm ) * bw.x;
             skinned_nrm += rotate( skinning_matrices[bi.y], base_nrm ) * bw.y;
             skinned_nrm += rotate( skinning_matrices[bi.z], base_nrm ) * bw.z;
             skinned_nrm += rotate( skinning_matrices[bi.w], base_nrm ) * bw.w;
+        
+            skinned_positions[ivertex] = skinned_pos;
+            skinned_normals[ivertex] = skinned_nrm;
         }
 
         Unmap( cmdq, vb_skinned_normals );

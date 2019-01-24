@@ -6,7 +6,7 @@
 #include <foundation/io.h>
 #include "dirent.h"
 
-static BXFileWaitResult LoadFileSync( BXIFilesystem* fs, const char * relativePath, BXEFIleMode::E mode, BXIAllocator* allocator )
+static BXFileWaitResult LoadFileSyncImpl( BXIFilesystem* fs, const char * relativePath, BXEFIleMode::E mode, BXIAllocator* allocator )
 {
 	BXFileWaitResult result;
 	result.handle = fs->LoadFile( relativePath, mode, allocator );
@@ -18,7 +18,7 @@ static BXFileWaitResult LoadFileSync( BXIFilesystem* fs, const char * relativePa
 	}
 	return result;
 }
-static int32_t WriteFileSync( BXIFilesystem* fs, const char* relative_path, const void* data, uint32_t data_size )
+static int32_t WriteFileSyncImpl( BXIFilesystem* fs, const char* relative_path, const void* data, uint32_t data_size )
 {
     FSName abs_path;
     abs_path.Append( fs->GetRoot() );
@@ -93,8 +93,8 @@ static void ListFiles( BXIFilesystem* fs, string_buffer_t* s, const char* relati
 PLUGIN_EXPORT void* BXLoad_filesystem( BXIAllocator * allocator )
 {
 	bx::FilesystemWindows* fs = BX_NEW( allocator, bx::FilesystemWindows, allocator );
-	fs->LoadFileSync = LoadFileSync;
-    fs->WriteFileSync = WriteFileSync;
+	fs->LoadFileSync = LoadFileSyncImpl;
+    fs->WriteFileSync = WriteFileSyncImpl;
     fs->ListFiles = ListFiles;
 	fs->Startup();
 	return fs;

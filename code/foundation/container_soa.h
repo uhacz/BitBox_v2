@@ -81,7 +81,7 @@ namespace container_soa
             header->offset[i] = desc.offset[i];
             header->stride[i] = desc.stride[i];
 
-            uint8_t* data_ptr = chunker.AddBlock( capacity * desc.stride[i], desc.align[i] );
+            uint8_t* data_ptr = chunker.AddBlock( capacity * desc.stride[i], desc.align[i] ).begin;
             memcpy( (uint8_t*)object + desc.offset[i], &data_ptr, sizeof( void* ) );
         }
 

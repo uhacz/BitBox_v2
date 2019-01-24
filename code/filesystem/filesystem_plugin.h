@@ -91,7 +91,10 @@ struct BXIFilesystem
     void ( *ListFiles )( BXIFilesystem* fs, string_buffer_t* s, const char* relative_path, uint32_t flags, BXIAllocator* allocator );
 };
 
-
+inline int32_t WriteFileSync( BXIFilesystem* fs, const char* relativePath, const void* data, uint32_t data_size )
+{
+    return fs->WriteFileSync( fs, relativePath, data, data_size );
+}
 
 extern "C" {          // we need to export the C interface
 

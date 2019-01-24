@@ -42,6 +42,15 @@ inline T* BX_RENEW( BXIAllocator* alloc, T** inout, Args&&... args )
     return inout[0];
 }
 
+template< typename T >
+inline T* BX_REMALLOC( BXIAllocator* alloc, T** buffer, unsigned new_buffer_size, unsigned align = sizeof(void*) )
+{
+    if( buffer[0] )
+        BX_FREE( alloc, buffer[0] );
+
+    buffer[0] = (T*)BX_MALLOC( alloc, new_buffer_size, align );
+    return buffer[0];
+}
 
 #include "dll_interface.h"
 
