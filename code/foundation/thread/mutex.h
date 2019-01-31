@@ -1,8 +1,16 @@
 #pragma once
 
-#include <mutex>
+struct mutex_t
+{
+    mutex_t( unsigned spin_count = 64 );
+    ~mutex_t();
+    void lock();
+    void unlock();
 
-using mutex_t = std::mutex;
+private:
+    static constexpr unsigned INTERNAL_DATA_SIZE = 128;
+    char _prv[INTERNAL_DATA_SIZE];
+};
 
 
 template< typename T >

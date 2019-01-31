@@ -26,7 +26,7 @@ void StartupDX11( RDIDevice** dev, RDICommandQueue** cmdq, uintptr_t hWnd, int w
     sd.SampleDesc.Quality = 0;
     sd.Windowed = ( fullScreen ) ? FALSE : TRUE;
     sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-    //sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     UINT flags = 0;//D3D11_CREATE_DEVICE_SINGLETHREADED;
 #ifdef _DEBUG
@@ -63,7 +63,8 @@ void StartupDX11( RDIDevice** dev, RDICommandQueue** cmdq, uintptr_t hWnd, int w
 	if( flags & D3D11_CREATE_DEVICE_DEBUG )
 	{
 		dx11Dev->QueryInterface( __uuidof(ID3D11Debug), reinterpret_cast<void**>(&device->_debug) );
-	}
+        device->_debug->Release();
+    }
 
 	device->_device = dx11Dev;
     cmd_queue->_context = dx11Ctx;
@@ -88,21 +89,25 @@ void StartupDX11( RDIDevice** dev, RDICommandQueue** cmdq, uintptr_t hWnd, int w
 	dev[0] = device;
 	cmdq[0] = cmd_queue;
 }
+
+static void Release( RDICommandQueue* cmdq )
+{
+    cmdq->_mainFramebuffer->Release();
+    cmdq->_context->Release();
+    cmdq->_swapChain->Release();
+}
+
 void ShutdownDX11( RDIDevice** dev, RDICommandQueue** cmdq, BXIAllocator* allocator )
 {
-    cmdq[0]->_mainFramebuffer->Release();
-	cmdq[0]->_swapChain->Release();
-	cmdq[0]->_context->Release();
-    //BX_DELETE0( allocator, cmdq[0] );
     cmdq[0] = nullptr;
 
-	dev[0]->dx11()->Release();
+    Release( &dev[0]->_immediate_command_queue );
+    dev[0]->dx11()->Release();
 	if( dev[0]->_debug )
 	{
 		dev[0]->_debug->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
-		dev[0]->_debug->Release();
 	}
-
+    
 	BX_DELETE0( allocator, dev[0] );
 }
 
@@ -348,48 +353,99 @@ void ReportLiveObjects( RDIDevice* dev )
 	dev->_debug->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
 }
 
-RDIVertexBuffer CreateVertexBuffer( RDIDevice* dev,const RDIVertexBufferDesc& desc, uint32_t numElements, const void* data )
+RDIVertexBuffer CreateVertexBuffer( RDIDevice* dev, const RDIVertexBufferDesc& desc, uint32_t numElements, const void* data )
 {
     const uint32_t stride = desc.ByteWidth();
-
+    const uint32_t total_size = numElements * stride;
     D3D11_BUFFER_DESC bdesc;
     memset( &bdesc, 0, sizeof( bdesc ) );
-    bdesc.ByteWidth = numElements * stride;
-    
-    if( desc.cpuAccess == RDIECpuAccess::WRITE )
+    bdesc.ByteWidth = total_size;
+    bdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+    if( desc.gpuAccess )
     {
-        bdesc.Usage = D3D11_USAGE_DYNAMIC;
-        bdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    }
-    else if( desc.cpuAccess == 0 )
-    {
-        bdesc.Usage = D3D11_USAGE_IMMUTABLE;
-        bdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        if( desc.gpuAccess == RDIEGpuAccess::READ )
+        {
+            bdesc.Usage = D3D11_USAGE_IMMUTABLE;
+            bdesc.BindFlags |= D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+        }
+        else
+        {
+            bdesc.Usage = D3D11_USAGE_DEFAULT;
+            bdesc.BindFlags |= D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+        }
+        bdesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
     }
     else
     {
-        bdesc.Usage = D3D11_USAGE_DEFAULT;
-        bdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+        if( !desc.cpuAccess )
+        {
+            bdesc.Usage = D3D11_USAGE_IMMUTABLE;
+        }
+        else
+        {
+            if( desc.cpuAccess == RDIECpuAccess::WRITE )
+            {
+                bdesc.Usage = D3D11_USAGE_DYNAMIC;
+            }
+            else
+            {
+                bdesc.BindFlags = 0;
+                bdesc.Usage = D3D11_USAGE_STAGING;
+            }
+        }
     }
 
-    
     bdesc.CPUAccessFlags = to_D3D11_CPU_ACCESS_FLAG( desc.cpuAccess );;
 
     D3D11_SUBRESOURCE_DATA resource_data;
-    resource_data.pSysMem          = data;
-    resource_data.SysMemPitch      = 0;
+    resource_data.pSysMem = data;
+    resource_data.SysMemPitch = 0;
     resource_data.SysMemSlicePitch = 0;
 
-    D3D11_SUBRESOURCE_DATA* resource_data_pointer = ( data ) ? &resource_data : 0;
+    D3D11_SUBRESOURCE_DATA* resource_data_pointer = (data) ? &resource_data : 0;
 
     ID3D11Buffer* buffer = 0;
     HRESULT hres = dev->dx11()->CreateBuffer( &bdesc, resource_data_pointer, &buffer );
     SYS_ASSERT( SUCCEEDED( hres ) );
 
+    ID3D11ShaderResourceView* viewSH = nullptr;
+    ID3D11UnorderedAccessView* viewUA = nullptr;
+
+    if( bdesc.BindFlags & D3D11_BIND_SHADER_RESOURCE )
+    {
+        D3D11_SHADER_RESOURCE_VIEW_DESC descSH;
+        memset( &descSH, 0x00, sizeof( D3D11_SHADER_RESOURCE_VIEW_DESC ) );
+
+        descSH.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+        descSH.BufferEx.FirstElement = 0;
+        descSH.Format = DXGI_FORMAT_R32_TYPELESS;
+        descSH.BufferEx.NumElements = total_size / 4;
+        descSH.BufferEx.Flags |= D3D11_BUFFEREX_SRV_FLAG_RAW;
+
+        hres = dev->dx11()->CreateShaderResourceView( buffer, &descSH, &viewSH );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+    }
+
+    if( bdesc.BindFlags & D3D11_BIND_UNORDERED_ACCESS )
+    {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC descUA;
+        memset( &descUA, 0x00, sizeof( D3D11_UNORDERED_ACCESS_VIEW_DESC ) );
+
+        descUA.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+        descUA.Format = DXGI_FORMAT_R32_TYPELESS;
+        descUA.Buffer.NumElements = total_size / 4;
+        descUA.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
+
+        hres = dev->dx11()->CreateUnorderedAccessView( buffer, &descUA, &viewUA );
+    }
+    
     RDIVertexBuffer vBuffer;
     vBuffer.buffer      = buffer;
     vBuffer.numElements = numElements;
     vBuffer.desc        = desc;
+    vBuffer.viewSH      = viewSH;
+    vBuffer.viewUA      = viewUA;
     return vBuffer;
 }
 RDIIndexBuffer CreateIndexBuffer( RDIDevice* dev,RDIEType::Enum dataType, uint32_t numElements, const void* data )
@@ -1147,7 +1203,7 @@ void Destroy( RDIHardwareState* id )
 void GetAPIDevice( RDIDevice* dev,ID3D11Device** apiDev, ID3D11DeviceContext** apiCtx )
 {
 	apiDev[0] = dev->dx11();
-    dev->dx11()->GetImmediateContext( apiCtx );
+    apiCtx[0] = dev->_immediate_command_queue._context;
 }
 RDICommandQueue* GetImmediateCommandQueue( RDIDevice* dev )
 {

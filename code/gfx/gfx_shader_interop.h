@@ -1,6 +1,6 @@
 #pragma once
 
-#include <rtti/rtti.h>
+//#include <rtti/rtti.h>
 #include <foundation/math/vmath_type.h>
 #include <rdi_backend/rdi_backend_type.h>
 //#include "dll_interface.h"

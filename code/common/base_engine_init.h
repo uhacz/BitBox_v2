@@ -13,12 +13,12 @@ struct BXIFilesystem;
 
 struct CMNEngine
 {
-    BXIFilesystem* _filesystem = nullptr;
-    RDIDevice* _rdidev = nullptr;
-    RDICommandQueue* _rdicmdq = nullptr;
+    BXIFilesystem* filesystem = nullptr;
+    RDIDevice* rdidev = nullptr;
+    RDICommandQueue* rdicmdq = nullptr;
 
-    GFX* _gfx = nullptr;
-    ECS* _ecs = nullptr;
+    GFX* gfx = nullptr;
+    ECS* ecs = nullptr;
   
     bool Startup( CMNEngine* engine, int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator );
     void Shutdown( CMNEngine* engine, BXIAllocator* allocator );

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "dll_interface.h"
 #include "gfx_type.h"
 #include "gfx_camera.h"
 #include <resource_manager/resource_manager.h>
+#include "foundation/blob.h"
 
 struct GFXUtilsData;
 struct GFXUtils
@@ -56,6 +56,7 @@ struct GFX
     RSMResourceID     Mesh( GFXMeshInstanceID idmeshi );
     GFXMaterialID     Material( GFXMeshInstanceID idmeshi );
     void              SetWorldPose( GFXMeshInstanceID idmeshi, const mat44_t& pose );
+    blob_t            AcquireSkinnigDataToWrite( GFXMeshInstanceID idmeshi, uint32_t size_in_bytes );
 
     // --- sky
     void EnableSky( GFXSceneID idscene, bool value );

@@ -1,5 +1,6 @@
 #include "rdi_backend.h"
 #include "rdi_backend_dx11.h"
+#include <stdio.h>
 
 RDIEType::Enum RDIEType::FromName( const char* name )
 {

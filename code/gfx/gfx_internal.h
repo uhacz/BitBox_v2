@@ -17,9 +17,8 @@
 #include "gfx_type.h"
 #include "gfx_camera.h"
 #include "gfx_shadow.h"
-
-#include <mutex>
-
+#include "foundation/type_compound.h"
+#include <atomic>
 
 
 
@@ -27,6 +26,8 @@ static constexpr uint32_t GFX_MAX_SCENES = 4;
 static constexpr uint32_t GFX_MAX_MESH_INSTANCES = 1024 * 64;
 static constexpr uint32_t GFX_MAX_MATERIALS = SHADER_MAX_MATERIALS;
 static constexpr uint32_t GFX_MAX_CAMERAS = SHADER_MAX_CAMERAS;
+static constexpr uint32_t GFX_SKINNING_BUFFER_SIZE = BIT_MEGA_BYTE( 4 );
+static constexpr uint32_t GFX_DEFAULT_SKINNING_PIN = UINT32_MAX;
 
 namespace GFXEFramebuffer
 {
@@ -114,8 +115,36 @@ struct GFXMaterialContainer
     uint32_t DataIndex( id_t id ) const { return id.index; }
 };
 
+struct GFXMeshSkinningData
+{
+    RDIXRenderSource* rsource = nullptr;
+    uint32_t pin_index = GFX_DEFAULT_SKINNING_PIN;
+    uint32_t num_elements = 0;
+};
 
+implement this
+struct GFXSkinningData
+{
+    RDIBufferRO gpu_buffer[2];
+    uint32_t mapped_gpu_buffer = 0;
 
+    float4_t* cpu_buffer = nullptr;
+    uint32_t cpu_buffer_capacity = 0;
+    std::atomic<uint32_t> cpu_buffer_offset;
+
+    void Initialize( RDIDevice* dev, uint32_t capacity );
+    void Uninitialize();
+
+    void Swap();
+
+    struct Pin
+    {
+        float4_t* address;
+        uint32_t  index; // in float4_t unit
+        uint32_t  num_elements;
+    };
+    Pin Allocate( uint32_t size_in_bytes );
+};
 struct GFXSceneContainer
 {
     struct MeshData
@@ -123,10 +152,11 @@ struct GFXSceneContainer
         mat44_t* world_matrix;
         gfx_shader::InstanceData* instance_data;
         RSMResourceID* idmesh_resource;
-        RDIXRenderSource** skinning_rsource;
+        GFXMeshSkinningData* skinning_data;
         GFXMaterialID* idmat;
         id_t* idinstance;
     };
+       
     struct DeadMeshInstanceID
     {
         id_t idscene;
@@ -150,8 +180,13 @@ struct GFXSceneContainer
     mutex_t                     mesh_to_remove_lock;
     array_t<DeadMeshInstanceID> mesh_to_remove;
 
+    GFXMeshInstanceID mesh_to_skin[GFX_MAX_MESH_INSTANCES];
+    std::atomic<uint32_t> num_meshes_to_skin{ 0 };
+    
+
     RDIXTransformBuffer* transform_buffer[GFX_MAX_SCENES] = {};
     RDIXCommandBuffer*   command_buffer[GFX_MAX_SCENES] = {};
+    GFXSkinningData      skinning_data[GFX_MAX_SCENES] = {};
 
     MeshData*        mesh_data[GFX_MAX_SCENES] = {};
     MeshIDAllocator* mesh_idalloc[GFX_MAX_SCENES] = {};
@@ -223,7 +258,6 @@ struct GFXSystem
     GFXCameraContainer   _camera;
     GFXMaterialContainer _material;
     GFXSceneContainer    _scene;
-    GFXSceneID           _scene_lookup[GFX_MAX_SCENES][GFX_MAX_MESH_INSTANCES] = {};
     GFXPostProcess       _postprocess;
 
     uint32_t MaterialDataIndex( id_t idmat ) const

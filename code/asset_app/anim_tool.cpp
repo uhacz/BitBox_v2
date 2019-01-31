@@ -7,6 +7,8 @@
 #include <anim/anim.h>
 #include <anim/anim_player.h>
 
+#include <gfx/gfx.h>
+
 #include <rdix/rdix_debug_draw.h>
 #include <3rd_party/imgui/imgui.h>
 #include "common/base_engine_init.h"
@@ -48,11 +50,11 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 {
     ECSComponentID desc_comp_id = ECSComponentID::Null();
     TOOLAnimDescComponent* desc_comp = nullptr;
-    common::CreateComponentIfNotExists( &desc_comp_id, &desc_comp, e->_ecs, ctx.entity );
+    common::CreateComponentIfNotExists( &desc_comp_id, &desc_comp, e->ecs, ctx.entity );
 
     DrawMenu();
 
-    BXIFilesystem* fs = e->_filesystem;
+    BXIFilesystem* fs = e->filesystem;
 
     if( _flags.refresh_src_files )
     {
@@ -110,9 +112,9 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
                         array::push_back( desc_comp->bones_names, bones_names[ijoint] );
                 }
 
-                if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->_ecs, ctx.entity ) )
+                if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->ecs, ctx.entity ) )
                 {
-                    InitializeSkinningComponent( skinning_id, e->_ecs );
+                    InitializeSkinningComponent( skinning_id, e->ecs );
                 }
             }
             fs->CloseFile( &_hfile, true );
@@ -129,10 +131,13 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
         anim_ext::LocalJointsToWorldJoints( _joints_ms, joints_ls, skel, ANIMJoint::identity() );
         anim_ext::LocalJointsToWorldMatrices( _matrices_ms.begin(), joints_ls, skel, ANIMJoint::identity() );
 
-        if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->_ecs, ctx.entity ) )
+        if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->ecs, ctx.entity ) )
         {
-            TOOLSkinningComponent* skinning_comp = Component<TOOLSkinningComponent>( e->_ecs, skinning_id );
-            skinning_comp->ComputeSkinningMatrices( array_span_t<const mat44_t>( _matrices_ms.begin(), _matrices_ms.end() ) );
+            TOOLSkinningComponent* skinning_comp = Component<TOOLSkinningComponent>( e->ecs, skinning_id );
+            blob_t skinning_data = e->gfx->AcquireSkinnigDataToWrite( skinning_comp->id_mesh, skinning_comp->bone_offsets.size * sizeof( mat44_t ) );
+            array_span_t<mat44_t> skinning_matrices = to_array_span<mat44_t>( skinning_data, skinning_comp->bone_offsets.size );
+
+            skinning_comp->ComputeSkinningMatrices( skinning_matrices, array_span_t<const mat44_t>( _matrices_ms.begin(), _matrices_ms.end() ) );
         }
 
         const uint32_t color = color32_t::TEAL();

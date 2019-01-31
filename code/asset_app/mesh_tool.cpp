@@ -18,11 +18,11 @@ namespace helper
 {
     static void UnloadComponent( CMNEngine* e, ECSComponentID mesh_comp )
     {
-        if( e->_ecs->IsAlive( mesh_comp ) )
+        if( e->ecs->IsAlive( mesh_comp ) )
         {
-            TOOLMeshComponent* comp_data = Component<TOOLMeshComponent>( e->_ecs, mesh_comp );
-            comp_data->Uninitialize( e->_gfx );
-            e->_ecs->MarkForDestroy( mesh_comp );
+            TOOLMeshComponent* comp_data = Component<TOOLMeshComponent>( e->ecs, mesh_comp );
+            comp_data->Uninitialize( e->gfx );
+            e->ecs->MarkForDestroy( mesh_comp );
         }
     }
 
@@ -52,10 +52,10 @@ namespace helper
 void MESHTool::StartUp( CMNEngine* e, const char* src_root, const char* dst_root, BXIAllocator* allocator )
 {
     _allocator = allocator;
-    _root_src_folder_ctx.SetUp( e->_filesystem, allocator );
+    _root_src_folder_ctx.SetUp( e->filesystem, allocator );
     _root_src_folder_ctx.SetFolder( src_root );
 
-    _root_dst_folder_ctx.SetUp( e->_filesystem, allocator );
+    _root_dst_folder_ctx.SetUp( e->filesystem, allocator );
     _root_dst_folder_ctx.SetFolder( dst_root );
 
     helper::SetToDefaults( &_compile_options );
@@ -209,7 +209,7 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx )
                 string::append( tmp_path, 255, "%s/%s", _root_dst_folder_ctx.Folder(), tmp );
                 string::create( &_current_dst_file, tmp_path, _allocator );
 
-                WriteFileSync( e->_filesystem, _current_dst_file.c_str(), _mesh_file, _mesh_file->size );
+                WriteFileSync( e->filesystem, _current_dst_file.c_str(), _mesh_file, _mesh_file->size );
                 _root_dst_folder_ctx.RequestRefresh();
             }
         }
@@ -243,7 +243,7 @@ bool MESHTool::_Import( CMNEngine* e )
 {
     const char* filename = _current_src_file.c_str();
 
-    BXFileWaitResult result = e->_filesystem->LoadFileSync( e->_filesystem, filename, BXEFIleMode::BIN, _allocator );
+    BXFileWaitResult result = e->filesystem->LoadFileSync( e->filesystem, filename, BXEFIleMode::BIN, _allocator );
     
     bool success = false;
 
@@ -254,7 +254,7 @@ bool MESHTool::_Import( CMNEngine* e )
         _loaded_streams = std::move( streams );
         success = true;
     }
-    e->_filesystem->CloseFile( &result.handle );
+    e->filesystem->CloseFile( &result.handle );
 
     return success;
 }
@@ -265,34 +265,34 @@ void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx, const tool::mesh:
     if( !cmesh.empty() )
     {
         RDIXMeshFile* mesh_file = (RDIXMeshFile*)cmesh.raw;
-        RDIXRenderSource* rsource = CreateRenderSourceFromMemory( e->_rdidev, mesh_file, _allocator );
+        RDIXRenderSource* rsource = CreateRenderSourceFromMemory( e->rdidev, mesh_file, _allocator );
 
-        ECSNewComponent new_comp = CreateComponent< TOOLMeshComponent >( e->_ecs );
+        ECSNewComponent new_comp = CreateComponent< TOOLMeshComponent >( e->ecs );
         ECSComponentID mesh_comp = new_comp.id;
         TOOLMeshComponent* comp_data = new_comp.Cast<TOOLMeshComponent>();
 
         GFXMeshInstanceDesc desc = {};
         desc.AddRenderSource( rsource );
-        if( e->_ecs->IsAlive( _id_mesh_comp ) )
+        if( e->ecs->IsAlive( _id_mesh_comp ) )
         {
-            TOOLMeshComponent* old_comp_data = Component<TOOLMeshComponent>( e->_ecs, _id_mesh_comp );
-            desc.idmaterial = e->_gfx->Material( old_comp_data->id_mesh );
+            TOOLMeshComponent* old_comp_data = Component<TOOLMeshComponent>( e->ecs, _id_mesh_comp );
+            desc.idmaterial = e->gfx->Material( old_comp_data->id_mesh );
         }
         else
         {
-            desc.idmaterial = e->_gfx->FindMaterial( "editable" );
+            desc.idmaterial = e->gfx->FindMaterial( "editable" );
         }
         desc.flags.skinning = mesh_file->num_bones > 0;
-        comp_data->Initialize( e->_gfx, ctx.gfx_scene, desc, mat44_t::identity() );
+        comp_data->Initialize( e->gfx, ctx.gfx_scene, desc, mat44_t::identity() );
 
         helper::UnloadComponent( e, _id_mesh_comp );
         _id_mesh_comp = mesh_comp;
-        e->_ecs->Link( ctx.entity, &mesh_comp, 1 );
+        e->ecs->Link( ctx.entity, &mesh_comp, 1 );
 
         {
             ECSComponentID desc_comp_id;
             TOOLMeshDescComponent* desc_comp;
-            common::CreateComponentIfNotExists( &desc_comp_id, &desc_comp, e->_ecs, ctx.entity );
+            common::CreateComponentIfNotExists( &desc_comp_id, &desc_comp, e->ecs, ctx.entity );
         
             const uint32_t num_bones = mesh_file->num_bones;
             array::clear( desc_comp->bones_names );
@@ -313,8 +313,8 @@ void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx, const tool::mesh:
         {
             ECSComponentID skinning_id;
             TOOLSkinningComponent* skinning_comp = nullptr;
-            common::CreateComponentIfNotExists( &skinning_id, &skinning_comp, e->_ecs, ctx.entity );
-            InitializeSkinningComponent( skinning_id, e->_ecs );
+            common::CreateComponentIfNotExists( &skinning_id, &skinning_comp, e->ecs, ctx.entity );
+            InitializeSkinningComponent( skinning_id, e->ecs );
             skinning_comp->id_mesh = comp_data->id_mesh;
         }
 

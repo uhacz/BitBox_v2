@@ -75,7 +75,7 @@ struct RDIXSetPipelineCmd : RDIXCommand
     RDIXPipeline* pipeline = nullptr;
 	uint8_t bindResources = 0;
 
-    RDIXSetPipelineCmd( RDIXPipeline* p, uint8_t br )
+    RDIXSetPipelineCmd( RDIXPipeline* p, bool br )
         : pipeline( p ), bindResources( br ) {}
 };
 struct RDIXSetResourcesCmd : RDIXCommand
@@ -193,7 +193,7 @@ void* _AllocateCommand   ( RDIXCommandBuffer* cmdbuff, uint32_t cmdSize );
 void SubmitCommandBuffer ( RDICommandQueue* cmdq, RDIXCommandBuffer* cmdBuff );
 
 template< typename T, class ...CmdArgs >
-T* AllocateCommand( RDIXCommandBuffer* cmdbuff, uint32_t dataSize, RDIXCommand* parent_cmd, CmdArgs&&... cmdargs )
+T* AllocateCommandWithData( RDIXCommandBuffer* cmdbuff, uint32_t dataSize, RDIXCommand* parent_cmd, CmdArgs&&... cmdargs )
 {
 	uint32_t mem_size = sizeof( T ) + dataSize;
 	void* mem = _AllocateCommand( cmdbuff, mem_size );
@@ -213,7 +213,7 @@ T* AllocateCommand( RDIXCommandBuffer* cmdbuff, uint32_t dataSize, RDIXCommand* 
 template< typename T, class ...CmdArgs >
 inline T* AllocateCommand( RDIXCommandBuffer* cmdbuff, RDIXCommand* parent_cmd, CmdArgs&&... cmdargs )
 {
-	return AllocateCommand<T>( cmdbuff, 0, parent_cmd, std::forward<CmdArgs>( cmdargs )... );
+	return AllocateCommandWithData<T>( cmdbuff, 0, parent_cmd, std::forward<CmdArgs>( cmdargs )... );
 }
 
 // --- helper
@@ -240,7 +240,7 @@ struct RDIXCommandChain
     template< typename T, class ...CmdArgs >
     T* AppendCmdWithData( uint32_t data_size, CmdArgs&&... cmdargs )
     {
-        T* cmd = AllocateCommand<T>( _cmdbuff, data_size, _tail_cmd, std::forward<CmdArgs>( cmdargs )... );
+        T* cmd = AllocateCommandWithData<T>( _cmdbuff, data_size, _tail_cmd, std::forward<CmdArgs>( cmdargs )... );
         if( cmd )
         {
             _tail_cmd = cmd;

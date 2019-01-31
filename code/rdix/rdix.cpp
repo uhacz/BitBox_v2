@@ -963,12 +963,12 @@ RDIXCommand* UploadTransformBuffer( RDIXCommandBuffer* cmdbuff, RDIXCommand* par
 	const uint32_t data_size1 = buffer->num_elements * sizeof( rdix::Matrix );
 	const uint32_t data_size2 = buffer->num_elements * sizeof( rdix::MatrixIT );
 
-	RDIXUpdateBufferCmd* cmd1 = AllocateCommand<RDIXUpdateBufferCmd>( cmdbuff, data_size1, parentcmd );
+	RDIXUpdateBufferCmd* cmd1 = AllocateCommandWithData<RDIXUpdateBufferCmd>( cmdbuff, data_size1, parentcmd );
 	cmd1->resource = buffer->gpu_buffer_matrix;
 	cmd1->size = data_size1;
 	memcpy( cmd1->DataPtr(), buffer->MatrixData(), data_size1 );
 
-	RDIXUpdateBufferCmd* cmd2 = AllocateCommand<RDIXUpdateBufferCmd>( cmdbuff, data_size1, cmd1 );
+	RDIXUpdateBufferCmd* cmd2 = AllocateCommandWithData<RDIXUpdateBufferCmd>( cmdbuff, data_size1, cmd1 );
 	cmd2->resource = buffer->gpu_buffer_matrix_it;
 	cmd2->size = data_size2;
 	memcpy( cmd2->DataPtr(), buffer->MatrixITData(), data_size2 );

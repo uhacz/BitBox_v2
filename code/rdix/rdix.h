@@ -1,7 +1,7 @@
 #pragma once
 
 #include <foundation/type.h>
-#include <initializer_list>
+//#include <initializer_list>
 
 #include "rdix_type.h"
 #include <util/par_shapes/par_shapes.h>

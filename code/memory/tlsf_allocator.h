@@ -4,7 +4,7 @@
 #include "allocator.h"
 #include "tlsf.h"
 
-#include <foundation\thread\mutex.h>
+#include <mutex>
 
 struct MEMORY_PLUGIN_EXPORT TLSFAllocator : BXIAllocator
 {
@@ -20,5 +20,5 @@ struct MEMORY_PLUGIN_EXPORT TLSFAllocatorThreadSafe : BXIAllocator
     static void Destroy( TLSFAllocatorThreadSafe* allocator );
 
     tlsf_t _tlsf;
-    mutex_t _lock;
+    std::mutex _lock;
 };

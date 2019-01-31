@@ -127,6 +127,7 @@
     <ClCompile Include="math\math_common.cpp" />
     <ClCompile Include="serializer.cpp" />
     <ClCompile Include="tag.cpp" />
+    <ClCompile Include="thread\mutex.cpp" />
     <ClCompile Include="thread\rw_spin_lock.cpp" />
     <ClCompile Include="thread\semaphore.cpp" />
     <ClCompile Include="string_util.cpp" />

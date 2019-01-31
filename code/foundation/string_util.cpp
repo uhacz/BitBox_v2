@@ -189,7 +189,7 @@ namespace string
                 string::free_and_null( &s->_dynamic, s->_allocator );
             }
             s->_allocator = nullptr;
-            strcpy( s->_static, data );
+            strcpy_s( s->_static, data );
         }
     }
     void string::reserve( string_t* s, uint32_t length, BXIAllocator* allocator )

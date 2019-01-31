@@ -18,9 +18,9 @@ static constexpr ENTCComponent::TYPE COMP_TYPE_CUSTOM = ENTCComponent::RESERVED;
 
 struct ENTComponentStorage
 {
-    ENTIComponent*      impl[MAX_COMPONENTS] = {};
-    ENTComponentID      component_id[MAX_COMPONENTS] = {};
-    ENTEntityID         entity_id[MAX_COMPONENTS] = {};
+    ENTIComponent*      impl[MAX_COMPONENTS];
+    ENTComponentID      component_id[MAX_COMPONENTS];
+    ENTEntityID         entity_id[MAX_COMPONENTS];
 };
 
 static inline bool operator == ( const ENTComponentID& a, const ENTComponentID& b )

@@ -330,28 +330,28 @@ bool SnakeApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, 
     GFXSceneDesc desc;
     desc.max_renderables = 16 + 1;
     desc.name = "test scene";
-    g_idscene = _gfx->CreateScene( desc );
+    g_idscene = gfx->CreateScene( desc );
 
     {
-        CreateGroundMesh( &g_ground_mesh, _gfx, g_idscene, vec3_t( 100.f, 0.5f, 100.f ), mat44_t::translation( vec3_t( 0.f, -32.f, 0.f ) ) );
+        CreateGroundMesh( &g_ground_mesh, gfx, g_idscene, vec3_t( 100.f, 0.5f, 100.f ), mat44_t::translation( vec3_t( 0.f, -32.f, 0.f ) ) );
     }
 
     {// sky
-        BXFileWaitResult filewait = _filesystem->LoadFileSync( _filesystem, "texture/sky_cubemap.dds", BXEFIleMode::BIN, allocator );
+        BXFileWaitResult filewait = filesystem->LoadFileSync( filesystem, "texture/sky_cubemap.dds", BXEFIleMode::BIN, allocator );
         if( filewait.file.pointer )
         {
-            if( _gfx->SetSkyTextureDDS( g_idscene, filewait.file.pointer, filewait.file.size ) )
+            if( gfx->SetSkyTextureDDS( g_idscene, filewait.file.pointer, filewait.file.size ) )
             {
-                _gfx->EnableSky( g_idscene, true );
+                gfx->EnableSky( g_idscene, true );
             }
         }
-        _filesystem->CloseFile( &filewait.handle );
+        filesystem->CloseFile( &filewait.handle );
 
     }
 
     GFXCameraParams camera_params = {};
     camera_params.zfar = 1024;
-    g_idcamera = _gfx->CreateCamera( "main", camera_params, mat44_t( mat33_t::identity(), vec3_t( 0.f, 16.f, 64.f ) ) );
+    g_idcamera = gfx->CreateCamera( "main", camera_params, mat44_t( mat33_t::identity(), vec3_t( 0.f, 16.f, 64.f ) ) );
     
     SnakeInit( &g_snake, vec3_t( 0.f ), vec3_t( 0.f ) );
 
@@ -360,9 +360,9 @@ bool SnakeApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, 
 
 void SnakeApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    _gfx->DestroyCamera( g_idcamera );
-    _gfx->DestroyScene( g_idscene );
-    DestroyGroundMesh( &g_ground_mesh, _gfx );
+    gfx->DestroyCamera( g_idcamera );
+    gfx->DestroyScene( g_idscene );
+    DestroyGroundMesh( &g_ground_mesh, gfx );
     CMNEngine::Shutdown( (CMNEngine*)this, allocator );
 }
 
@@ -392,11 +392,11 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
             sensitivity_in_pix,
             delta_time_sec );
     }
-    const GFXCameraMatrices& current_camera_matrices = _gfx->CameraMatrices( g_idcamera );
+    const GFXCameraMatrices& current_camera_matrices = gfx->CameraMatrices( g_idcamera );
 
     const mat44_t new_camera_world = SnakeComputeCamera( g_snake, g_camera_input_ctx, current_camera_matrices.world, g_camera_mode, delta_time_sec );
-    _gfx->SetCameraWorld( g_idcamera, new_camera_world );
-    _gfx->ComputeCamera( g_idcamera );
+    gfx->SetCameraWorld( g_idcamera, new_camera_world );
+    gfx->ComputeCamera( g_idcamera );
 
     {
         const vec3_t snake_input = SnakeCollectInput( win->input, new_camera_world.upper3x3() );
@@ -407,9 +407,9 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
     }
 
 
-    GFXFrameContext* frame_ctx = _gfx->BeginFrame( _rdicmdq );
+    GFXFrameContext* frame_ctx = gfx->BeginFrame( rdicmdq );
     
-    _gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_idcamera );
+    gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_idcamera );
 
     if( ImGui::Begin( "Frame info" ) )
     {
@@ -427,25 +427,25 @@ bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocat
     }
 
 
-    BindRenderTarget( _rdicmdq, _gfx->Framebuffer() );
-    ClearRenderTarget( _rdicmdq, _gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );
+    BindRenderTarget( rdicmdq, gfx->Framebuffer() );
+    ClearRenderTarget( rdicmdq, gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );
 
-    _gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
+    gfx->SubmitCommandBuffer( frame_ctx, g_idscene );
 
-    _gfx->PostProcess( frame_ctx, g_idcamera );
+    gfx->PostProcess( frame_ctx, g_idcamera );
 
     {
-        const GFXCameraMatrices& camera_matrices = _gfx->CameraMatrices( g_idcamera );
+        const GFXCameraMatrices& camera_matrices = gfx->CameraMatrices( g_idcamera );
         const mat44_t viewproj = camera_matrices.proj_api * camera_matrices.view;
 
-        BindRenderTarget( _rdicmdq, _gfx->Framebuffer(), { 1 }, true );
-        RDIXDebug::Flush( _rdicmdq, viewproj );
+        BindRenderTarget( rdicmdq, gfx->Framebuffer(), { 1 }, true );
+        RDIXDebug::Flush( rdicmdq, viewproj );
     }
-    _gfx->RasterizeFramebuffer( _rdicmdq, 1, g_idcamera );
+    gfx->RasterizeFramebuffer( rdicmdq, 1, g_idcamera );
 
     GUI::Draw();
 
-    _gfx->EndFrame( frame_ctx );
+    gfx->EndFrame( frame_ctx );
     return true;
 }
 

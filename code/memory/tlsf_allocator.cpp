@@ -35,13 +35,13 @@ void TLSFAllocator::Destroy( TLSFAllocator* allocator )
 static void* TLFSAllocWithLock( BXIAllocator* _this, size_t size, size_t align )
 {
     TLSFAllocatorThreadSafe* allocator = (TLSFAllocatorThreadSafe*)_this;
-    scope_lock_t<mutex_t> guard( allocator->_lock );
+    std::lock_guard<std::mutex> guard( allocator->_lock );
     return tlsf_memalign( allocator->_tlsf, align, size );
 }
 static void TLSFFreeWithLock( BXIAllocator* _this, void* ptr )
 {
     TLSFAllocatorThreadSafe* allocator = (TLSFAllocatorThreadSafe*)_this;
-    scope_lock_t<mutex_t> guard( allocator->_lock );
+    std::lock_guard<std::mutex> guard( allocator->_lock );
     tlsf_free( allocator->_tlsf, ptr );
 }
 

@@ -518,17 +518,20 @@ union RDIVertexBufferDesc
     RDIVertexBufferDesc& Normalized() { typeNorm = 1; return *this; }
     RDIVertexBufferDesc& CPURead()  { cpuAccess = RDIECpuAccess::READ; return *this; }
     RDIVertexBufferDesc& CPUWrite() { cpuAccess = RDIECpuAccess::WRITE; return *this; }
+    RDIVertexBufferDesc& GPURead()  { cpuAccess = RDIEGpuAccess::READ; return *this; }
+    RDIVertexBufferDesc& GPUWrite() { cpuAccess = RDIEGpuAccess::WRITE; return *this; }
 
     inline uint32_t ByteWidth() const { return RDIEType::stride[dataType] * numElements; }
 
     uint16_t hash = 0;
     struct
     {
-        uint16_t slot : 5;
+        uint16_t slot : 4;
         uint16_t dataType : 4;
         uint16_t typeNorm : 1;
-        uint16_t numElements : 4;
+        uint16_t numElements : 3;
         uint16_t cpuAccess : 2;
+        uint16_t gpuAccess : 2;
     };
 
 	static RDIVertexBufferDesc POS()  { return RDIVertexBufferDesc( RDIEVertexSlot::POSITION ).DataType( RDIEType::FLOAT, 3 ); }
@@ -613,7 +616,7 @@ struct RDIResourceRW : RDIResourceRO
 
 
 
-struct RDIVertexBuffer : RDIResource
+struct RDIVertexBuffer : RDIResourceRW
 {
 	RDIVertexBufferDesc desc = {};
 	uint32_t numElements = 0;

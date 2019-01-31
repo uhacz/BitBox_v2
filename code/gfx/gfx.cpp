@@ -194,7 +194,7 @@ namespace gfx_internal
         const uint32_t data_index = sc->MeshInstanceIndex( idscene, idinst );// id_allocator::dense_index( sc->mesh_idalloc[scene_index], idinst );
 
         {
-            std::lock_guard<mutex_t> lck( sc->mesh_lock[scene_index] );
+            scope_lock_t<mutex_t> lck( sc->mesh_lock[scene_index] );
             const auto remove_info = id_allocator::free( sc->mesh_idalloc[scene_index], idinst );
 
             SYS_ASSERT( remove_info.copy_data_to_index == data_index );
@@ -208,7 +208,7 @@ namespace gfx_internal
                 DestroyRenderSource( &rsource );
             }
 
-            DestroyRenderSource( &sc->mesh_data[scene_index]->skinning_rsource[data_index] );
+            DestroyRenderSource( &sc->mesh_data[scene_index]->skinning_data[data_index].rsource );
 
             container_soa::remove_packed( sc->mesh_data[scene_index], data_index );
         }
@@ -236,7 +236,7 @@ namespace gfx_internal
 
         {// mesh instances
             GFXSceneContainer& sc = gfx->_scene;
-            std::lock_guard<mutex_t> lock_guard( sc.mesh_to_remove_lock );
+            scope_lock_t<mutex_t> lock_guard( sc.mesh_to_remove_lock );
             while( !array::empty( sc.mesh_to_remove ) )
             {
                 GFXSceneContainer::DeadMeshInstanceID dead_id = array::back( sc.mesh_to_remove );
@@ -248,7 +248,7 @@ namespace gfx_internal
 
         {// -- scenes
             GFXSceneContainer& sc = gfx->_scene;
-            std::lock_guard<mutex_t> lock_guard( sc.to_remove_lock );
+            scope_lock_t<mutex_t> lock_guard( sc.to_remove_lock );
             while( !array::empty( sc.to_remove ) )
             {
                 id_t id = array::back( sc.to_remove );
@@ -269,7 +269,7 @@ namespace gfx_internal
                 id_allocator::destroy( &sc.mesh_idalloc[id.index] );
 
                 {
-                    std::lock_guard<mutex_t> lck( sc.lock );
+                    scope_lock_t<mutex_t> lck( sc.lock );
                     id_table::destroy( sc.idtable, id );
                 }
             }
@@ -279,7 +279,7 @@ namespace gfx_internal
             GFXMaterialContainer& mc = gfx->_material;
             BXIAllocator* allocator = gfx->_allocator;
 
-            std::lock_guard<mutex_t> lock_guard( mc.to_remove_lock );
+            scope_lock_t<mutex_t> lock_guard( mc.to_remove_lock );
             while ( !array::empty( mc.to_remove ) )
             {
                 id_t id = array::back( mc.to_remove );
@@ -295,7 +295,7 @@ namespace gfx_internal
                     RSM::Release( mc.textures[id.index].id[itex] );
 
                 {
-                    std::lock_guard<mutex_t> lck( mc.lock );
+                    scope_lock_t<mutex_t> lck( mc.lock );
                     id_table::destroy( mc.idtable, id );
                 }
             }
@@ -848,7 +848,7 @@ GFXSceneID GFX::CreateScene( const GFXSceneDesc& desc )
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, world_matrix );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, instance_data );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmesh_resource );
-    container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, skinning_rsource );
+    container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, skinning_data );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idmat );
     container_soa_add_stream( cnt_desc, GFXSceneContainer::MeshData, idinstance );
 
@@ -864,6 +864,7 @@ GFXSceneID GFX::CreateScene( const GFXSceneDesc& desc )
     sc.transform_buffer[scene_index] = transform_buffer;
     sc.mesh_data[scene_index] = mesh_data;
     sc.mesh_idalloc[scene_index] = mesh_idalloc;
+    sc.skinning_data[scene_index].Allocate( GFX_SKINNING_BUFFER_SIZE );
 
     return { idscene.hash };
 }
@@ -927,7 +928,9 @@ GFXMeshInstanceID GFX::AddMeshToScene( GFXSceneID idscene, const GFXMeshInstance
     if( desc.flags.skinning )
     {
         RDIXRenderSource* base_rsource = (RDIXRenderSource*)RSM::Get( desc.idmesh_resource );
-        data->skinning_rsource[data_index] = CloneForCPUSkinning( gfx->_rdidev, base_rsource );
+        GFXMeshSkinningData& skinning_data = data->skinning_data[data_index];
+        skinning_data.rsource = CloneForCPUSkinning( gfx->_rdidev, base_rsource );
+        skinning_data.pin_index = GFX_DEFAULT_SKINNING_PIN;
     }
     data->idmat          [data_index] = idmat;
     data->idinstance     [data_index] = idinst;
@@ -995,6 +998,41 @@ void GFX::SetWorldPose( GFXMeshInstanceID idmeshi, const mat44_t& pose )
 
 }
 
+blob_t GFX::AcquireSkinnigDataToWrite( GFXMeshInstanceID idmeshi, uint32_t size_in_bytes )
+{
+    const id_t idscene = DecodeSceneID( idmeshi );
+    const id_t idinst = DecodeMeshInstanceID( idmeshi );
+
+    GFXSceneContainer& sc = gfx->_scene;
+    
+    blob_t result;
+
+    const uint32_t queue_index = std::atomic_fetch_add( &sc.num_meshes_to_skin, 1 );
+    if( queue_index >= GFX_MAX_MESH_INSTANCES )
+    {
+        SYS_LOG_WARNING( "To much meshes to skin" );
+        return result;
+    }
+    
+    sc.mesh_to_skin[queue_index] = idmeshi;
+    
+    GFXSkinningData& sd = sc.skinning_data[idscene.index];
+    GFXSkinningData::Pin pin = sd.Allocate( size_in_bytes );
+
+    if( pin.address )
+    {
+        const uint32_t instance_index = sc.MeshInstanceIndex( idscene, idinst );
+        GFXMeshSkinningData& mesh_skinning_data = sc.mesh_data[idscene.index]->skinning_data[instance_index];
+        mesh_skinning_data.pin_index = pin.index;
+        mesh_skinning_data.num_elements = pin.num_elements;
+    }
+    
+    result.raw = pin.address;
+    result.size = size_in_bytes;
+
+    return result;
+}
+
 void GFX::EnableSky( GFXSceneID idscene, bool value )
 {
     GFXSceneContainer& sc = gfx->_scene;
@@ -1046,7 +1084,7 @@ const GFXSkyParams& GFX::SkyParams( GFXSceneID idscene ) const
 
 void GFX::DoSkinning( RDICommandQueue* cmdq, ECS* ecs )
 {
-    array_span_t<TOOLSkinningComponent*> components = Components<TOOLSkinningComponent>( ecs );
+    //array_span_t<TOOLSkinningComponent*> components = Components<TOOLSkinningComponent>( ecs );
     GFXSceneContainer& sc = gfx->_scene;
 
     union BlendIndices
@@ -1055,19 +1093,28 @@ void GFX::DoSkinning( RDICommandQueue* cmdq, ECS* ecs )
         uint8_t i[4];
     };
 
-    for( TOOLSkinningComponent* comp : components )
+    const uint32_t num_meshes = std::atomic_exchange( &sc.num_meshes_to_skin, 0 );
+    
+    for( uint32_t i = 0; i < num_meshes; ++i )
     {
-        const id_t idscene = DecodeSceneID( comp->id_mesh );
-        const id_t idinst = DecodeMeshInstanceID( comp->id_mesh );
+        const GFXMeshInstanceID id_mesh = sc.mesh_to_skin[i];
+        const id_t idscene = DecodeSceneID( id_mesh );
+        const id_t idinst = DecodeMeshInstanceID( id_mesh );
                 
         if( !sc.IsMeshAlive( idscene, idinst ) )
             continue;
 
-        const array_span_t<mat44_t> skinning_matrices = ToArraySpan( comp->skinning_matrices );
+        const uint32_t instance_index = sc.MeshInstanceIndex( idscene, idinst );
+        const GFXSkinningData& sd = sc.skinning_data[idscene.index];
+        const GFXMeshSkinningData& mesh_skinning = sc.mesh_data[idscene.index]->skinning_data[instance_index];
+        
+        const float4_t* data_begin = sd.cpu_buffer + mesh_skinning.pin_index;
+               
+        const array_span_t<mat44_t> skinning_matrices( (mat44_t*)data_begin, mesh_skinning.num_elements / 4 );
 
         const RSMResourceID base_id = sc.mesh_data[idscene.index]->idmesh_resource[idinst.index];
         const RDIXRenderSource* base = (RDIXRenderSource*)RSM::Get( base_id );
-        const RDIXRenderSource* skinned = sc.mesh_data[idscene.index]->skinning_rsource[idinst.index];
+        const RDIXRenderSource* skinned = sc.mesh_data[idscene.index]->skinning_data[idinst.index].rsource;
 
         const RDIVertexBuffer vb_blendweights      = FindVertexBuffer( base, RDIEVertexSlot::BLENDWEIGHT );
         const RDIVertexBuffer vb_blendindices      = FindVertexBuffer( base, RDIEVertexSlot::BLENDINDICES );
@@ -1249,7 +1296,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, GFXC
 
     const uint32_t num_meshes = container_soa::size( sc.mesh_data[scene_index] );
     const array_span_t<RSMResourceID> idmesh_array( sc.mesh_data[scene_index]->idmesh_resource, num_meshes );
-    const array_span_t<RDIXRenderSource*> skinned_mesh_array( sc.mesh_data[scene_index]->skinning_rsource, num_meshes );
+    const array_span_t<GFXMeshSkinningData> skinned_mesh_array( sc.mesh_data[scene_index]->skinning_data, num_meshes );
     const array_span_t<GFXMaterialID> idmat_array( sc.mesh_data[scene_index]->idmat, num_meshes );
     const array_span_t<mat44_t> matrix_array( sc.mesh_data[scene_index]->world_matrix, num_meshes );
     
@@ -1315,7 +1362,7 @@ void GFX::GenerateCommandBuffer( GFXFrameContext* fctx, GFXSceneID idscene, GFXC
         
         if( RDIXDrawRenderSourceCmd* draw_cmd = chain.AppendCmd<RDIXDrawRenderSourceCmd>() )
         {
-            RDIXRenderSource* rsource = skinned_mesh_array[i];
+            RDIXRenderSource* rsource = skinned_mesh_array[i].rsource;
             if( !rsource )
             {
                 rsource = (RDIXRenderSource*)RSM::Get( idmesh_array[i] );

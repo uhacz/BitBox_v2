@@ -55,3 +55,11 @@ void BXCheckFloat( float x )
     (void)x;
 #endif
 }
+
+extern void BXLog( const char* fmt, ... )
+{
+    va_list args;
+    va_start( args, fmt );
+    vprintf_s( fmt, args );
+    va_end( args );
+}

@@ -27,6 +27,7 @@ void GUI::StartUp( BXIWindow* window_plugin, RDIDevice* rdidev )
         GetAPIDevice( rdidev, &apiDev, &apiCtx );
 
         bool bres = ImGui_ImplDX11_Init( hwnd, apiDev, apiCtx );
+
         SYS_ASSERT( bres );
     }
 

@@ -30,16 +30,16 @@ bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins,
 {
     CMNEngine::Startup( this, argc, argv, plugins, allocator );
 
-    RegisterComponent<CMPMesh>( _ecs, "Mesh" );
-    RegisterComponent<CMPWorldXForm>( _ecs, "WorldXForm" );
+    RegisterComponent<CMPMesh>( ecs, "Mesh" );
+    RegisterComponent<CMPWorldXForm>( ecs, "WorldXForm" );
     
-    ECSComponentID meshid = CreateComponent<CMPMesh>( _ecs ).id;
-    ECSComponentID xformid = CreateComponent<CMPWorldXForm>( _ecs ).id;
+    ECSComponentID meshid = CreateComponent<CMPMesh>( ecs ).id;
+    ECSComponentID xformid = CreateComponent<CMPWorldXForm>( ecs ).id;
 
-    CMPWorldXForm* xform_data = Component<CMPWorldXForm>( _ecs, xformid );
+    CMPWorldXForm* xform_data = Component<CMPWorldXForm>( ecs, xformid );
     xform_data->data = xform_t::identity();
 
-    array_span_t<CMPWorldXForm*> xforms = Components<CMPWorldXForm>( _ecs );
+    array_span_t<CMPWorldXForm*> xforms = Components<CMPWorldXForm>( ecs );
 
     
     constexpr uint32_t N = 10;
@@ -51,17 +51,17 @@ bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins,
         char buff[64];
         snprintf( buff, 64, "%c", 65 + i );
 
-        ECSComponentID id = CreateComponent<CMPName>( _ecs ).id;
-        CMPName* comp = Component<CMPName>( _ecs, id );
+        ECSComponentID id = CreateComponent<CMPName>( ecs ).id;
+        CMPName* comp = Component<CMPName>( ecs, id );
         string::create( &comp->value, buff, allocator );
 
         ids[i] = id;
     }
 
-    ECSComponentID id_D = CMPName::FindComponent( _ecs, "D" );
-    const CMPName* name_comp = Component<CMPName>( _ecs, id_D );
+    ECSComponentID id_D = CMPName::FindComponent( ecs, "D" );
+    const CMPName* name_comp = Component<CMPName>( ecs, id_D );
 
-    _ecs->MarkForDestroy( ids[4] );
+    ecs->MarkForDestroy( ids[4] );
 
 	return true;
 }

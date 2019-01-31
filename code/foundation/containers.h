@@ -88,8 +88,8 @@ struct array_span_t
 
     explicit array_span_t( T* b, T* e )
         : _begin( b ), _size( (uint32_t)(ptrdiff_t)(e - b) )
-    {}
 
+    {}
     explicit array_span_t( const array_t<T>& arr )
         : _begin( arr.begin() ), _size( arr.size )
     {}
@@ -124,20 +124,28 @@ private:
 };
 
 template< typename T >
-inline array_span_t<T> ToArraySpan( const Blob& blob )
+inline array_span_t<T> to_array_span( const Blob& blob )
 {
     SYS_ASSERT( (blob.size % sizeof( T )) == 0 );
     return array_span_t<T>( (T*)blob.data, (T*)( blob.data + blob.size ) );
 }
 
 template< typename T >
-inline array_span_t<T> ToArraySpan( array_t<T>& arr ) { return array_span_t<T>( arr.begin(), arr.end() ); }
+inline array_span_t<T> to_array_span( array_t<T>& arr ) { return array_span_t<T>( arr.begin(), arr.end() ); }
 
 template< typename T >
-inline array_span_t<const T> ToArraySpan( const array_t<T>& arr ) { return array_span_t<const T>( arr.begin(), arr.end() ); }
+inline array_span_t<const T> to_array_span( const array_t<T>& arr ) { return array_span_t<const T>( arr.begin(), arr.end() ); }
 
 template< typename T >
-inline array_span_t<const T> ToArraySpan( const T* begin, uint32_t size ) { return array_span_t<const T>( begin, size ); }
+inline array_span_t<const T> to_array_span( const T* begin, uint32_t size ) { return array_span_t<const T>( begin, size ); }
+
+template< typename T, typename TBlob >
+inline array_span_t<T> to_array_span( const TBlob& blob, uint32_t num_elements )
+{
+    SYS_ASSERT( blob.size >= num_elements * sizeof( T ) );
+    return array_span_t<T>( (T*)blob.raw, num_elements );
+}
+
 
 template< typename T >
 struct queue_t
@@ -304,4 +312,23 @@ struct bitset_t
     static constexpr uint32_t MOD_MASK = ELEMENT_BITS - 1;
     
     type_t bits[NUM_ELEMENTS] = {};
+};
+
+
+// TODO
+struct ring_t
+{
+    struct range_t
+    {
+        uint64_t begin;
+        uint64_t end;
+    };
+
+    ring_t( uint64_t size )
+        : end( size )
+    {}
+
+    uint64_t head = 0;
+    uint64_t tail = 0;
+    uint64_t end = 0;
 };

@@ -45,28 +45,28 @@ bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegi
     ECS* ecs = ECS::StartUp( allocator );
     RegisterCommonComponents( ecs );
 
-    e->_filesystem = filesystem;
-    e->_rdidev = rdidev;
-    e->_rdicmdq = rdicmdq;
+    e->filesystem = filesystem;
+    e->rdidev = rdidev;
+    e->rdicmdq = rdicmdq;
 
-    e->_gfx = gfx;
-    e->_ecs = ecs;
+    e->gfx = gfx;
+    e->ecs = ecs;
 
     return true;
 }
 
 void CMNEngine::Shutdown( CMNEngine* e, BXIAllocator* allocator )
 {
-    ECS::ShutDown( &e->_ecs );
-    GFX::ShutDown( &e->_gfx );
-    RDIXDebug::ShutDown( e->_rdidev );
+    ECS::ShutDown( &e->ecs );
+    GFX::ShutDown( &e->gfx );
+    RDIXDebug::ShutDown( e->rdidev );
     GUI::ShutDown();
     
     RSM::ShutDown();
-    ::Shutdown( &e->_rdidev, &e->_rdicmdq, allocator );
+    ::Shutdown( &e->rdidev, &e->rdicmdq, allocator );
 
-    e->_filesystem = nullptr;
-    e->_rdidev = nullptr;
-    e->_rdicmdq = nullptr;
-    e->_gfx = nullptr;
+    e->filesystem = nullptr;
+    e->rdidev = nullptr;
+    e->rdicmdq = nullptr;
+    e->gfx = nullptr;
 }

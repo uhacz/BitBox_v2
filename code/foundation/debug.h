@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdio.h>
-
 #define LOGGER_ENABLED 1
 #define ASSERTION_ENABLED 1
 
@@ -12,15 +10,18 @@ extern "C" {
 extern void BXDebugAssert( int expression, const char *format, ... );
 extern void BXDebugHalt( char *str );
 extern void BXCheckFloat( float x ); 
+
+extern void BXLog( const char* fmt, ... );
+
 #ifdef __cplusplus
 }
 #endif
 
 #ifdef LOGGER_ENABLED
 
-#define SYS_LOG_INFO( ... ) printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - \n", __FILE__, __LINE__ )
-#define SYS_LOG_WARNING( ... ) printf_s( "WARNING: " ); printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - \n", __FILE__, __LINE__ )
-#define SYS_LOG_ERROR( ... ) printf_s( "ERROR: " ); printf_s( __VA_ARGS__ ); printf_s( " : at %s:%d - \n", __FILE__, __LINE__ )
+#define SYS_LOG_INFO( ... ) BXLog( __VA_ARGS__ ); BXLog( " : at %s:%d - \n", __FILE__, __LINE__ )
+#define SYS_LOG_WARNING( ... ) BXLog( "WARNING: " ); BXLog( __VA_ARGS__ ); BXLog( " : at %s:%d - \n", __FILE__, __LINE__ )
+#define SYS_LOG_ERROR( ... ) BXLog( "ERROR: " ); BXLog( __VA_ARGS__ ); BXLog( " : at %s:%d - \n", __FILE__, __LINE__ )
 
 #else
 

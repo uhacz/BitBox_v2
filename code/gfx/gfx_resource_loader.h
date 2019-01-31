@@ -1,7 +1,6 @@
 #pragma once
 
 #include <resource_manager/resource_loader.h>
-#include <rtti/rtti.h>
 
 //
 // mesh
