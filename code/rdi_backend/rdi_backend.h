@@ -89,6 +89,7 @@ void DrawIndexed         ( RDICommandQueue* cmdq, unsigned numIndices, unsigned 
 void DrawInstanced       ( RDICommandQueue* cmdq, unsigned numVertices, unsigned startIndex, unsigned numInstances );
 void DrawIndexedInstanced( RDICommandQueue* cmdq, unsigned numIndices, unsigned startIndex, unsigned numInstances, unsigned baseVertex );
 
+void Dispatch            ( RDICommandQueue* cmdq, unsigned numGroupsX, unsigned numGroupsY, unsigned numGroupsZ );
 
 void ClearState       ( RDICommandQueue* cmdq );
 void ClearBuffers     ( RDICommandQueue* cmdq, RDITextureRW* colorTex, unsigned nColor, RDITextureDepth depthTex, const float rgbad[5], int flag_color, int flag_depth );

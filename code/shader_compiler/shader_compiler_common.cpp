@@ -280,10 +280,11 @@ static void ExtractPasses( std::vector<ConfigPass>* out_passes, const pugi::xml_
 			}
 		}
 
-		const char* versions[RDIEPipeline::DRAW_STAGES_COUNT] =
+		const char* versions[RDIEPipeline::COUNT] =
 		{
 			"vs_5_0",
 			"ps_5_0",
+            "cs_5_0",
 		};
 		if( const pugi::xml_attribute& attr = pass_node.attribute( "vertex_ver" ) )
 			versions[RDIEPipeline::VERTEX] = attr.as_string();
@@ -291,14 +292,18 @@ static void ExtractPasses( std::vector<ConfigPass>* out_passes, const pugi::xml_
 		if( const pugi::xml_attribute& attr = pass_node.attribute( "pixel_ver" ) )
 			versions[RDIEPipeline::PIXEL] = attr.as_string();
 		
+        if( const pugi::xml_attribute& attr = pass_node.attribute( "compute_ver" ) )
+            versions[RDIEPipeline::COMPUTE] = attr.as_string();
 
-		const char* entry_points[RDIEPipeline::DRAW_STAGES_COUNT] =
+		const char* entry_points[RDIEPipeline::COUNT] =
 		{
 			nullptr,
 			nullptr,
+            nullptr,
 		};
 		entry_points[RDIEPipeline::VERTEX] = pass_node.attribute( "vertex" ).as_string();
 		entry_points[RDIEPipeline::PIXEL]  = pass_node.attribute( "pixel" ).as_string();
+        entry_points[RDIEPipeline::COMPUTE] = pass_node.attribute( "compute" ).as_string();
 
 		out_passes->push_back( ConfigPass() );
 		ConfigPass& p = out_passes->back();
@@ -318,7 +323,7 @@ static void ExtractPasses( std::vector<ConfigPass>* out_passes, const pugi::xml_
 		SYS_STATIC_ASSERT( sizeof( p.defs ) == sizeof( defs ) );
 		memcpy( p.defs, defs, sizeof( p.defs ) );
 
-		for( int i = 0; i < RDIEPipeline::DRAW_STAGES_COUNT; ++i )
+		for( int i = 0; i < RDIEPipeline::COUNT; ++i )
 		{
 			p.entry_points[i] = entry_points[i];
 			p.versions[i] = versions[i];
@@ -366,7 +371,7 @@ void Release( CompiledShader* fx_binary, BXIAllocator* allocator )
 {
     for( int ipass = 0; ipass < (int)fx_binary->passes.size(); ++ipass )
     {
-        for( int j = 0; j < RDIEPipeline::DRAW_STAGES_COUNT; ++j )
+        for( int j = 0; j < RDIEPipeline::COUNT; ++j )
         {
             Release( &fx_binary->passes[ipass].bytecode[j] );
             Release( &fx_binary->passes[ipass].disassembly[j] );
@@ -406,7 +411,7 @@ DataBlob CreateShaderBlob( const CompiledShader& compiled, BXIAllocator* allocat
     for( uint32_t ipass = 0; ipass < num_passes; ++ipass )
     {
         const BinaryPass& binPass = compiled.passes[ipass];
-        for( uint32_t istage = 0; istage < RDIEPipeline::DRAW_STAGES_COUNT; ++istage )
+        for( uint32_t istage = 0; istage < RDIEPipeline::COUNT; ++istage )
         {
             bytecode_size += (uint32_t)binPass.bytecode[istage].size;
         }
@@ -438,19 +443,16 @@ DataBlob CreateShaderBlob( const CompiledShader& compiled, BXIAllocator* allocat
         file_pass.size_resource_descriptor = bin_pass.rdesc_mem_size;
         data_current += bin_pass.rdesc_mem_size;
 
+        for( uint32_t istage = 0; istage < RDIEPipeline::COUNT; ++istage )
         {
-            const DataBlob blob = bin_pass.bytecode[RDIEPipeline::VERTEX];
-            memcpy( data_current, blob.ptr, blob.size );
-            file_pass.offset_bytecode_vertex = TYPE_POINTER_GET_OFFSET( &file_pass.offset_bytecode_vertex, data_current );
-            file_pass.size_bytecode_vertex = (uint32_t)blob.size;
-            data_current += blob.size;
-        }
-        {
-            const DataBlob blob = bin_pass.bytecode[RDIEPipeline::PIXEL];
-            memcpy( data_current, blob.ptr, blob.size );
-            file_pass.offset_bytecode_pixel = TYPE_POINTER_GET_OFFSET( &file_pass.offset_bytecode_pixel, data_current );
-            file_pass.size_bytecode_pixel = (uint32_t)blob.size;
-            data_current += blob.size;
+            const DataBlob blob = bin_pass.bytecode[istage];
+            if( blob.ptr )
+            {
+                memcpy( data_current, blob.ptr, blob.size );
+                file_pass.offset_bytecode[istage] = TYPE_POINTER_GET_OFFSET( &file_pass.offset_bytecode[istage], data_current );
+                file_pass.size_bytecode[istage] = (uint32_t)blob.size;
+                data_current += blob.size;
+            }
         }
     }
 

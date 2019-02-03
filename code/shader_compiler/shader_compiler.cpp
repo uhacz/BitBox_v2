@@ -34,8 +34,11 @@ int ShaderCompilerCompile( const char* inputFile, const char* outputDir, BXIAllo
 
             for( const BinaryPass& bpass : compiled_shader.passes )
             {
-                for( uint32_t i = 0; i < RDIEPipeline::DRAW_STAGES_COUNT; ++i )
+                for( uint32_t i = 0; i < RDIEPipeline::COUNT; ++i )
                 {
+                    if( !bpass.disassembly[i].ptr )
+                        continue;
+
                     const char* stageName = RDIEPipeline::name[i];
                     writer.WtiteAssembly( bpass.name.c_str(), stageName, bpass.disassembly[i].ptr, bpass.disassembly[i].size );
                 }

@@ -89,11 +89,12 @@ HRESULT __stdcall dx11ShaderInclude::Close( LPCVOID pData )
 //////////////////////////////////////////////////////////////////////////
 ID3DBlob* dx11Compiler::_CompileShader( int stage, const char* shader_source, const char* entry_point, const char** shader_macro )
 {
-    SYS_ASSERT( stage < RDIEPipeline::DRAW_STAGES_COUNT );
-    const char* shader_model[RDIEPipeline::DRAW_STAGES_COUNT] =
+    SYS_ASSERT( stage < RDIEPipeline::COUNT );
+    const char* shader_model[RDIEPipeline::COUNT] =
     {
         "vs_5_0",
         "ps_5_0",
+        "cs_5_0",
     };
 
     D3D_SHADER_MACRO* ptr_macro_defs = 0;
@@ -189,9 +190,9 @@ int dx11Compiler::Compile( CompiledShader* fx_bin, const SourceShader& fx_src, c
         print_info( "\tcompiling pass: %s ... \n", pass.name );
 
         BinaryPass bin_pass;
-        for( int j = 0; j < RDIEPipeline::DRAW_STAGES_COUNT; ++j )
+        for( int j = 0; j < RDIEPipeline::COUNT; ++j )
         {
-            if( !pass.entry_points[j] )
+            if( !pass.entry_points[j] || (string::length( pass.entry_points[j] ) == 0) )
                 continue;
 
             ID3DBlob* code_blob = _CompileShader( j, source, pass.entry_points[j], (const char**)pass.defs );

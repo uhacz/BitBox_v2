@@ -31,7 +31,7 @@ RDIXShaderFile* LoadShaderFile( const char* name, BXIFilesystem* filesystem, BXI
 RDIXShaderFile* CreateShaderFile( const void * data, uint32_t dataSize )
 {
 	RDIXShaderFile* sfile = (RDIXShaderFile*)data;
-	if( sfile->tag != tag32_t( "SF01" ) )
+	if( sfile->tag != RDIXShaderFile::TAG )
 	{
 		SYS_LOG_ERROR( "ShaderFile: wrong file tag!" );
 		return nullptr;
@@ -87,17 +87,29 @@ RDIXPipeline* CreatePipeline( RDIDevice* dev, const RDIXPipelineDesc& desc, BXIA
 
 	const RDIXShaderFile::Pass& pass = desc.shader_file->passes[pass_index];
 	RDIShaderPassCreateInfo pass_create_info = {};
-	pass_create_info.vertex_bytecode = TYPE_OFFSET_GET_POINTER( void, desc.shader_file->passes[pass_index].offset_bytecode_vertex );
-	pass_create_info.vertex_bytecode_size = pass.size_bytecode_vertex;
-	pass_create_info.pixel_bytecode = TYPE_OFFSET_GET_POINTER( void, desc.shader_file->passes[pass_index].offset_bytecode_pixel );
-	pass_create_info.pixel_bytecode_size = pass.size_bytecode_pixel;
+    for( uint32_t istage = 0; istage < RDIEPipeline::COUNT; ++istage )
+    {
+        pass_create_info.bytecode[istage] = TYPE_OFFSET_GET_POINTER( void, desc.shader_file->passes[pass_index].offset_bytecode[istage] );
+        pass_create_info.bytecode_size[istage] = pass.size_bytecode[istage];
+    }
+ //   pass_create_info.vertex_bytecode = TYPE_OFFSET_GET_POINTER( void, desc.shader_file->passes[pass_index].offset_bytecode[RDIEPipeline::VERTEX] );
+	//pass_create_info.vertex_bytecode_size = pass.size_bytecode[RDIEPipeline::VERTEX];
+	//pass_create_info.pixel_bytecode = TYPE_OFFSET_GET_POINTER( void, desc.shader_file->passes[pass_index].offset_bytecode[RDIEPipeline::PIXEL] );
+	//pass_create_info.pixel_bytecode_size = pass.size_bytecode[RDIEPipeline::PIXEL];
 	pass_create_info.reflection = nullptr;
 	impl->pass = CreateShaderPass( dev, pass_create_info );
 	impl->pass.vertex_input_mask = pass.vertex_layout.InputMask();
 
-	impl->input_layout = CreateInputLayout( dev, pass.vertex_layout, impl->pass );
-	const RDIHardwareStateDesc* hw_state_desc = (desc.hw_state_desc_override) ? desc.hw_state_desc_override : &pass.hw_state_desc;
-	impl->hardware_state = CreateHardwareState( dev, *hw_state_desc );
+    if( impl->pass.vertex_input_mask )
+    {
+        impl->input_layout = CreateInputLayout( dev, pass.vertex_layout, impl->pass );
+    }
+    
+    if( impl->pass.vertex || impl->pass.pixel )
+    {
+        const RDIHardwareStateDesc* hw_state_desc = (desc.hw_state_desc_override) ? desc.hw_state_desc_override : &pass.hw_state_desc;
+        impl->hardware_state = CreateHardwareState( dev, *hw_state_desc );
+    }
 
 	if( pass.offset_resource_descriptor )
 	{
@@ -646,7 +658,7 @@ RDIXRenderSource* CreateRenderSource( RDIDevice* dev, const RDIXRenderSourceDesc
 	return impl;
 }
 
-RDIXRenderSource* CloneForCPUSkinning( RDIDevice* dev, const RDIXRenderSource* base, uint32_t skinned_slot_mask )
+static RDIXRenderSource* CloneForSkinning( RDIDevice* dev, const RDIXRenderSource* base, uint32_t skinned_slot_mask, bool gpu_mode )
 {
     constexpr uint32_t ignore_slot_mask = BIT_OFFSET( RDIEVertexSlot::BLENDINDICES ) | BIT_OFFSET( RDIEVertexSlot::BLENDWEIGHT );
 
@@ -677,7 +689,15 @@ RDIXRenderSource* CloneForCPUSkinning( RDIDevice* dev, const RDIXRenderSource* b
         const uint32_t current_slot_mask = BIT_OFFSET( desc.slot );
         if( current_slot_mask & skinned_slot_mask )
         {
-            desc.CPUWrite();
+            if( gpu_mode )
+            {
+                desc.GPUWrite();
+            }
+            else
+            {
+                desc.CPUWrite();
+            }
+
             impl->vertex_buffers[i] = CreateVertexBuffer( dev, desc, vbuffer.numElements, nullptr );
             impl->managed_buffers_mask |= BIT_OFFSET( i );
         }
@@ -696,6 +716,16 @@ RDIXRenderSource* CloneForCPUSkinning( RDIDevice* dev, const RDIXRenderSource* b
     impl->allocator = allocator;
 
     return impl;
+}
+
+RDIXRenderSource* CloneForCPUSkinning( RDIDevice* dev, const RDIXRenderSource* base, uint32_t skinned_slot_mask )
+{
+    return CloneForSkinning( dev, base, skinned_slot_mask, false );
+}
+
+RDIXRenderSource* CloneForGPUSkinning( RDIDevice* dev, const RDIXRenderSource* base, uint32_t skinned_slot_mask /*= RDIEVertexSlot::SkinningMaskPosNrm() */ )
+{
+    return CloneForSkinning( dev, base, skinned_slot_mask, true );
 }
 
 RDIXRenderSource * CreateRenderSourceFromShape( RDIDevice* dev, const par_shapes_mesh* shape, BXIAllocator* allocator )

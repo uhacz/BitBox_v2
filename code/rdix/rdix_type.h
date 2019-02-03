@@ -8,22 +8,22 @@
 // --- 
 struct RDIXShaderFile
 {
+    static constexpr uint32_t TAG = BX_UTIL_TAG32( 'S','H','D','F' );
 	static constexpr uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
 
 	struct Pass
 	{
-		uint32_t hashed_name                     = 0;
-		RDIHardwareStateDesc hw_state_desc = {};
-		RDIVertexLayout vertex_layout      = {};
-		uint32_t offset_bytecode_pixel           = 0;
-		uint32_t offset_bytecode_vertex          = 0;
-		uint32_t offset_resource_descriptor      = 0;
-		uint32_t size_bytecode_pixel             = 0;
-		uint32_t size_bytecode_vertex            = 0;
-		uint32_t size_resource_descriptor        = 0;
+		uint32_t hashed_name                = 0;
+		RDIHardwareStateDesc hw_state_desc  = {};
+		RDIVertexLayout vertex_layout       = {};
+        uint32_t offset_resource_descriptor = 0;
+        uint32_t size_resource_descriptor   = 0;
+        uint32_t offset_bytecode[RDIEPipeline::COUNT] = {};
+        uint32_t size_bytecode  [RDIEPipeline::COUNT] = {};
+		
 	};
 
-	uint32_t tag        = tag32_t( "SF01" );
+    uint32_t tag        = TAG;
 	uint32_t version    = VERSION;
 	uint32_t num_passes = 0;
 	Pass passes[1];

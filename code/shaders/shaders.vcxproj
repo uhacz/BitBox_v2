@@ -94,6 +94,7 @@
   <ItemGroup>
     <ClInclude Include="hlsl\material_data.h" />
     <ClInclude Include="hlsl\shadow_data.h" />
+    <ClInclude Include="hlsl\skinning.h" />
     <ClInclude Include="hlsl\transform_instance_data.h" />
   </ItemGroup>
   <ItemGroup>
@@ -111,6 +112,11 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="hlsl\shadow.hlsl">
+      <FileType>Document</FileType>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="hlsl\skinning.hlsl">
       <FileType>Document</FileType>
     </CustomBuild>
   </ItemGroup>

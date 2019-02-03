@@ -65,7 +65,8 @@ struct GFX
     const GFXSkyParams& SkyParams( GFXSceneID idscene ) const;
 
     // --- pre frame
-    void DoSkinning( RDICommandQueue* cmdq, ECS* ecs );
+    void DoSkinningCPU( RDICommandQueue* cmdq );
+    void DoSkinningGPU( RDICommandQueue* cmdq );
     // ---
 
     // --- frame

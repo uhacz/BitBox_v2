@@ -282,7 +282,7 @@ void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx, const tool::mesh:
         {
             desc.idmaterial = e->gfx->FindMaterial( "editable" );
         }
-        desc.flags.skinning = mesh_file->num_bones > 0;
+        desc.flags.gpu_skinning = mesh_file->num_bones > 0;
         comp_data->Initialize( e->gfx, ctx.gfx_scene, desc, mat44_t::identity() );
 
         helper::UnloadComponent( e, _id_mesh_comp );

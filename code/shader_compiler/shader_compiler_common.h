@@ -36,8 +36,8 @@ namespace tool{
             const char* def = nullptr;
         };
         const char* name = nullptr;
-        const char* entry_points[RDIEPipeline::DRAW_STAGES_COUNT] = {};
-        const char* versions[RDIEPipeline::DRAW_STAGES_COUNT] = {};
+        const char* entry_points[RDIEPipeline::COUNT] = {};
+        const char* versions[RDIEPipeline::COUNT] = {};
 
         RDIHardwareStateDesc hwstate = {};
         MacroDefine defs[cRDI_MAX_SHADER_MACRO + 1] = {};
@@ -58,8 +58,8 @@ namespace tool{
         RDIXResourceBinding* rdesc = nullptr;
         uint32_t rdesc_mem_size = 0;
         
-        DataBlob bytecode[RDIEPipeline::DRAW_STAGES_COUNT] = {};
-        DataBlob disassembly[RDIEPipeline::DRAW_STAGES_COUNT] = {};
+        DataBlob bytecode[RDIEPipeline::COUNT] = {};
+        DataBlob disassembly[RDIEPipeline::COUNT] = {};
 
         RDIShaderReflection reflection = {};
     };

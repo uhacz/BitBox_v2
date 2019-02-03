@@ -56,13 +56,15 @@ struct GFXMeshInstanceDesc
 
     union
     {
-        uint32_t all;
+        uint32_t all = 0;
         struct  
         {
-            uint32_t skinning : 1;
+            uint32_t cpu_skinning : 1;
+            uint32_t gpu_skinning : 1;
         };
     } flags;
 
     void AddRenderSource( const RDIXRenderSource* rsource );
+    void ForceCPUskinning();
 };
 

@@ -277,7 +277,7 @@ void Dx11FetchShaderReflection( RDIShaderReflection* out, const void* code_blob,
                 tdesc.is_cubemap = 1;
                 break;
             default:
-                SYS_ASSERT( false && "not implemented" );
+                tdesc.dimm = 1;
                 break;
             }
         }
@@ -374,19 +374,20 @@ RDIVertexBuffer CreateVertexBuffer( RDIDevice* dev, const RDIVertexBufferDesc& d
             bdesc.Usage = D3D11_USAGE_DEFAULT;
             bdesc.BindFlags |= D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
         }
-        bdesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
     }
     else
     {
         if( !desc.cpuAccess )
         {
             bdesc.Usage = D3D11_USAGE_IMMUTABLE;
+            bdesc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
         }
         else
         {
             if( desc.cpuAccess == RDIECpuAccess::WRITE )
             {
                 bdesc.Usage = D3D11_USAGE_DYNAMIC;
+                bdesc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
             }
             else
             {
@@ -394,6 +395,11 @@ RDIVertexBuffer CreateVertexBuffer( RDIDevice* dev, const RDIVertexBufferDesc& d
                 bdesc.Usage = D3D11_USAGE_STAGING;
             }
         }
+    }
+
+    if( bdesc.BindFlags & D3D11_BIND_SHADER_RESOURCE )
+    {
+        bdesc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
     }
 
     bdesc.CPUAccessFlags = to_D3D11_CPU_ACCESS_FLAG( desc.cpuAccess );;
@@ -603,35 +609,65 @@ RDIBufferRO CreateStructuredBufferRO( RDIDevice* dev, uint32_t numElements, uint
     return b;
 }
 
+namespace
+{
+    static void CreateVertexShader( RDIShaderPass* pass, RDIShaderReflection* reflection, RDIDevice* dev, const void* bytecode, size_t bytecode_size )
+    {
+        if( !bytecode || !bytecode_size )
+            return;
+
+        HRESULT hres;
+        hres = dev->dx11()->CreateVertexShader( bytecode, bytecode_size, nullptr, &pass->vertex );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+
+        ID3DBlob* blob = nullptr;
+        hres = D3DGetInputSignatureBlob( bytecode, bytecode_size, &blob );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+        pass->input_signature = (void*)blob;
+        if( reflection )
+        {
+            Dx11FetchShaderReflection( reflection, bytecode, bytecode_size, RDIEPipeline::VERTEX );
+            pass->vertex_input_mask = reflection->input_mask;
+        }
+    }
+    static void CreatePixelShader( RDIShaderPass* pass, RDIShaderReflection* reflection, RDIDevice* dev, const void* bytecode, size_t bytecode_size )
+    {
+        if( !bytecode || !bytecode_size )
+            return;
+
+        HRESULT hres;
+
+        hres = dev->dx11()->CreatePixelShader( bytecode, bytecode_size, nullptr, &pass->pixel );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+        if( reflection )
+        {
+            Dx11FetchShaderReflection( reflection, bytecode, bytecode_size, RDIEPipeline::PIXEL );
+        }
+    }
+    static void CreateComputeShader( RDIShaderPass* pass, RDIShaderReflection* reflection, RDIDevice* dev, const void* bytecode, size_t bytecode_size )
+    {
+        if( !bytecode || !bytecode_size )
+            return;
+
+        HRESULT hres;
+
+        hres = dev->dx11()->CreateComputeShader( bytecode, bytecode_size, nullptr, &pass->compute );
+        SYS_ASSERT( SUCCEEDED( hres ) );
+        if( reflection )
+        {
+            Dx11FetchShaderReflection( reflection, bytecode, bytecode_size, RDIEPipeline::PIXEL );
+        }
+    }
+}//
+
 RDIShaderPass CreateShaderPass( RDIDevice* dev,const RDIShaderPassCreateInfo& info )
 {
     RDIShaderPass pass = {};
 
-    HRESULT hres;
-    if( info.vertex_bytecode && info.vertex_bytecode_size )
-    {
-        hres = dev->dx11()->CreateVertexShader( info.vertex_bytecode, info.vertex_bytecode_size, nullptr, &pass.vertex );
-        SYS_ASSERT( SUCCEEDED( hres ) );
+    ::CreateVertexShader ( &pass, info.reflection, dev, info.bytecode[RDIEPipeline::VERTEX], info.bytecode_size[RDIEPipeline::VERTEX] );
+    ::CreatePixelShader  ( &pass, info.reflection, dev, info.bytecode[RDIEPipeline::PIXEL], info.bytecode_size[RDIEPipeline::PIXEL] );
+    ::CreateComputeShader( &pass, info.reflection, dev, info.bytecode[RDIEPipeline::COMPUTE], info.bytecode_size[RDIEPipeline::COMPUTE] );
 
-        ID3DBlob* blob = nullptr;
-        hres = D3DGetInputSignatureBlob( info.vertex_bytecode, info.vertex_bytecode_size, &blob );
-        SYS_ASSERT( SUCCEEDED( hres ) );
-        pass.input_signature = (void*)blob;
-        if( info.reflection )
-        {
-            Dx11FetchShaderReflection( info.reflection, info.vertex_bytecode, info.vertex_bytecode_size, RDIEPipeline::VERTEX );
-            pass.vertex_input_mask = info.reflection->input_mask;
-        }
-    }
-    if( info.pixel_bytecode && info.pixel_bytecode_size )
-    {
-        hres = dev->dx11()->CreatePixelShader( info.pixel_bytecode, info.pixel_bytecode_size, nullptr, &pass.pixel );
-        SYS_ASSERT( SUCCEEDED( hres ) );
-        if( info.reflection )
-        {
-            Dx11FetchShaderReflection( info.reflection, info.pixel_bytecode, info.pixel_bytecode_size, RDIEPipeline::PIXEL );
-        }
-    }
     return pass;
 }
 
@@ -1149,6 +1185,9 @@ void Destroy( RDIShaderPass* id )
 {
     releaseSafe( id->vertex );
     releaseSafe( id->pixel );
+    releaseSafe( id->compute );
+
+    if( id->input_signature )
     {
         ID3DBlob* blob = (ID3DBlob*)id->input_signature;
         blob->Release();
@@ -1253,6 +1292,7 @@ void SetShaderPass( RDICommandQueue* cmdq, RDIShaderPass pass )
 {
     cmdq->dx11()->VSSetShader( pass.vertex, 0, 0 );
     cmdq->dx11()->PSSetShader( pass.pixel, 0, 0 );
+    cmdq->dx11()->CSSetShader( pass.compute, 0, 0 );
 }
 
 void SetInputLayout( RDICommandQueue* cmdq, RDIInputLayout ilay )
@@ -1324,7 +1364,7 @@ void SetResourcesRW( RDICommandQueue* cmdq, RDIResourceRW* resources, unsigned s
         }
     }
 
-    if( stageMask & RDIEPipeline::VERTEX_MASK || RDIEPipeline::PIXEL_MASK )
+    if( stageMask & (RDIEPipeline::VERTEX_MASK || RDIEPipeline::PIXEL_MASK) )
     {
         SYS_LOG_ERROR( "ResourceRW can be set only in compute stage" );
     }
@@ -1520,6 +1560,10 @@ void DrawIndexedInstanced( RDICommandQueue* cmdq, unsigned numIndices, unsigned 
     cmdq->dx11()->DrawIndexedInstanced( numIndices, numInstances, startIndex, baseVertex, 0 );
 }
 
+void Dispatch( RDICommandQueue* cmdq, unsigned numGroupsX, unsigned numGroupsY, unsigned numGroupsZ )
+{
+    cmdq->dx11()->Dispatch( numGroupsX, numGroupsY, numGroupsZ );
+}
 
 void ClearState( RDICommandQueue* cmdq )
 {

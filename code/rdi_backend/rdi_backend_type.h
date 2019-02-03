@@ -136,8 +136,8 @@ namespace RDIEGpuAccess
 {
     enum Enum
     {
-        READ = BIT_OFFSET( 1 ),
-        WRITE = BIT_OFFSET( 2 ),
+        READ = BIT_OFFSET( 0 ),
+        WRITE = BIT_OFFSET( 1 ),
         READ_WRITE = READ | WRITE,
     };
 };
@@ -518,8 +518,8 @@ union RDIVertexBufferDesc
     RDIVertexBufferDesc& Normalized() { typeNorm = 1; return *this; }
     RDIVertexBufferDesc& CPURead()  { cpuAccess = RDIECpuAccess::READ; return *this; }
     RDIVertexBufferDesc& CPUWrite() { cpuAccess = RDIECpuAccess::WRITE; return *this; }
-    RDIVertexBufferDesc& GPURead()  { cpuAccess = RDIEGpuAccess::READ; return *this; }
-    RDIVertexBufferDesc& GPUWrite() { cpuAccess = RDIEGpuAccess::WRITE; return *this; }
+    RDIVertexBufferDesc& GPURead()  { gpuAccess = RDIEGpuAccess::READ; return *this; }
+    RDIVertexBufferDesc& GPUWrite() { gpuAccess = RDIEGpuAccess::WRITE; return *this; }
 
     inline uint32_t ByteWidth() const { return RDIEType::stride[dataType] * numElements; }
 
@@ -681,16 +681,16 @@ struct RDIShaderPass
 {
 	ID3D11VertexShader* vertex = nullptr;
 	ID3D11PixelShader* pixel = nullptr;
+    ID3D11ComputeShader* compute = nullptr;
+
 	void* input_signature = nullptr;
 	uint32_t vertex_input_mask = 0;
 };
 
 struct RDIShaderPassCreateInfo
 {
-	void* vertex_bytecode = nullptr;
-	void* pixel_bytecode = nullptr;
-	size_t vertex_bytecode_size = 0;
-	size_t pixel_bytecode_size = 0;
+    void* bytecode[RDIEPipeline::COUNT] = {};
+    size_t bytecode_size[RDIEPipeline::COUNT] = {};
 	RDIShaderReflection* reflection = nullptr;
 };
 

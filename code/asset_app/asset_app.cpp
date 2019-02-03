@@ -105,6 +105,11 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     GUI::NewFrame();
 
 	const float delta_time_sec = (float)BXTime::Micro_2_Sec( deltaTimeUS );
+    if( ImGui::Begin( "Frame info" ) )
+    {
+        ImGui::Text( "dt: %2.4f", delta_time_sec );
+    }
+    ImGui::End();
 
     ecs->Update();
 
@@ -143,18 +148,15 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         
     }
 
-    GFXFrameContext* frame_ctx = gfx->BeginFrame( rdicmdq );
-    {
-        gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_idcamera );
-    }
 
-    if( ImGui::Begin( "Frame info" ) )
-    {
-        ImGui::Text( "dt: %2.4f", delta_time_sec );
-    }
-    ImGui::End();
+    gfx->DoSkinningCPU( rdicmdq );
+    gfx->DoSkinningGPU( rdicmdq );
+
+    GFXFrameContext* frame_ctx = gfx->BeginFrame( rdicmdq );
+    
+    gfx->GenerateCommandBuffer( frame_ctx, g_idscene, g_idcamera );
 		
-    gfx->DoSkinning( rdicmdq, ecs );
+    
 
     BindRenderTarget( rdicmdq, gfx->Framebuffer() );
     ClearRenderTarget( rdicmdq, gfx->Framebuffer(), 0.f, 0.f, 0.f, 1.f, 1.f );

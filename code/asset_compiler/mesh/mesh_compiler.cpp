@@ -151,16 +151,16 @@ namespace tool { namespace mesh {
             const uint32_t num_bones = inputMesh->mNumBones;
             streams->num_bones = num_bones;
 
-            streams->slots[RDIEVertexSlot::POSITION].CPURead();
-            streams->slots[RDIEVertexSlot::NORMAL].CPURead();
+            streams->slots[RDIEVertexSlot::POSITION];
+            streams->slots[RDIEVertexSlot::NORMAL];
 
             if( num_bones <= MAX_BONES )
             {
                 streams->bones.resize( num_bones );
                 streams->bones_names.resize( num_bones );
 
-                streams->slots[RDIEVertexSlot::BLENDWEIGHT] = RDIVertexBufferDesc::BW().CPURead();
-                streams->slots[RDIEVertexSlot::BLENDINDICES] = RDIVertexBufferDesc::BI().CPURead();
+                streams->slots[RDIEVertexSlot::BLENDWEIGHT] = RDIVertexBufferDesc::BW();
+                streams->slots[RDIEVertexSlot::BLENDINDICES] = RDIVertexBufferDesc::BI();
                 
                 VertexDataArray& blendw = streams->data[RDIEVertexSlot::BLENDWEIGHT];
                 VertexDataArray& blendi = streams->data[RDIEVertexSlot::BLENDINDICES];

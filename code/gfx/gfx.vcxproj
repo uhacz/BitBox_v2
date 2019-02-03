@@ -84,6 +84,7 @@
     <ClInclude Include="gfx_resource_loader.h" />
     <ClInclude Include="gfx_shader_interop.h" />
     <ClInclude Include="gfx_shadow.h" />
+    <ClInclude Include="gfx_skinning.h" />
     <ClInclude Include="gfx_type.h" />
   </ItemGroup>
   <ItemGroup>
@@ -91,6 +92,7 @@
     <ClCompile Include="gfx_camera.cpp" />
     <ClCompile Include="gfx_resource_loader.cpp" />
     <ClCompile Include="gfx_shadow.cpp" />
+    <ClCompile Include="gfx_skinning.cpp" />
     <ClCompile Include="gfx_type.cpp" />
   </ItemGroup>
   <ItemGroup>

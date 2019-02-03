@@ -3,5 +3,6 @@
 
 #define BSLOT( n ) b##n
 #define TSLOT( n ) t##n
+#define USLOT( n ) u##n
 
 #endif
