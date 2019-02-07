@@ -69,3 +69,8 @@ struct ANIMTool
     } _flags;
 
 };
+
+struct ANIMClipPoses
+{
+
+};

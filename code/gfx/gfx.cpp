@@ -1281,8 +1281,8 @@ void GFX::DoSkinningGPU( RDICommandQueue* cmdq )
         sdata.pin_index = mesh_skinning.pin_index;
 
         UpdateCBuffer( cmdq, sd._gpu_cbuffer_data, &sdata );
-        SetResourcesRO( cmdq, in, SKINNING_INPUT_POS_SLOT, sizeof_array( in ), RDIEPipeline::COMPUTE_MASK );
-        SetResourcesRW( cmdq, out, SKINNING_OUTPUT_POS_SLOT, sizeof_array( out ), RDIEPipeline::COMPUTE_MASK );
+        SetResourcesRO( cmdq, in, SKINNING_INPUT_POS_SLOT, (uint32_t)sizeof_array( in ), RDIEPipeline::COMPUTE_MASK );
+        SetResourcesRW( cmdq, out, SKINNING_OUTPUT_POS_SLOT, (uint32_t)sizeof_array( out ), RDIEPipeline::COMPUTE_MASK );
 
         // dispatch 
         const uint32_t num_groups = iceil( num_vertices, 64 );

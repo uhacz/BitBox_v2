@@ -91,6 +91,11 @@ struct BXIFilesystem
     void ( *ListFiles )( BXIFilesystem* fs, string_buffer_t* s, const char* relative_path, uint32_t flags, BXIAllocator* allocator );
 };
 
+inline BXFileWaitResult LoadFileSync( BXIFilesystem* fs, const char* relativePath, BXEFIleMode::E mode, BXIAllocator* allocator )
+{
+    return fs->LoadFileSync( fs, relativePath, mode, allocator );
+}
+
 inline int32_t WriteFileSync( BXIFilesystem* fs, const char* relativePath, const void* data, uint32_t data_size )
 {
     return fs->WriteFileSync( fs, relativePath, data, data_size );

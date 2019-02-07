@@ -91,6 +91,9 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
                 _skel_blob = tool::anim::CompileSkeleton( *_in_skel, _allocator );
                 _clip_blob = tool::anim::CompileClip( *_in_anim, *_in_skel, _allocator );
 
+                if( _player )
+                    _player->Unprepare();
+
                 BX_RENEW( _allocator, &_player );
 
                 ANIMSkel* skel = (ANIMSkel*)_skel_blob.raw;
@@ -114,7 +117,9 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
                 if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->ecs, ctx.entity ) )
                 {
-                    InitializeSkinningComponent( skinning_id, e->ecs );
+                    ECSComponentID mesh_desc_id = Lookup<TOOLMeshDescComponent>( e->ecs, ctx.entity );
+                    GFXMeshInstanceID mesh_id = { 0 };
+                    InitializeComponent<TOOLSkinningComponent>( e->ecs, skinning_id, e->ecs, mesh_desc_id, mesh_id );
                 }
             }
             fs->CloseFile( &_hfile, true );

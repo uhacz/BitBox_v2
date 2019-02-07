@@ -150,9 +150,9 @@ struct srl_file_t
     const T* data() const
     {
         SYS_ASSERT( num_properties != 0 );
-        SYS_ASSERT( tag != 0 );
-        SYS_ASSERT( version != 0 );
-        return (T*)( (uint8_t*)this + calc_header_size( num_properties ) );
+        SYS_ASSERT( version == T::VERSION );
+        SYS_ASSERT( tag == T::TAG );
+        return (T*)( (uint8_t*)this + srl_file::calc_header_size( num_properties ) );
     }
 };
 

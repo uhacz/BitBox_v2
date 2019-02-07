@@ -29,5 +29,20 @@ namespace common
             ptr[0] = Component<T>( ecs, comp_id );
         }
     }
+    template< typename T >
+    inline ECSComponentID CreateComponentIfNotExists( ECS* ecs, ECSEntityID entity )
+    {
+        ECSComponentID comp_id = Lookup<T>( ecs, entity );
+        if( comp_id == ECSComponentID::Null() )
+        {
+            ECSNewComponent new_comp = CreateComponent<T>( ecs );
+            ecs->Link( entity, &new_comp.id, 1 );
+            return new_comp.id;
+        }
+        else
+        {
+            return comp_id;
+        }
+    }
 }
 

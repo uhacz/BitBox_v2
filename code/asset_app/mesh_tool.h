@@ -40,7 +40,12 @@ struct MESHTool
     
     bool _Import( CMNEngine* e );
     void _Compile( CMNEngine* e, const TOOLContext& ctx, const tool::mesh::Streams& streams );
+    void _Load( CMNEngine* e, const TOOLContext& ctx, const char* filename );
+    void _Save( CMNEngine* e );
     
+    void _UnloadComponents( CMNEngine* e );
+    void _LoadComponents( CMNEngine* e, const TOOLContext& ctx, const RDIXMeshFile* mesh_file );
+
     BXIAllocator* _allocator = nullptr;
     FolderContext _root_src_folder_ctx;
     string_t _current_src_file;
@@ -49,6 +54,8 @@ struct MESHTool
     string_t _current_dst_file;
 
     ECSComponentID _id_mesh_comp;
+    ECSComponentID _id_mesh_desc_comp;
+    ECSComponentID _id_skinning_comp;
 
     tool::mesh::StreamsArray _loaded_streams;
     tool::mesh::CompileOptions _compile_options;

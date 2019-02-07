@@ -19,11 +19,28 @@ static void TLSFFree( BXIAllocator* _this, void* ptr )
     tlsf_free( allocator->_tlsf, ptr );
 }
 
+#if MEM_USE_DEBUG_ALLOC == 1
+static void* DebugTLFSAlloc( BXIAllocator* _this, size_t size, size_t align, const char* file, size_t line, const char* func )
+{
+    return TLFSAlloc( _this, size, align );
+}
+
+static void DebugTLSFFree( BXIAllocator* _this, void* ptr )
+{
+    TLSFFree( _this, ptr );
+}
+#endif
+
+
 void TLSFAllocator::Create( TLSFAllocator* allocator, void* memory, size_t size )
 {
     allocator->_tlsf = tlsf_create_with_pool( memory, size );
     allocator->Alloc = TLFSAlloc;
     allocator->Free = TLSFFree;
+#if MEM_USE_DEBUG_ALLOC == 1
+    allocator->DbgAlloc = DebugTLFSAlloc;
+    allocator->DbgFree = DebugTLSFFree;
+#endif
 }
 
 void TLSFAllocator::Destroy( TLSFAllocator* allocator )

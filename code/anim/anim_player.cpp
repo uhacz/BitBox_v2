@@ -283,7 +283,7 @@ uint32_t ANIMCascadePlayer::_AllocateNode()
 //////////////////////////////////////////////////////////////////////////
 
 void ANIMSimplePlayer::Prepare( const ANIMSkel* skel, BXIAllocator* allocator /*= nullptr */ )
-{
+ {
     _allocator = allocator;
     _ctx = ContextInit( *skel, allocator );
     _prev_joints = (ANIMJoint*)BX_MALLOC( allocator, skel->numJoints * sizeof( ANIMJoint ), 16 );

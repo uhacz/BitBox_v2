@@ -193,7 +193,7 @@ struct RDIXRenderSourceDesc
 
 struct BIT_ALIGNMENT_16 RDIXMeshFile
 {
-    static constexpr uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+    static constexpr uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 1, 0 );
     static constexpr uint32_t TAG = BX_UTIL_TAG32( 'M','E','S','H' );
 
     uint32_t num_vertices = 0;

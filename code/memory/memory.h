@@ -2,18 +2,25 @@
 
 #include "allocator.h"
 
+#include <new>
+
 #ifndef alignof
 #define ALIGNOF(x) __alignof(x)
 #endif
 
+#if MEM_USE_DEBUG_ALLOC == 1
+    #define BX_MALLOC( a, siz, align ) a->DbgAlloc( a, siz, align, __FILE__, __LINE__, __FUNCTION__ )
+    #define BX_ALLOCATE( a, typ ) (typ*)( a->DbgAlloc( a, sizeof(typ), ALIGNOF(typ)), __FILE__, __LINE__, __FUNCTION__ )
+    #define BX_FREE( a, ptr ) { if( a ) a->DbgFree( a, ptr ); }
+    #define BX_FREE0( a, ptr ) { BX_FREE(a, ptr); ptr = 0; }
+    #define BX_NEW(a, T, ...) (new ((a)->DbgAlloc( a, sizeof(T), ALIGNOF(T), __FILE__, __LINE__, __FUNCTION__ )) T(__VA_ARGS__))
+#else
 #define BX_MALLOC( a, siz, align ) a->Alloc( a, siz, align )
 #define BX_ALLOCATE( a, typ ) (typ*)( a->Alloc( a, sizeof(typ), ALIGNOF(typ)) )
 #define BX_FREE( a, ptr ) { if( a ) a->Free( a, ptr ); }
 #define BX_FREE0( a, ptr ) { BX_FREE(a, ptr); ptr = 0; }
-
-#include <new>
 #define BX_NEW(a, T, ...) (new ((a)->Alloc( a, sizeof(T), ALIGNOF(T))) T(__VA_ARGS__))
-
+#endif
 
 template< typename T >
 void InvokeDestructor( T* obj )

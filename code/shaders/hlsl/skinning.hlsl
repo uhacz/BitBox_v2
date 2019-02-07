@@ -22,7 +22,7 @@ void cs_pos_nrm( uint3 DTid : SV_DispatchThreadID )
     const uint ivertex = DTid.x;
 
     const float4 bw = asfloat( in_bw.Load4( ivertex * 16 ) );
-    const uint4  bi = in_bi.Load4( ivertex * 16 );
+    uint  bi = in_bi.Load( ivertex * 4 );
 
     const float4 base_pos = float4( asfloat( in_pos.Load3( ivertex * 12 ) ), 1.0 );
     const float3 base_nrm = asfloat( in_nrm.Load3( ivertex * 12 ) );
@@ -32,7 +32,10 @@ void cs_pos_nrm( uint3 DTid : SV_DispatchThreadID )
     
     for( uint i = 0; i < 4; ++i )
     {
-        uint first_col_index = _data.pin_index + (bi[i] * 4);
+        uint matrix_index = bi & 0xFF;
+        bi = bi >> 8;
+
+        uint first_col_index = _data.pin_index + (matrix_index * 4);
         float4x4 mtx = float4x4(
             in_skinning_matrices[first_col_index],
             in_skinning_matrices[first_col_index + 1],

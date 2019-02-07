@@ -261,6 +261,7 @@ void ECS::ShutDown( ECS** ecs )
     if( !ecs[0] )
         return;
 
+    ecs[0]->Update();
     ecs[0]->impl->ShutDown();
     ecs[0]->impl->~ECSImpl();
     BXIAllocator* allocator = ecs[0]->impl->allocator;
@@ -406,6 +407,9 @@ void DestroyComponent( ECSImpl* impl, ECSComponentID id )
 
 void ECS::MarkForDestroy( ECSComponentID id )
 {
+    if( !IsAliveImpl( impl, id ) )
+        return;
+
     Unlink( &id, 1 );
     id_table::invalidate( impl->comp_id_alloc, id );
     
@@ -460,6 +464,18 @@ ECSRawComponent* ECS::Component( ECSComponentID id ) const
     if( !IsAliveImpl( impl, id ) )
         return nullptr;
 
+    return impl->comp_address[id.index];
+}
+
+ECSRawComponent* ECS::ComponentSafe( ECSComponentID id, size_t type_id ) const
+{
+    if( !IsAliveImpl( impl, id ) )
+        return nullptr;
+
+#ifdef ASSERTION_ENABLED
+    const uint32_t type_index = impl->comp_type_index[id.index];
+    SYS_ASSERT( type_id == impl->comp_type_info[type_index].desc.hash_code );
+#endif
     return impl->comp_address[id.index];
 }
 
@@ -613,7 +629,6 @@ void ECS::Update()
                 ECSEntityID id = id_table::id( impl->entity_id_alloc, it.index() );
                 ECSComponentIDSpan components = Components( id );
                 {
-                    scoped_write_spin_lock_t guard( impl->comp_dead_lock );
                     for( ECSComponentID comp_id : components )
                     {
                         MarkForDestroy( comp_id );

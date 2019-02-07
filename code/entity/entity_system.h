@@ -46,9 +46,14 @@ struct ECS
     bool IsAlive( ECSComponentID id ) const;
 
     ECSEntityID Owner( ECSComponentID id ) const;
+    ECSEntityID Owner( const ECSRawComponent* pointer ) const
+    {
+        return Owner( Lookup( pointer ) );
+    }
     ECSComponentID Lookup( const ECSRawComponent* pointer ) const;
     ECSComponentID Lookup( ECSEntityID id, size_t type_hash_code ) const;
     ECSRawComponent* Component( ECSComponentID id ) const;
+    ECSRawComponent* ComponentSafe( ECSComponentID id, size_t type_id ) const;
     ECSRawComponentSpan Components( size_t type_hash_code ) const;
     ECSComponentIDSpan  Components( ECSEntityID id ) const;
 
@@ -119,4 +124,31 @@ template< typename T>
 inline ECSComponentID Lookup( ECS* ecs, ECSEntityID id )
 {
     return ecs->Lookup( id, typeid(T).hash_code() );
+}
+
+template< typename TComp, typename ... TArgs >
+static void UninitializeComponent( ECS* ecs, ECSComponentID comp_id, TArgs&& ... args )
+{
+    TComp* comp = (TComp*)ecs->ComponentSafe( comp_id, typeid(TComp).hash_code() );
+    if( comp )
+    {
+        comp->Uninitialize( std::forward<TArgs>( args )... );
+    }
+}
+
+template< typename TComp, typename ... TArgs >
+static TComp* InitializeComponent( ECS* ecs, ECSComponentID comp_id, TArgs&& ... args )
+{
+    TComp* comp = (TComp*)ecs->ComponentSafe( comp_id, typeid(TComp).hash_code() );
+    if( comp )
+    {
+        comp->Initialize( std::forward<TArgs>( args )... );
+    }
+    return comp;
+}
+template< typename TComp, typename ... TArgs >
+static void UnloadComponent( ECS* ecs, ECSComponentID comp_id, TArgs&& ... args )
+{
+    UninitializeComponent<TComp>( ecs, comp_id, std::forward<TArgs>( args )... );
+    ecs->MarkForDestroy( comp_id );
 }

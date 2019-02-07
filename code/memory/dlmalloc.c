@@ -587,7 +587,7 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 /* The maximum possible size_t value has all bits set */
 #define MAX_SIZE_T           (~(size_t)0)
 
-
+#define MALLOC_INSPECT_ALL 1
 #define USE_LOCKS 1
 #define USE_SPIN_LOCKS 1
 #define USE_RECURSIVE_LOCKS 1
