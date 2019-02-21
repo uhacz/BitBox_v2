@@ -3,6 +3,9 @@
 #include <memory/memory.h>
 #include <string.h>
 
+SRL_TYPE_DEFINE( ANIMSkel );
+SRL_TYPE_DEFINE( ANIMClip );
+
 ANIMContext* ContextInit( const ANIMSkel& skel, BXIAllocator* allocator )
 {
 	const uint32_t poseMemorySize = skel.numJoints * sizeof( ANIMJoint );

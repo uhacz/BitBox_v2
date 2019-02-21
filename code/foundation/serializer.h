@@ -1,6 +1,7 @@
 #pragma once
 
 #include "data_buffer.h"
+#include "blob.h"
 
 #define SRL_ADD( version_added, field )\
     if( srl->version >= version_added )\
@@ -31,7 +32,7 @@ struct SRLInstance
 
 
 template<typename T>
-static void Serialize( SRLInstance* srl, T* p )
+inline void Serialize( SRLInstance* srl, T* p )
 {
     SYS_STATIC_ASSERT( std::is_trivially_destructible<T>::value );
     SYS_STATIC_ASSERT( !std::is_pointer<T>::value );
@@ -48,7 +49,7 @@ static void Serialize( SRLInstance* srl, T* p )
 
 #include <foundation/string_util.h>
 template<>
-static void Serialize<string_t>( SRLInstance* srl, string_t* p )
+inline void Serialize<string_t>( SRLInstance* srl, string_t* p )
 {
     if( srl->is_writting )
     {
@@ -191,6 +192,12 @@ namespace srl_file
         return output;
     }
 
+
+    template< typename T >
+    inline srl_file_t* serialize( const blob_t& blob, BXIAllocator* allocator )
+    {
+        return serialize( (T*)blob.raw, blob.size, allocator );
+    }
 }//
 
 #define SRL_PROPERTY( name ) const srl_property_t name = srl_property::create<decltype(__this_type::name)>( #name, offsetof( __this_type, name ) )

@@ -472,10 +472,10 @@ ECSRawComponent* ECS::ComponentSafe( ECSComponentID id, size_t type_id ) const
     if( !IsAliveImpl( impl, id ) )
         return nullptr;
 
-#ifdef ASSERTION_ENABLED
     const uint32_t type_index = impl->comp_type_index[id.index];
-    SYS_ASSERT( type_id == impl->comp_type_info[type_index].desc.hash_code );
-#endif
+    if( type_id != impl->comp_type_info[type_index].desc.hash_code )
+        return nullptr;
+    
     return impl->comp_address[id.index];
 }
 

@@ -7,6 +7,7 @@
 #include <foundation/static_array.h>
 
 #include <common/common.h>
+#include "common/base_engine_init.h"
 
 static constexpr char MATERIAL_FILE_EXT[] = ".material";
 
@@ -32,7 +33,7 @@ void MATERIALTool::SetDefault( GFXMaterialTexture* tex )
     }
 }
 
-void MATERIALTool::StartUp( GFX* gfx, BXIAllocator* allocator )
+void MATERIALTool::StartUp( CMNEngine* e, const char* src_root, const char* dst_root, BXIAllocator* allocator )
 {
     _allocator = allocator;
 
@@ -49,7 +50,7 @@ void MATERIALTool::StartUp( GFX* gfx, BXIAllocator* allocator )
     GFXMaterialDesc desc;
     desc.data = _mat_resource.data;
     desc.textures = _mat_tex;
-    _mat_id = gfx->CreateMaterial( "editable", desc );
+    _mat_id = e->gfx->CreateMaterial( "editable", desc );
 
     //GFXMeshInstanceDesc mesh_desc = {};
     //mesh_desc.idmaterial = _mat_id;
@@ -60,7 +61,7 @@ void MATERIALTool::StartUp( GFX* gfx, BXIAllocator* allocator )
     _texture_folder = "texture/";
 }
 
-void MATERIALTool::ShutDown( GFX* gfx )
+void MATERIALTool::ShutDown( CMNEngine* e )
 {
     string::free( &_folder );
     string::free( &_texture_folder );
@@ -68,8 +69,8 @@ void MATERIALTool::ShutDown( GFX* gfx )
     string::free( &_file_list );
     string::free( &_texture_file_list );
 
-    gfx->RemoveMeshFromScene( _mesh_id );
-    gfx->DestroyMaterial( _mat_id );
+    e->gfx->RemoveMeshFromScene( _mesh_id );
+    e->gfx->DestroyMaterial( _mat_id );
 }
 
 static bool ShowTextureMenu( string_t* value,  const char* label, const string_buffer_t& file_list, BXIAllocator* allocator )
@@ -88,8 +89,11 @@ static bool ShowTextureMenu( string_t* value,  const char* label, const string_b
     ImGui::Text( "%s", value->c_str() );
     return opened;
 }
-void MATERIALTool::Tick( GFX* gfx, BXIFilesystem* fs )
+void MATERIALTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 {
+    BXIFilesystem* fs = e->filesystem;
+    GFX* gfx = e->gfx;
+
     if( ImGui::Begin( "Material" ) )
     {
         if( ImGui::BeginMenu( "File" ) )

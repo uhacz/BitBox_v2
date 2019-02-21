@@ -53,28 +53,13 @@ void MESHTool::StartUp( CMNEngine* e, const char* src_root, const char* dst_root
 
 void MESHTool::ShutDown( CMNEngine* e )
 {
-    _UnloadComponents( e );
+    UnloadTOOLMeshComponent( e, _id_mesh_comp );
     BX_FREE0( _allocator, _mesh_file );
     _allocator = nullptr;
     
 }
 
-uint32_t find_r( const char* begin, uint32_t len, const char needle )
-{
-    int32_t pos = len;
-    while( pos )
-    {
-        if( begin[pos] == needle )
-            break;
-
-        --pos;
-    }
-    return pos;
-}
-
-
-
-void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx )
+void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 {
     if( ImGui::Begin( "MeshTool" ) )
     {
@@ -234,11 +219,11 @@ void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx, const tool::mesh:
     {
         RDIXMeshFile* mesh_file = (RDIXMeshFile*)cmesh.raw;
 
-        _LoadComponents( e, ctx, mesh_file );
+        _id_mesh_comp = LoadTOOLMeshComponent( e, _id_mesh_comp, ctx, mesh_file, _allocator );
 
         { // file to serialize
             BX_FREE0( _allocator, _mesh_file );
-            _mesh_file = srl_file::serialize( (RDIXMeshFile*)cmesh.raw, cmesh.size, _allocator );
+            _mesh_file = srl_file::serialize<RDIXMeshFile>( cmesh, _allocator );
         }
     }
 
@@ -258,7 +243,7 @@ void MESHTool::_Load( CMNEngine* e, const TOOLContext& ctx, const char* filename
         {
             string::free( &_current_dst_file );
             BX_FREE0( _allocator, _mesh_file );
-            _LoadComponents( e, ctx, mesh_file );
+            _id_mesh_comp = LoadTOOLMeshComponent( e, _id_mesh_comp, ctx, mesh_file, _allocator );
             _mesh_file = serialized_file;
         }
     }
@@ -268,100 +253,7 @@ void MESHTool::_Load( CMNEngine* e, const TOOLContext& ctx, const char* filename
 
 void MESHTool::_Save( CMNEngine* e )
 {
-    const char d = '.';
-    const char s = '/';
-
-    const uint32_t src_len = _current_src_file.length();
-    const uint32_t s_pos = find_r( _current_src_file.c_str(), src_len, s );
-
-    char tmp[255] = {};
-
-    const char* src_name = _current_src_file.c_str();
-    if( s_pos != UINT32_MAX )
-        src_name += s_pos + 1;
-
-    uint32_t len = snprintf( tmp, 255, "%s", src_name );
-
-    const uint32_t d_pos = find_r( tmp, len, d );
-    if( d_pos != UINT32_MAX )
-    {
-        snprintf( tmp + d_pos + 1, 255 - (len + d_pos + 1), "mesh" );
-    }
-
-    char tmp_path[255] = {};
-    string::append( tmp_path, 255, "%s/%s", _root_dst_folder_ctx.Folder(), tmp );
-    string::create( &_current_dst_file, tmp_path, _allocator );
-
+    common::CreateDstFilename( &_current_dst_file, _root_dst_folder_ctx.Folder(), _current_src_file, "mesh", _allocator );
     WriteFileSync( e->filesystem, _current_dst_file.c_str(), _mesh_file, _mesh_file->size );
     _root_dst_folder_ctx.RequestRefresh();
 }
-
-void MESHTool::_UnloadComponents( CMNEngine* e )
-{
-    UnloadComponent<TOOLMeshComponent>( e->ecs, _id_mesh_comp, e->gfx );
-    e->ecs->MarkForDestroy( _id_mesh_desc_comp );
-    e->ecs->MarkForDestroy( _id_skinning_comp );
-}
-
-void MESHTool::_LoadComponents( CMNEngine* e, const TOOLContext& ctx, const RDIXMeshFile* mesh_file )
-{
-    RDIXRenderSource* rsource = CreateRenderSourceFromMemory( e->rdidev, mesh_file, _allocator );
-
-    GFXMeshInstanceDesc desc = {};
-    desc.AddRenderSource( rsource );
-    if( e->ecs->IsAlive( _id_mesh_comp ) )
-    {
-        TOOLMeshComponent* old_comp_data = Component<TOOLMeshComponent>( e->ecs, _id_mesh_comp );
-        desc.idmaterial = e->gfx->Material( old_comp_data->id_mesh );
-    }
-    else
-    {
-        desc.idmaterial = e->gfx->FindMaterial( "editable" );
-    }
-    desc.flags.gpu_skinning = mesh_file->num_bones > 0;
-
-    _UnloadComponents( e );
-
-    _id_mesh_comp = CreateComponent< TOOLMeshComponent >( e->ecs ).id;
-    TOOLMeshComponent* comp_data = InitializeComponent<TOOLMeshComponent>( e->ecs, _id_mesh_comp, e->gfx, ctx.gfx_scene, desc, mat44_t::identity() );
-    e->ecs->Link( ctx.entity, &_id_mesh_comp, 1 );
-
-    {
-        _id_mesh_desc_comp = common::CreateComponentIfNotExists<TOOLMeshDescComponent>( e->ecs, ctx.entity );
-        InitializeComponent<TOOLMeshDescComponent>( e->ecs, _id_mesh_desc_comp, mesh_file );
-    }
-
-    {
-        _id_skinning_comp = common::CreateComponentIfNotExists<TOOLSkinningComponent>( e->ecs, ctx.entity );
-        InitializeComponent<TOOLSkinningComponent>( e->ecs, _id_skinning_comp, e->ecs, _id_mesh_desc_comp, comp_data->id_mesh );
-    }
-}
-
-void FolderContext::SetUp( BXIFilesystem* fs, BXIAllocator* allocator )
-{
-    _filesystem = fs;
-    _allocator = allocator;
-}
-
-void FolderContext::RequestRefresh()
-{
-    _flag_refresh_file_list = 1;
-}
-
-void FolderContext::SetFolder( const char* folder )
-{
-    _flag_refresh_file_list = !string::equal( _folder.c_str(), folder );
-    string::create( &_folder, folder, _allocator );
-}
-
-const string_buffer_t& FolderContext::FileList() const
-{
-    if( _flag_refresh_file_list )
-    {
-        _flag_refresh_file_list = 0;
-        common::RefreshFiles( &_file_list, _folder.c_str(), _filesystem, _allocator );
-    }
-
-    return _file_list;
-}
-

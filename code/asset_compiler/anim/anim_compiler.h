@@ -61,9 +61,6 @@ namespace tool { namespace anim {
             bool strip_namespace_name = true;
         };
 
-        uint32_t SkelTag();
-        uint32_t ClipTag();
-
         bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size, const ImportParams& params = {} );
         
         // produces data with ANIMSkel header

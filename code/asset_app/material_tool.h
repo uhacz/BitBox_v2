@@ -4,15 +4,17 @@
 #include <filesystem/filesystem_plugin.h>
 #include <gfx/gfx.h>
 
+#include "tool_context.h"
+
 struct FSName;
-struct MATERIALTool
+struct MATERIALTool : TOOLInterface
 {
     static void SetDefault( GFXMaterialResource* mat );
     static void SetDefault( GFXMaterialTexture* tex );
 
-    void StartUp( GFX* gfx, BXIAllocator* allocator );
-    void ShutDown( GFX* gfx );
-    void Tick( GFX* gfx, BXIFilesystem* fs );
+    void StartUp( CMNEngine* e, const char* src_root, const char* dst_root, BXIAllocator* allocator ) override;
+    void ShutDown( CMNEngine* e ) override;
+    void Tick( CMNEngine* e, const TOOLContext& ctx, float dt ) override;
 
     void _CreateRelativePath( FSName* fs_name, const char* filename );
     void _Save( const char* filename, BXIFilesystem* fs );

@@ -21,17 +21,30 @@
 
 namespace
 {
-    CMNGroundMesh g_ground_mesh;
+    static CMNGroundMesh g_ground_mesh;
     
-    GFXCameraInputContext g_camera_input_ctx = {};
-    GFXCameraID g_idcamera = { 0 };
-    GFXSceneID g_idscene = { 0 };
-    ECSEntityID g_identity = {};
+    static GFXCameraInputContext g_camera_input_ctx = {};
+    static GFXCameraID g_idcamera = { 0 };
+    static GFXSceneID g_idscene = { 0 };
+
+    static ECSComponentID g_transform_system_id = {};
+
+    namespace ToolType
+    {
+        enum E
+        {
+            MATERIAL = 0,
+            MESH,
+            ANIM,
+
+            _COUNT_,
+        };
+    }//
+    static TOOLInterface* g_tools[ToolType::_COUNT_] = {};
+    static ECSEntityID g_tool_entities[ToolType::_COUNT_] = {};
 }
 
-static MATERIALTool* g_mat_tool = nullptr;
-static MESHTool* g_mesh_tool = nullptr;
-static ANIMTool* g_anim_tool = nullptr;
+
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
@@ -42,6 +55,10 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
         RegisterComponentNoPOD< TOOLSkinningComponent >( ecs, "TOOL_Skinning" );
         RegisterComponentNoPOD< TOOLMeshDescComponent >( ecs, "TOOL_MeshDesc" );
         RegisterComponentNoPOD< TOOLAnimDescComponent >( ecs, "TOOL_AnimDesc" );
+        RegisterComponent< TOOLTransformComponent >( ecs, "TOOL_Transform" );
+        RegisterComponent< TOOLTransformMeshComponent >( ecs, "TOOL_TransfomMesh" );
+
+        RegisterComponent< TOOLTransformSystem>( ecs, "TOOL_TransformSystem" );
     }
 
     GFXSceneDesc desc;
@@ -65,30 +82,37 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     }
     g_idcamera = gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) ) );
 
-    g_identity = ecs->CreateEntity();
+    g_transform_system_id = CreateComponent<TOOLTransformSystem>( ecs ).id;
 
-    g_mat_tool = BX_NEW( allocator, MATERIALTool );
-    g_mesh_tool = BX_NEW( allocator, MESHTool );
-    g_anim_tool = BX_NEW( allocator, ANIMTool );
+    g_tools[ToolType::MATERIAL] = BX_NEW( allocator, MATERIALTool );
+    g_tools[ToolType::ANIM]     = BX_NEW( allocator, ANIMTool );
+    g_tools[ToolType::MESH]     = BX_NEW( allocator, MESHTool );
 
-    g_mat_tool->StartUp( gfx, allocator );
-    g_mesh_tool->StartUp( this, ".src/mesh/", "mesh/", allocator );
-    g_anim_tool->StartUp( this, ".src/anim/", "anim/", allocator );
+    g_tools[ToolType::MATERIAL]->StartUp( this, nullptr, nullptr, allocator );
+    g_tools[ToolType::MESH]->StartUp( this, ".src/mesh/", "mesh/", allocator );
+    g_tools[ToolType::ANIM]->StartUp( this, ".src/anim/", "anim/", allocator );
+
+    for( uint32_t i = 0; i < ToolType::_COUNT_; ++i )
+    {
+        g_tool_entities[i] = ecs->CreateEntity();
+    }
 
     return true;
 }
 
 void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
-    g_anim_tool->ShutDown( this );
-    g_mesh_tool->ShutDown( this );
-    g_mat_tool->ShutDown( gfx );
+    for( uint32_t i = 0; i < ToolType::_COUNT_; ++i )
+    {
+        ecs->MarkForDestroy( g_tool_entities[i] );
+    }
+    for( uint32_t i = 0; i < ToolType::_COUNT_; ++i )
+    {
+        g_tools[i]->ShutDown( this );
+        BX_DELETE0( allocator, g_tools[i] );
+    }
 
-    BX_DELETE0( allocator, g_anim_tool );
-    BX_DELETE0( allocator, g_mesh_tool );
-    BX_DELETE0( allocator, g_mat_tool );
-    
-    ecs->MarkForDestroy( g_identity );
+    ecs->MarkForDestroy( g_transform_system_id );
 
     DestroyGroundMesh( &g_ground_mesh, gfx );
     gfx->DestroyScene( g_idscene );
@@ -140,12 +164,12 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         TOOLContext tool_ctx;
         tool_ctx.camera = g_idcamera;
         tool_ctx.gfx_scene = g_idscene;
-        tool_ctx.entity = g_identity;
 
-        g_mat_tool->Tick( gfx, filesystem );
-        g_mesh_tool->Tick( this, tool_ctx );
-        g_anim_tool->Tick( this, tool_ctx, delta_time_sec );
-        
+        for( uint32_t i = 0; i < ToolType::_COUNT_; ++i )
+        {
+            tool_ctx.entity = g_tool_entities[i];
+            g_tools[i]->Tick( this, tool_ctx, delta_time_sec );
+        }
     }
 
 

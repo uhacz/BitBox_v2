@@ -36,7 +36,7 @@ bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins,
     ECSComponentID meshid = CreateComponent<CMPMesh>( ecs ).id;
     ECSComponentID xformid = CreateComponent<CMPWorldXForm>( ecs ).id;
 
-    CMPWorldXForm* xform_data = Component<CMPWorldXForm>( ecs, xformid );
+    ECSComponentProxy<CMPWorldXForm> xform_data( ecs, xformid );
     xform_data->data = xform_t::identity();
 
     array_span_t<CMPWorldXForm*> xforms = Components<CMPWorldXForm>( ecs );
@@ -51,16 +51,15 @@ bool BXTestApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins,
         char buff[64];
         snprintf( buff, 64, "%c", 65 + i );
 
-        ECSComponentID id = CreateComponent<CMPName>( ecs ).id;
-        CMPName* comp = Component<CMPName>( ecs, id );
+        ECSComponentProxy<CMPName> comp = ECSComponentProxy<CMPName>::New( ecs );
         string::create( &comp->value, buff, allocator );
 
-        ids[i] = id;
+        ids[i] = comp.Id();
     }
 
     ECSComponentID id_D = CMPName::FindComponent( ecs, "D" );
-    const CMPName* name_comp = Component<CMPName>( ecs, id_D );
-
+    const ECSComponentProxy<CMPName> name_comp( ecs, id_D );
+    
     ecs->MarkForDestroy( ids[4] );
 
 	return true;

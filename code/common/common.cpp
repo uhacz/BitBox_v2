@@ -5,10 +5,37 @@
 #include <filesystem/filesystem_plugin.h>
 
 #include <3rd_party/imgui/imgui.h>
+#include <stdio.h>
 
 namespace common
 {
+    void FolderContext::SetUp( BXIFilesystem* fs, BXIAllocator* allocator )
+    {
+        _filesystem = fs;
+        _allocator = allocator;
+    }
 
+    void FolderContext::RequestRefresh()
+    {
+        _flag_refresh_file_list = 1;
+    }
+
+    void FolderContext::SetFolder( const char* folder )
+    {
+        _flag_refresh_file_list = !string::equal( _folder.c_str(), folder );
+        string::create( &_folder, folder, _allocator );
+    }
+
+    const string_buffer_t& FolderContext::FileList() const
+    {
+        if( _flag_refresh_file_list )
+        {
+            _flag_refresh_file_list = 0;
+            common::RefreshFiles( &_file_list, _folder.c_str(), _filesystem, _allocator );
+        }
+
+        return _file_list;
+    }
 
     void RefreshFiles( string_buffer_t* flist, const char* folder, BXIFilesystem* fs, BXIAllocator* allocator )
     {
@@ -72,4 +99,56 @@ namespace common
         return file_it;
     }
 
+
+    static inline uint32_t find_r( const char* begin, uint32_t len, const char needle )
+    {
+        int32_t pos = len;
+        while( pos )
+        {
+            if( begin[pos] == needle )
+                break;
+
+            --pos;
+        }
+        return pos;
+    }
+
+    void CreateDstFilename( FSName* dst_file, const char* dst_folder, const string_t& src_file, const char* ext )
+    {
+        constexpr char d = '.';
+        constexpr char s = '/';
+
+        const uint32_t src_len = src_file.length();
+        const uint32_t s_pos = find_r( src_file.c_str(), src_len, s );
+
+        char tmp[FSName::MAX_LENGTH] = {};
+
+        const char* src_name = src_file.c_str();
+        if( s_pos != UINT32_MAX )
+            src_name += s_pos + 1;
+
+        uint32_t len = snprintf( tmp, FSName::MAX_LENGTH, "%s", src_name );
+
+        const uint32_t d_pos = find_r( tmp, len, d );
+        if( d_pos != UINT32_MAX )
+        {
+            snprintf( tmp + d_pos + 1, FSName::MAX_LENGTH - (len + d_pos + 1), ext );
+        }
+
+        dst_file->Append( dst_folder );
+        dst_file->AppendRelativePath( tmp );
+    }
+
+    void CreateDstFilename( string_t* dst_file, const char* dst_folder, const string_t& src_file, const char* ext, BXIAllocator* allocator )
+    {
+        FSName tmp;
+        CreateDstFilename( &tmp, dst_folder, src_file, ext );
+        string::create( dst_file, tmp.AbsolutePath(), allocator );
+    }
 }//
+
+namespace common
+{
+
+
+}

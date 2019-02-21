@@ -1,19 +1,39 @@
 #include "components.h"
-#include "gfx\gfx.h"
-#include "rdix\rdix_type.h"
+
+#include <entity/entity_proxy.h>
+
 #include "foundation\hashed_string.h"
-#include "anim\anim_struct.h"
 #include <foundation\array.h>
+
+#include "rdix\rdix_type.h"
+#include "rdix\rdix.h"
+#include "gfx\gfx.h"
+
+#include "anim\anim_struct.h"
+
+
 #include <algorithm>
 
-void TOOLMeshComponent::Initialize( GFX* gfx, GFXSceneID idscene, const GFXMeshInstanceDesc& mesh_desc, const mat44_t& pose )
+
+
+#include "common\base_engine_init.h"
+#include "tool_context.h"
+
+bool TOOLMeshComponent::Initialize( GFX* gfx, GFXSceneID idscene, const GFXMeshInstanceDesc& mesh_desc, const mat44_t& pose )
 {
     id_mesh = gfx->AddMeshToScene( idscene, mesh_desc, pose );
+    return true;
 }
 
 void TOOLMeshComponent::Uninitialize( GFX* gfx )
 {
     gfx->RemoveMeshFromScene( id_mesh );
+}
+
+void TOOLMeshComponent::SetWorldPose( ECSRawComponent* _this, GFX* gfx, const mat44_t& pose )
+{
+    TOOLMeshComponent* mesh_cmp = (TOOLMeshComponent*)_this;
+    gfx->SetWorldPose( mesh_cmp->id_mesh, pose );
 }
 
 static uint32_t InitializeSkinningMapping( 
@@ -69,13 +89,13 @@ static void InitializeSkinningBones( array_t<mat44_t>& bone_offsets, array_span_
 
 
 
-void TOOLSkinningComponent::Initialize( const RDIXMeshFile* mesh_file, const ANIMSkel* skel, GFXMeshInstanceID mesh )
+bool TOOLSkinningComponent::Initialize( const RDIXMeshFile* mesh_file, const ANIMSkel* skel, GFXMeshInstanceID mesh )
 {
     const uint32_t num_mesh_bones = mesh_file->num_bones;
     if( !num_mesh_bones )
     {
         SYS_LOG_ERROR( "Trying to initialize skinning component with no bones in mesh" );
-        return;
+        return false;
     }
     const mat44_t* mesh_bone_offsets = TYPE_OFFSET_GET_POINTER( const mat44_t, mesh_file->offset_bones );
     const hashed_string_t* mesh_bones_names = TYPE_OFFSET_GET_POINTER( const hashed_string_t, mesh_file->offset_bones_names );
@@ -83,34 +103,42 @@ void TOOLSkinningComponent::Initialize( const RDIXMeshFile* mesh_file, const ANI
 
     InitializeSkinningBones( bone_offsets, to_array_span( mesh_bone_offsets, num_mesh_bones ) );
     num_valid_mappings = InitializeSkinningMapping( mapping, to_array_span( mesh_bones_names, num_mesh_bones ), to_array_span( skel_bones_names, skel->numJoints ) );
+    
+    id_mesh = mesh;
+    
+    return true;
 }
 
-bool TOOLSkinningComponent::Initialize( ECS* ecs, ECSComponentID id_mesh_desc, GFXMeshInstanceID mesh )
+bool TOOLSkinningComponent::Initialize( ECS* ecs, ECSComponentID id_mesh_desc )
 {
     const ECSEntityID entity = ecs->Owner( this );
+    ECSEntityProxy eproxy( ecs, entity );
 
-    ECSComponentID anim_desc_id = Lookup<TOOLAnimDescComponent>( ecs, entity );
+    const ECSComponentProxy<TOOLMeshDescComponent> mesh_desc( ecs, id_mesh_desc );
 
-    if( anim_desc_id == ECSComponentID::Null() || id_mesh_desc == ECSComponentID::Null() )
+    if( mesh_desc )
     {
-        return false;    
+        id_mesh = mesh_desc->id_mesh;
     }
 
-    const TOOLAnimDescComponent* anim_desc = Component<TOOLAnimDescComponent>( ecs, anim_desc_id );
-    const TOOLMeshDescComponent* mesh_desc = Component<TOOLMeshDescComponent>( ecs, id_mesh_desc );
+    const ECSComponentProxy<TOOLAnimDescComponent> anim_desc( ecs, eproxy.Lookup<TOOLAnimDescComponent>() );
 
-    Initialize( mesh_desc, anim_desc, mesh );
+    if( !anim_desc || !mesh_desc )
+        return false;
+
+    Initialize( mesh_desc.Get(), anim_desc.Get() );
 
     return true;
 }
 
-void TOOLSkinningComponent::Initialize( const TOOLMeshDescComponent* mesh_desc, const TOOLAnimDescComponent* anim_desc, GFXMeshInstanceID mesh )
+bool TOOLSkinningComponent::Initialize( const TOOLMeshDescComponent* mesh_desc, const TOOLAnimDescComponent* anim_desc )
 {
-    if( mesh.i )
-        id_mesh = mesh;
+    id_mesh = mesh_desc->id_mesh;
 
     InitializeSkinningBones( bone_offsets, to_array_span( mesh_desc->bones_offsets ) );
     num_valid_mappings = InitializeSkinningMapping( mapping, to_array_span( mesh_desc->bones_names ), to_array_span( anim_desc->bones_names ) );
+
+    return num_valid_mappings != 0;
 }
 
 void TOOLSkinningComponent::ComputeSkinningMatrices( array_span_t<mat44_t> output_span, const array_span_t<const mat44_t> anim_matrices )
@@ -133,8 +161,14 @@ void TOOLSkinningComponent::ComputeSkinningMatrices( array_span_t<mat44_t> outpu
     }
  }
 
-void TOOLMeshDescComponent::Initialize( const RDIXMeshFile* mesh_file )
+bool TOOLMeshDescComponent::Initialize( ECS* ecs, ECSComponentID id_mesh_comp, const RDIXMeshFile* mesh_file )
 {
+    ECSComponentProxy<TOOLMeshComponent> mesh_comp( ecs, id_mesh_comp );
+    if( !mesh_comp )
+        return false;
+
+    id_mesh = mesh_comp->id_mesh;
+
     const uint32_t num_bones = mesh_file->num_bones;
     array::clear( bones_names );
     array::clear( bones_offsets );
@@ -149,12 +183,156 @@ void TOOLMeshDescComponent::Initialize( const RDIXMeshFile* mesh_file )
         array::push_back( bones_names, src_bones_names[i] );
         array::push_back( bones_offsets, src_bones_offsets[i] );
     }
+
+
+
+    return true;
 }
 
-void InitializeSkinningComponent( ECSComponentID skinning_id, ECS* ecs )
+bool TOOLTransformComponent::Initialize( const vec3_t& pos )
 {
-    if( TOOLSkinningComponent* comp = Component<TOOLSkinningComponent>( ecs, skinning_id ) )
+    pose = mat44_t::translation( pos );
+    return true;
+}
+
+bool TOOLTransformComponent::Initialize( const quat_t& rot )
+{
+    pose = mat44_t( rot );
+    return true;
+}
+
+bool TOOLTransformComponent::Initialize( const mat44_t& mtx )
+{
+    pose = mtx;
+    return true;
+}
+
+bool TOOLTransformComponent::Initialize( const xform_t& xform )
+{
+    pose = mat44_t( xform.rot, xform.pos );
+    return true;
+}
+
+bool TOOLTransformMeshComponent::Initialize( ECS* ecs, ECSComponentID src, ECSComponentID dst )
+{
+    ECSComponentProxy<TOOLTransformComponent> tr( ecs, src );
+    ECSComponentProxy<TOOLMeshComponent> mesh( ecs, dst );
+    if( tr && mesh )
     {
-        
+        source = src;
+        destination = dst;
+        return true;
     }
+    return false;
+}
+
+ECSComponentID TOOLTransformSystem::Link( ECS* ecs, ECSComponentID src, ECSComponentID dst )
+{
+    ECSComponentProxy<TOOLTransformMeshComponent> proxy = ECSComponentProxy<TOOLTransformMeshComponent>::New( ecs );
+    if( !proxy->Initialize( ecs, src, dst ) )
+    {
+        proxy.Release();
+    }
+
+    return proxy.Id();
+}
+
+void TOOLTransformSystem::Tick( ECS* ecs, GFX* gfx )
+{
+    array_span_t<TOOLTransformMeshComponent*> links = Components<TOOLTransformMeshComponent>( ecs );
+    for( TOOLTransformMeshComponent* link : links )
+    {
+        ECSComponentProxy< TOOLTransformComponent> tr_proxy( ecs, link->source );
+        ECSComponentProxy< TOOLMeshComponent> mesh_proxy( ecs, link->destination );
+
+        if( !tr_proxy || !mesh_proxy )
+            continue;
+
+        gfx->SetWorldPose( mesh_proxy->id_mesh, tr_proxy->pose );
+    }
+}
+
+
+//
+
+void UnloadTOOLMeshComponent( CMNEngine* e, ECSComponentID id_mesh_comp )
+{
+    ECSComponentProxy<TOOLMeshComponent> proxy( e->ecs, id_mesh_comp );
+    if( proxy )
+    {
+        ECSEntityProxy eproxy = proxy.OwnerProxy();
+        ECSComponentIDSpan comp_id_span = eproxy.Components();
+
+        ECSComponentIterator it( e->ecs, eproxy.Id() );
+
+        while( ECSComponentProxy<TOOLMeshDescComponent> mesh_desc = it.FindNext<TOOLMeshDescComponent>() )
+        {
+            if( mesh_desc->id_mesh.i == proxy->id_mesh.i )
+            {
+                mesh_desc.Release();
+                break;
+            }
+        }
+
+        it.Reset();
+        while( ECSComponentProxy<TOOLSkinningComponent> skin = it.FindNext<TOOLSkinningComponent>() )
+        {
+            if( skin->id_mesh.i == proxy->id_mesh.i )
+            {
+                skin.Release();
+                break;
+            }
+        }
+
+        proxy->Uninitialize( e->gfx );
+        proxy.Release();
+    }
+}
+
+ECSComponentID LoadTOOLMeshComponent( CMNEngine* e, ECSComponentID id_mesh_comp, const TOOLContext& ctx, const RDIXMeshFile* mesh_file, BXIAllocator* allocator )
+{
+    RDIXRenderSource* rsource = CreateRenderSourceFromMemory( e->rdidev, mesh_file, allocator );
+
+    GFXMeshInstanceDesc desc = {};
+    desc.AddRenderSource( rsource );
+
+    ECSComponentProxy<TOOLMeshComponent> mesh_comp( e->ecs, id_mesh_comp );
+    if( mesh_comp )
+    {
+        desc.idmaterial = e->gfx->Material( mesh_comp->id_mesh );
+    }
+    else
+    {
+        desc.idmaterial = e->gfx->FindMaterial( "editable" );
+    }
+
+    UnloadTOOLMeshComponent( e, id_mesh_comp );
+
+    mesh_comp = ECSComponentProxy<TOOLMeshComponent>::New( e->ecs );
+    mesh_comp->Initialize( e->gfx, ctx.gfx_scene, desc, mat44_t::identity() );
+    mesh_comp.SetOwner( ctx.entity );
+
+    ECSComponentProxy<TOOLMeshDescComponent> mesh_desc = ECSComponentProxy<TOOLMeshDescComponent>::New( e->ecs );
+    mesh_desc->Initialize( e->ecs, mesh_comp.Id(), mesh_file );
+    mesh_desc.SetOwner( ctx.entity );
+
+    ECSComponentProxy<TOOLSkinningComponent> skin_comp = ECSComponentProxy<TOOLSkinningComponent>::New( e->ecs );
+    skin_comp->Initialize( e->ecs, mesh_desc.Id() );
+    skin_comp.SetOwner( ctx.entity );
+
+    return mesh_comp.Id();
+}
+
+bool TOOLAnimDescComponent::Initialize( const ANIMSkel* skel )
+{
+    if( !skel )
+        return false;
+
+    const hashed_string_t* skel_bones_names = TYPE_OFFSET_GET_POINTER( hashed_string_t, skel->offsetJointNames );
+    array::clear( bones_names );
+    array::reserve( bones_names, skel->numJoints );
+    for( uint32_t ijoint = 0; ijoint < skel->numJoints; ++ijoint )
+        array::push_back( bones_names, skel_bones_names[ijoint] );
+
+    return true;
 }

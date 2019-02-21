@@ -22,15 +22,16 @@
 void ANIMTool::StartUp( CMNEngine* e, const char* src_folder, const char* dst_folder, BXIAllocator* allocator )
 {
     _allocator = allocator;
-    string::create( &_src_folder, src_folder, allocator );
-    string::create( &_dst_folder, dst_folder, allocator );
+    _root_dst_folder_ctx.SetUp( e->filesystem, allocator );
+    _root_dst_folder_ctx.SetFolder( dst_folder );
+
+    _root_src_folder_ctx.SetUp( e->filesystem, allocator );
+    _root_src_folder_ctx.SetFolder( src_folder );
 }
 
 void ANIMTool::ShutDown( CMNEngine* e )
 {
     string::free( &_current_src_file );
-    string::free( &_dst_folder );
-    string::free( &_src_folder );
 
     BX_DELETE0( _allocator, _in_skel );
     BX_DELETE0( _allocator, _in_anim );
@@ -42,30 +43,17 @@ void ANIMTool::ShutDown( CMNEngine* e )
     }
     BX_FREE0( _allocator, _joints_ms );
 
-    _skel_blob.destroy();
-    _clip_blob.destroy();
+    BX_FREE0( _allocator, _skel_file );
+    BX_FREE0( _allocator, _clip_file );
 }
 
 void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 {
-    ECSComponentID desc_comp_id = ECSComponentID::Null();
-    TOOLAnimDescComponent* desc_comp = nullptr;
-    common::CreateComponentIfNotExists( &desc_comp_id, &desc_comp, e->ecs, ctx.entity );
+    ECSComponentProxy<TOOLAnimDescComponent> desc_comp = common::CreateComponentIfNotExists< TOOLAnimDescComponent >( e->ecs, ctx.entity );
 
     DrawMenu();
 
     BXIFilesystem* fs = e->filesystem;
-
-    if( _flags.refresh_src_files )
-    {
-        _flags.refresh_src_files = 0;
-        common::RefreshFiles( &_src_file_list, _src_folder.c_str(), fs, _allocator );
-    }
-    if( _flags.refresh_dst_files )
-    {
-        _flags.refresh_dst_files = 0;
-        common::RefreshFiles( &_dst_file_list, _dst_folder.c_str(), fs, _allocator );
-    }
 
     if( _flags.request_load )
     {
@@ -84,20 +72,30 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
             if( tool::anim::Import( _in_skel, _in_anim, file.bin, file.size, _import_params ) )
             {
-                _skel_blob.destroy();
-                _clip_blob.destroy();                
+                common::CreateDstFilename( &_current_dst_file_skel, _root_dst_folder_ctx.Folder(), _current_src_file, "skel" );
+                common::CreateDstFilename( &_current_dst_file_clip, _root_dst_folder_ctx.Folder(), _current_src_file, "clip" );
+
+                BX_FREE0( _allocator, _skel_file );
+                BX_FREE0( _allocator, _clip_file );
                 BX_FREE0( _allocator, _joints_ms );
 
-                _skel_blob = tool::anim::CompileSkeleton( *_in_skel, _allocator );
-                _clip_blob = tool::anim::CompileClip( *_in_anim, *_in_skel, _allocator );
+                blob_t skel_blob = tool::anim::CompileSkeleton( *_in_skel, _allocator );
+                blob_t clip_blob = tool::anim::CompileClip( *_in_anim, *_in_skel, _allocator );
+
+                _skel_file = srl_file::serialize<ANIMSkel>( skel_blob, _allocator );
+                _clip_file = srl_file::serialize<ANIMClip>( clip_blob, _allocator );
+
+                skel_blob.destroy();
+                clip_blob.destroy();
+
 
                 if( _player )
                     _player->Unprepare();
 
                 BX_RENEW( _allocator, &_player );
 
-                ANIMSkel* skel = (ANIMSkel*)_skel_blob.raw;
-                ANIMClip* clip = (ANIMClip*)_clip_blob.raw;
+                const ANIMSkel* skel = _skel_file->data<ANIMSkel>();
+                const ANIMClip* clip = _clip_file->data<ANIMClip>();
                 _player->Prepare( skel, _allocator );
                 _player->Play( clip, 0.f, 0.f, 0 );
 
@@ -107,28 +105,36 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
                 _joints_ms = anim_ext::AllocateJoints( skel, _allocator );
                 array::clear( _selected_joints );
 
-                {
-                    const hashed_string_t* bones_names = TYPE_OFFSET_GET_POINTER( hashed_string_t, skel->offsetJointNames );
-                    array::clear( desc_comp->bones_names );
-                    array::reserve( desc_comp->bones_names, skel->numJoints );
-                    for( uint32_t ijoint = 0; ijoint < skel->numJoints; ++ijoint )
-                        array::push_back( desc_comp->bones_names, bones_names[ijoint] );
-                }
+                desc_comp->Initialize( skel );
 
-                if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->ecs, ctx.entity ) )
+                ECSEntityProxy eproxy( e->ecs, ctx.entity );
+                ECSComponentProxy<TOOLSkinningComponent> skinning( eproxy );
+                if( skinning )
                 {
-                    ECSComponentID mesh_desc_id = Lookup<TOOLMeshDescComponent>( e->ecs, ctx.entity );
-                    GFXMeshInstanceID mesh_id = { 0 };
-                    InitializeComponent<TOOLSkinningComponent>( e->ecs, skinning_id, e->ecs, mesh_desc_id, mesh_id );
+                    ECSComponentID mesh_desc_id = eproxy.Lookup<TOOLMeshDescComponent>();
+                    skinning->Initialize( e->ecs, mesh_desc_id );
                 }
             }
             fs->CloseFile( &_hfile, true );
         }
     }
 
+    if( _flags.save_skel )
+    {
+        _flags.save_skel = 0;
+        WriteFileSync( e->filesystem, _current_dst_file_skel.AbsolutePath(), _skel_file, _skel_file->size );
+        _root_dst_folder_ctx.RequestRefresh();
+    }
+    if( _flags.save_clip )
+    {
+        _flags.save_clip = 0;
+        WriteFileSync( e->filesystem, _current_dst_file_clip.AbsolutePath(), _clip_file, _clip_file->size );
+        _root_dst_folder_ctx.RequestRefresh();
+    }
+
     if( _player )
     {
-        const ANIMSkel* skel = (ANIMSkel*)_skel_blob.raw;
+        const ANIMSkel* skel = _skel_file->data<ANIMSkel>();
         _player->Tick( dt * _time_scale );
 
         const ANIMJoint* joints_ls = _player->LocalJoints();
@@ -136,14 +142,24 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
         anim_ext::LocalJointsToWorldJoints( _joints_ms, joints_ls, skel, ANIMJoint::identity() );
         anim_ext::LocalJointsToWorldMatrices( _matrices_ms.begin(), joints_ls, skel, ANIMJoint::identity() );
 
-        if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->ecs, ctx.entity ) )
+        ECSEntityProxy eproxy( e->ecs, ctx.entity );
+        ECSComponentProxy<TOOLSkinningComponent> skinning_comp( eproxy );
+        if( skinning_comp )
         {
-            TOOLSkinningComponent* skinning_comp = Component<TOOLSkinningComponent>( e->ecs, skinning_id );
             blob_t skinning_data = e->gfx->AcquireSkinnigDataToWrite( skinning_comp->id_mesh, skinning_comp->bone_offsets.size * sizeof( mat44_t ) );
             array_span_t<mat44_t> skinning_matrices = to_array_span<mat44_t>( skinning_data, skinning_comp->bone_offsets.size );
 
             skinning_comp->ComputeSkinningMatrices( skinning_matrices, array_span_t<const mat44_t>( _matrices_ms.begin(), _matrices_ms.end() ) );
         }
+
+        //if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->ecs, ctx.entity ) )
+        //{
+        //    TOOLSkinningComponent* skinning_comp = Component<TOOLSkinningComponent>( e->ecs, skinning_id );
+        //    blob_t skinning_data = e->gfx->AcquireSkinnigDataToWrite( skinning_comp->id_mesh, skinning_comp->bone_offsets.size * sizeof( mat44_t ) );
+        //    array_span_t<mat44_t> skinning_matrices = to_array_span<mat44_t>( skinning_data, skinning_comp->bone_offsets.size );
+
+        //    skinning_comp->ComputeSkinningMatrices( skinning_matrices, array_span_t<const mat44_t>( _matrices_ms.begin(), _matrices_ms.end() ) );
+        //}
 
         const uint32_t color = color32_t::TEAL();
 
@@ -198,8 +214,6 @@ static void DrawSkeletonTree( array_t<int16_t>& selected_joints, const tool::ani
 
     if( opened )
     {
-    
-
         for( int16_t i = joint_index + 1; i < num_joints; ++i )
         {
             const int16_t parent_index = skel->parentIndices[i];
@@ -218,34 +232,32 @@ void ANIMTool::DrawMenu()
     {
         if( ImGui::BeginMenu( "Import" ) )
         {
-            if( _src_file_list.null() )
+            string_buffer_it selected = common::MenuFileSelector( _root_src_folder_ctx.FileList() );
+            if( !selected.null() && !IsValid( _hfile ) )
             {
-                _flags.refresh_src_files = 1;
-            }
-            else
-            {
-                string_buffer_it selected = common::MenuFileSelector( _src_file_list );
-                if( !selected.null() && !IsValid( _hfile ) )
-                {
-                    string::create( &_current_src_file, selected.pointer, _allocator );
-                    _flags.show_import_dialog = 1;
-                }
+                string::create( &_current_src_file, selected.pointer, _allocator );
+                _flags.show_import_dialog = 1;
             }
             ImGui::EndMenu();
         }
+        if( ImGui::BeginMenu( "Load mesh" ) )
+        {
+            aas
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
-        if( !_skel_blob.empty() )
+        if( _skel_file )
         {
             ImGui::InputText( "Skeleton output file", _current_dst_file_skel._data, FSName::MAX_SIZE );
-            if( ImGui::Button( "save" ) )
+            if( ImGui::Button( "Save skel" ) )
             {
                 _flags.save_skel = 1;
             }
         }
-        if( !_clip_blob.empty() )
+        if( _clip_file )
         {
             ImGui::InputText( "Clip output file", _current_dst_file_clip._data, FSName::MAX_SIZE );
-            if( ImGui::Button( "save" ) )
+            if( ImGui::Button( "Save clip" ) )
             {
                 _flags.save_clip = 1;
             }

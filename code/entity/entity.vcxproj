@@ -73,15 +73,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="components\name_component.h" />
-    <ClInclude Include="dll_interface.h" />
+    <ClInclude Include="entity_proxy.h" />
     <ClInclude Include="entity_system.h" />
     <ClInclude Include="entity_id.h" />
     <ClInclude Include="entity_iterator.h" />
-    <ClInclude Include="entity.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="components\name_component.cpp" />
-    <ClCompile Include="entity.cpp" />
     <ClCompile Include="entity_system.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -223,14 +223,6 @@ namespace tool{ namespace anim {
     {
         BX_FREE0( allocator, mem );
     }
-    uint32_t SkelTag()
-    {
-        return ANIM_SKEL_TAG;
-    }
-    uint32_t ClipTag()
-    {
-        return ANIM_CLIP_TAG;
-    }
 
     bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size, const ImportParams& params )
     {
@@ -311,7 +303,6 @@ namespace tool{ namespace anim {
         uint8_t* parent_indices_address = base_pose_address + base_pose_size;
         uint8_t* joint_name_hashes_address = parent_indices_address + parent_indices_size;
 
-        out_skeleton->tag = SkelTag();
         out_skeleton->numJoints = num_joints;
         out_skeleton->offsetBasePose = TYPE_POINTER_GET_OFFSET( &out_skeleton->offsetBasePose, base_pose_address );
         out_skeleton->offsetParentIndices = TYPE_POINTER_GET_OFFSET( &out_skeleton->offsetParentIndices, parent_indices_address );
@@ -358,7 +349,6 @@ namespace tool{ namespace anim {
         uint8_t* translation_address = rotation_address + channel_data_size;
         uint8_t* scale_address = translation_address + channel_data_size;
 
-        clip->tag = ClipTag();
         clip->duration = in_animation.endTime - in_animation.startTime;
         clip->sampleFrequency = in_animation.sampleFrequency;
         clip->numJoints = num_joints;

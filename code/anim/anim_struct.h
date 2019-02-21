@@ -2,18 +2,28 @@
 
 #include <foundation/type.h>
 #include <foundation/debug.h>
+#include <foundation/serializer.h>
+#include <foundation/tag.h>
 
 struct ANIMJoint;
 
 struct BIT_ALIGNMENT_16 ANIMSkel
 {
-	uint32_t tag;
+    static constexpr uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+    static constexpr uint32_t TAG = BX_UTIL_TAG32( 'S', 'K', 'E', 'L' );
+
 	uint16_t numJoints;
 	uint16_t pad0__[1];
 	uint32_t offsetBasePose;
 	uint32_t offsetParentIndices;
 	uint32_t offsetJointNames;
-	uint32_t pad1__[3];
+
+    SRL_TYPE( ANIMSkel,
+        SRL_PROPERTY( numJoints );
+        SRL_PROPERTY( offsetBasePose );
+        SRL_PROPERTY( offsetParentIndices );
+        SRL_PROPERTY( offsetJointNames );
+    );
 };
 
 inline const int16_t*   ParentIndices( const ANIMSkel* skel ) { return TYPE_OFFSET_GET_POINTER( int16_t, skel->offsetParentIndices ); }
@@ -23,15 +33,27 @@ inline const ANIMJoint* BasePose     ( const ANIMSkel* skel ) { return TYPE_OFFS
 
 struct BIT_ALIGNMENT_16 ANIMClip
 {
-    uint32_t tag;
+    static constexpr uint32_t VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+    static constexpr uint32_t TAG = BX_UTIL_TAG32( 'C', 'L', 'I', 'P' );
+    
 	float32_t duration;
 	float32_t sampleFrequency;
-	uint16_t numJoints;
-	uint16_t numFrames;
-	uint32_t offsetRotationData;
-	uint32_t offsetTranslationData;
-	uint32_t offsetScaleData;
-	uint32_t pad0__[1];
+	uint16_t  numJoints;
+	uint16_t  numFrames;
+	uint32_t  offsetRotationData;
+	uint32_t  offsetTranslationData;
+	uint32_t  offsetScaleData;
+    uint32_t  __padding[2];
+
+    SRL_TYPE( ANIMClip,
+        SRL_PROPERTY( duration );
+        SRL_PROPERTY( sampleFrequency );
+        SRL_PROPERTY( numJoints );
+        SRL_PROPERTY( numFrames );
+        SRL_PROPERTY( offsetRotationData );
+        SRL_PROPERTY( offsetTranslationData );
+        SRL_PROPERTY( offsetScaleData );
+    );
 };
 
 struct BIT_ALIGNMENT_16 ANIMBlendBranch

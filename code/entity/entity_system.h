@@ -33,6 +33,8 @@ struct ECSNewComponent
     template<typename T> T* Cast() { return (T*)pointer; }
 };
 
+
+
 struct ECS
 {
     ECSEntityID CreateEntity();
@@ -108,47 +110,10 @@ inline ECSNewComponent CreateComponent( ECS* ecs )
 }
 
 template< typename T>
-inline T* Component( ECS* ecs, ECSComponentID id ) 
-{ 
-    return (T*)ecs->Component( id ); 
-}
-
-template< typename T>
 inline array_span_t<T*> Components( ECS* ecs ) 
 { 
     ECSRawComponentSpan raw_span = ecs->Components( typeid(T).hash_code() );
     return array_span_t<T*>( (T**)raw_span.begin(), raw_span.size() ); 
 }
 
-template< typename T>
-inline ECSComponentID Lookup( ECS* ecs, ECSEntityID id )
-{
-    return ecs->Lookup( id, typeid(T).hash_code() );
-}
-
-template< typename TComp, typename ... TArgs >
-static void UninitializeComponent( ECS* ecs, ECSComponentID comp_id, TArgs&& ... args )
-{
-    TComp* comp = (TComp*)ecs->ComponentSafe( comp_id, typeid(TComp).hash_code() );
-    if( comp )
-    {
-        comp->Uninitialize( std::forward<TArgs>( args )... );
-    }
-}
-
-template< typename TComp, typename ... TArgs >
-static TComp* InitializeComponent( ECS* ecs, ECSComponentID comp_id, TArgs&& ... args )
-{
-    TComp* comp = (TComp*)ecs->ComponentSafe( comp_id, typeid(TComp).hash_code() );
-    if( comp )
-    {
-        comp->Initialize( std::forward<TArgs>( args )... );
-    }
-    return comp;
-}
-template< typename TComp, typename ... TArgs >
-static void UnloadComponent( ECS* ecs, ECSComponentID comp_id, TArgs&& ... args )
-{
-    UninitializeComponent<TComp>( ecs, comp_id, std::forward<TArgs>( args )... );
-    ecs->MarkForDestroy( comp_id );
-}
+#include "entity_proxy.h"
