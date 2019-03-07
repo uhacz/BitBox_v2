@@ -39,14 +39,11 @@ namespace helper
     }
 }//
 
-void MESHTool::StartUp( CMNEngine* e, const char* src_root, const char* dst_root, BXIAllocator* allocator )
+void MESHTool::StartUp( CMNEngine* e, const char* src_root, BXIAllocator* allocator )
 {
     _allocator = allocator;
     _root_src_folder_ctx.SetUp( e->filesystem, allocator );
     _root_src_folder_ctx.SetFolder( src_root );
-
-    _root_dst_folder_ctx.SetUp( e->filesystem, allocator );
-    _root_dst_folder_ctx.SetFolder( dst_root );
 
     helper::SetToDefaults( &_compile_options );
 }
@@ -73,7 +70,7 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
             if( ImGui::BeginMenu( "Load" ) )
             {
-                const string_buffer_t& file_list = _root_dst_folder_ctx.FileList();
+                const string_buffer_t& file_list = ctx.folders->mesh.FileList();
                 string_buffer_it selected_it = common::MenuFileSelector( file_list );
                 if( !selected_it.null() )
                 {
@@ -119,7 +116,7 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
                         ImGui::SameLine();
                         if( ImGui::Button( "Save" ) )
                         {
-                            _Save( e );
+                            _Save( e, &ctx.folders->mesh );
                         }
                     }
 
@@ -251,9 +248,9 @@ void MESHTool::_Load( CMNEngine* e, const TOOLContext& ctx, const char* filename
     e->filesystem->CloseFile( &result.handle, false );
 }
 
-void MESHTool::_Save( CMNEngine* e )
+void MESHTool::_Save( CMNEngine* e, common::FolderContext* folder )
 {
-    common::CreateDstFilename( &_current_dst_file, _root_dst_folder_ctx.Folder(), _current_src_file, "mesh", _allocator );
+    common::CreateDstFilename( &_current_dst_file, folder->Root(), _current_src_file, "mesh", _allocator );
     WriteFileSync( e->filesystem, _current_dst_file.c_str(), _mesh_file, _mesh_file->size );
-    _root_dst_folder_ctx.RequestRefresh();
+    folder->RequestRefresh();
 }

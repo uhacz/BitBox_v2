@@ -297,8 +297,12 @@ void DestroyEntity( ECSImpl* impl, ECSEntityID id )
 
 void ECS::MarkForDestroy( ECSEntityID id )
 {
-    id_table::invalidate( impl->entity_id_alloc, id );
-    
+    id = id_table::invalidate( impl->entity_id_alloc, id );
+
+    ECSComponentIDSpan components = Components( id );
+    for( ECSComponentID cid : components )
+        MarkForDestroy( cid );
+
     scoped_write_spin_lock_t guard( impl->entity_dead_lock );
     bitset::set( impl->entity_dead_mask, id.index );
 }

@@ -16,20 +16,19 @@ struct CMNEngine;
 
 struct MESHTool : TOOLInterface
 {
-    void StartUp( CMNEngine* e, const char* src_root, const char* dst_root, BXIAllocator* allocator ) override;
+    void StartUp( CMNEngine* e, const char* src_root, BXIAllocator* allocator ) override;
     void ShutDown( CMNEngine* e ) override;
     void Tick( CMNEngine* e, const TOOLContext& ctx, float dt ) override;
     
     bool _Import( CMNEngine* e );
     void _Compile( CMNEngine* e, const TOOLContext& ctx, const tool::mesh::Streams& streams );
     void _Load( CMNEngine* e, const TOOLContext& ctx, const char* filename );
-    void _Save( CMNEngine* e );
+    void _Save( CMNEngine* e, common::FolderContext* folder );
     
     BXIAllocator* _allocator = nullptr;
+
     common::FolderContext _root_src_folder_ctx;
     string_t _current_src_file;
-
-    common::FolderContext _root_dst_folder_ctx;
     string_t _current_dst_file;
 
     ECSComponentID _id_mesh_comp;

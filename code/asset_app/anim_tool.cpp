@@ -16,21 +16,40 @@
 #include "components.h"
 
 #include <common/common.h>
+#include "foundation/serializer.h"
+#include "rdix/rdix_type.h"
 
+namespace
+{
+    inline ECSComponentProxy<TOOLTransformComponent> FindFirstTransformComponent( ECS* ecs, ECSEntityID entity )
+    {
+        ECSComponentIterator it( ecs, entity );
+        return it.FindNext<TOOLTransformComponent>();
+    }
+    inline mat44_t GetEntityRootTransform( ECS* ecs, ECSEntityID entity )
+    {
+        mat44_t result = mat44_t::identity();
+        if( auto proxy = FindFirstTransformComponent( ecs, entity ) )
+        {
+            result = proxy->pose;
+        }
 
+        return result;
+    }
+}
 
-void ANIMTool::StartUp( CMNEngine* e, const char* src_folder, const char* dst_folder, BXIAllocator* allocator )
+void ANIMTool::StartUp( CMNEngine* e, const char* src_folder, BXIAllocator* allocator )
 {
     _allocator = allocator;
-    _root_dst_folder_ctx.SetUp( e->filesystem, allocator );
-    _root_dst_folder_ctx.SetFolder( dst_folder );
-
     _root_src_folder_ctx.SetUp( e->filesystem, allocator );
     _root_src_folder_ctx.SetFolder( src_folder );
 }
 
 void ANIMTool::ShutDown( CMNEngine* e )
 {
+    e->ecs->MarkForDestroy( _anim_desc_component );
+    UnloadTOOLMeshComponent( e, _mesh_comp );
+
     string::free( &_current_src_file );
 
     BX_DELETE0( _allocator, _in_skel );
@@ -50,8 +69,9 @@ void ANIMTool::ShutDown( CMNEngine* e )
 void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 {
     ECSComponentProxy<TOOLAnimDescComponent> desc_comp = common::CreateComponentIfNotExists< TOOLAnimDescComponent >( e->ecs, ctx.entity );
+    _anim_desc_component = desc_comp.Id();
 
-    DrawMenu();
+    DrawMenu( e, ctx );
 
     BXIFilesystem* fs = e->filesystem;
 
@@ -72,8 +92,8 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
             if( tool::anim::Import( _in_skel, _in_anim, file.bin, file.size, _import_params ) )
             {
-                common::CreateDstFilename( &_current_dst_file_skel, _root_dst_folder_ctx.Folder(), _current_src_file, "skel" );
-                common::CreateDstFilename( &_current_dst_file_clip, _root_dst_folder_ctx.Folder(), _current_src_file, "clip" );
+                common::CreateDstFilename( &_current_dst_file_skel, ctx.folders->anim.Root(), _current_src_file, "skel" );
+                common::CreateDstFilename( &_current_dst_file_clip, ctx.folders->anim.Root(), _current_src_file, "clip" );
 
                 BX_FREE0( _allocator, _skel_file );
                 BX_FREE0( _allocator, _clip_file );
@@ -123,13 +143,13 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
     {
         _flags.save_skel = 0;
         WriteFileSync( e->filesystem, _current_dst_file_skel.AbsolutePath(), _skel_file, _skel_file->size );
-        _root_dst_folder_ctx.RequestRefresh();
+        ctx.folders->anim.RequestRefresh();
     }
     if( _flags.save_clip )
     {
         _flags.save_clip = 0;
         WriteFileSync( e->filesystem, _current_dst_file_clip.AbsolutePath(), _clip_file, _clip_file->size );
-        _root_dst_folder_ctx.RequestRefresh();
+        ctx.folders->anim.RequestRefresh();
     }
 
     if( _player )
@@ -139,7 +159,10 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
         const ANIMJoint* joints_ls = _player->LocalJoints();
 
-        anim_ext::LocalJointsToWorldJoints( _joints_ms, joints_ls, skel, ANIMJoint::identity() );
+        const mat44_t entity_pose = GetEntityRootTransform( e->ecs, ctx.entity );
+
+        const ANIMJoint root_joint = toAnimJoint_noScale( entity_pose );
+        anim_ext::LocalJointsToWorldJoints( _joints_ms, joints_ls, skel, root_joint );
         anim_ext::LocalJointsToWorldMatrices( _matrices_ms.begin(), joints_ls, skel, ANIMJoint::identity() );
 
         ECSEntityProxy eproxy( e->ecs, ctx.entity );
@@ -151,15 +174,6 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
             skinning_comp->ComputeSkinningMatrices( skinning_matrices, array_span_t<const mat44_t>( _matrices_ms.begin(), _matrices_ms.end() ) );
         }
-
-        //if( ECSComponentID skinning_id = Lookup<TOOLSkinningComponent>( e->ecs, ctx.entity ) )
-        //{
-        //    TOOLSkinningComponent* skinning_comp = Component<TOOLSkinningComponent>( e->ecs, skinning_id );
-        //    blob_t skinning_data = e->gfx->AcquireSkinnigDataToWrite( skinning_comp->id_mesh, skinning_comp->bone_offsets.size * sizeof( mat44_t ) );
-        //    array_span_t<mat44_t> skinning_matrices = to_array_span<mat44_t>( skinning_data, skinning_comp->bone_offsets.size );
-
-        //    skinning_comp->ComputeSkinningMatrices( skinning_matrices, array_span_t<const mat44_t>( _matrices_ms.begin(), _matrices_ms.end() ) );
-        //}
 
         const uint32_t color = color32_t::TEAL();
 
@@ -175,9 +189,6 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
             const ANIMJoint& parent = _joints_ms[parent_index];
             const ANIMJoint& joint = _joints_ms[i];
 
-            const mat44_t& parent_matrix = _matrices_ms[parent_index];
-            const mat44_t& child_matrix = _matrices_ms[i];
-
             RDIXDebug::AddLine( parent.position.xyz(), joint.position.xyz(), RDIXDebugParams( color ) );
             {
                 if( array::find( _selected_joints, (int16_t)i ) != array::npos )
@@ -187,7 +198,6 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
                 }
             }
             RDIXDebug::AddAxes( mat44_t( parent.rotation, parent.position ), RDIXDebugParams().Scale(0.12f) );
-            RDIXDebug::AddAxes( parent_matrix, RDIXDebugParams().Scale( 0.2f ) );
         }
     }
 }
@@ -226,7 +236,7 @@ static void DrawSkeletonTree( array_t<int16_t>& selected_joints, const tool::ani
     }
 }
 
-void ANIMTool::DrawMenu()
+void ANIMTool::DrawMenu( CMNEngine* e, const TOOLContext& ctx )
 {
     if( ImGui::Begin( "AnimTool" ) )
     {
@@ -242,7 +252,16 @@ void ANIMTool::DrawMenu()
         }
         if( ImGui::BeginMenu( "Load mesh" ) )
         {
-            aas
+            string_buffer_it selected = common::MenuFileSelector( ctx.folders->mesh.FileList() );
+            if( !selected.null() )
+            {
+                common::AssetFileHelper<RDIXMeshFile> helper;
+                if( helper.LoadSync( e->filesystem, _allocator, selected.pointer ) )
+                {
+                    _mesh_comp = LoadTOOLMeshComponent( e, _mesh_comp, ctx, helper.data, _allocator );
+                    helper.FreeFile();
+                }
+            }
             ImGui::EndMenu();
         }
         ImGui::Separator();

@@ -91,6 +91,7 @@
     <ClCompile Include="material_library.cpp" />
     <ClCompile Include="material_tool.cpp" />
     <ClCompile Include="mesh_tool.cpp" />
+    <ClCompile Include="tool_context.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\3rd_party\imgui\imgui.vcxproj">

@@ -42,6 +42,8 @@ namespace
     }//
     static TOOLInterface* g_tools[ToolType::_COUNT_] = {};
     static ECSEntityID g_tool_entities[ToolType::_COUNT_] = {};
+
+    static TOOLFolders g_folders = {};
 }
 
 
@@ -84,17 +86,36 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
 
     g_transform_system_id = CreateComponent<TOOLTransformSystem>( ecs ).id;
 
+    TOOLFolders::StartUp( &g_folders, filesystem, allocator );
+
     g_tools[ToolType::MATERIAL] = BX_NEW( allocator, MATERIALTool );
     g_tools[ToolType::ANIM]     = BX_NEW( allocator, ANIMTool );
     g_tools[ToolType::MESH]     = BX_NEW( allocator, MESHTool );
 
-    g_tools[ToolType::MATERIAL]->StartUp( this, nullptr, nullptr, allocator );
-    g_tools[ToolType::MESH]->StartUp( this, ".src/mesh/", "mesh/", allocator );
-    g_tools[ToolType::ANIM]->StartUp( this, ".src/anim/", "anim/", allocator );
+    g_tools[ToolType::MATERIAL]->StartUp( this, nullptr, allocator );
+    g_tools[ToolType::MESH]->StartUp( this, ".src/mesh/", allocator );
+    g_tools[ToolType::ANIM]->StartUp( this, ".src/anim/", allocator );
 
+
+    const f32 separation = 3.0f;
+    const f32 delta_angle = PI2 / ToolType::_COUNT_;
+    const f32 radius = ( separation / sinf( delta_angle ) ) * 2.f;
+    const f32 check = sinf( delta_angle ) * radius * 0.5f;
+    
     for( uint32_t i = 0; i < ToolType::_COUNT_; ++i )
     {
         g_tool_entities[i] = ecs->CreateEntity();
+
+        const f32 angle = (f32)i * delta_angle;
+        const f32 x = ::cosf( angle ) * radius;
+        const f32 z = ::sinf( angle ) * radius;
+        const f32 y = 0.f;
+
+        mat44_t pose = mat44_t::translation( vec3_t( x, y, z ) );
+
+        auto xform_proxy = ECSComponentProxy<TOOLTransformComponent>::New( ecs );
+        xform_proxy->Initialize( pose );
+        xform_proxy.SetOwner( g_tool_entities[i] );
     }
 
     return true;
@@ -164,6 +185,7 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         TOOLContext tool_ctx;
         tool_ctx.camera = g_idcamera;
         tool_ctx.gfx_scene = g_idscene;
+        tool_ctx.folders = &g_folders;
 
         for( uint32_t i = 0; i < ToolType::_COUNT_; ++i )
         {
@@ -172,6 +194,18 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
         }
     }
 
+    if( auto proxy = ECSComponentProxy<TOOLTransformSystem>( ecs, g_transform_system_id ) )
+    {
+        proxy->Tick( ecs, gfx );
+    }
+
+    { // debug draw all transforms
+        array_span_t<TOOLTransformComponent*> xform_comps = Components<TOOLTransformComponent>( ecs );
+        for( TOOLTransformComponent* xform_comp : xform_comps )
+        {
+            RDIXDebug::AddAxes( xform_comp->pose );
+        }
+    }
 
     gfx->DoSkinningCPU( rdicmdq );
     gfx->DoSkinningGPU( rdicmdq );

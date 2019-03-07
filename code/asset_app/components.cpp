@@ -286,6 +286,15 @@ void UnloadTOOLMeshComponent( CMNEngine* e, ECSComponentID id_mesh_comp )
 
         proxy->Uninitialize( e->gfx );
         proxy.Release();
+    
+        it.Reset();
+        while( ECSComponentProxy<TOOLTransformMeshComponent> link = it.FindNext<TOOLTransformMeshComponent>() )
+        {
+            if( !e->ecs->IsAlive( link->destination ) )
+            {
+                it.ReleaseCurrent();
+            }
+        }
     }
 }
 
@@ -295,6 +304,7 @@ ECSComponentID LoadTOOLMeshComponent( CMNEngine* e, ECSComponentID id_mesh_comp,
 
     GFXMeshInstanceDesc desc = {};
     desc.AddRenderSource( rsource );
+    desc.flags.gpu_skinning = mesh_file->num_bones != 0;
 
     ECSComponentProxy<TOOLMeshComponent> mesh_comp( e->ecs, id_mesh_comp );
     if( mesh_comp )
@@ -308,17 +318,23 @@ ECSComponentID LoadTOOLMeshComponent( CMNEngine* e, ECSComponentID id_mesh_comp,
 
     UnloadTOOLMeshComponent( e, id_mesh_comp );
 
-    mesh_comp = ECSComponentProxy<TOOLMeshComponent>::New( e->ecs );
+    ECSEntityProxy eproxy( e->ecs, ctx.entity );
+
+    mesh_comp = ECSComponentProxy<TOOLMeshComponent>::New( eproxy );
     mesh_comp->Initialize( e->gfx, ctx.gfx_scene, desc, mat44_t::identity() );
-    mesh_comp.SetOwner( ctx.entity );
 
-    ECSComponentProxy<TOOLMeshDescComponent> mesh_desc = ECSComponentProxy<TOOLMeshDescComponent>::New( e->ecs );
+    ECSComponentProxy<TOOLMeshDescComponent> mesh_desc = ECSComponentProxy<TOOLMeshDescComponent>::New( eproxy );
     mesh_desc->Initialize( e->ecs, mesh_comp.Id(), mesh_file );
-    mesh_desc.SetOwner( ctx.entity );
 
-    ECSComponentProxy<TOOLSkinningComponent> skin_comp = ECSComponentProxy<TOOLSkinningComponent>::New( e->ecs );
+    ECSComponentProxy<TOOLSkinningComponent> skin_comp = ECSComponentProxy<TOOLSkinningComponent>::New( eproxy );
     skin_comp->Initialize( e->ecs, mesh_desc.Id() );
-    skin_comp.SetOwner( ctx.entity );
+
+    ECSComponentID xform_id = eproxy.Lookup<TOOLTransformComponent>();
+    if( auto xform_comp = ECSComponentProxy<TOOLTransformComponent>( e->ecs, xform_id ) )
+    {
+        auto xform_link = ECSComponentProxy<TOOLTransformMeshComponent>::New( eproxy );
+        xform_link->Initialize( e->ecs, xform_id, mesh_comp.Id() );
+    }
 
     return mesh_comp.Id();
 }

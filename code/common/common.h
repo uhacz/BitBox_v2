@@ -3,6 +3,7 @@
 #include <foundation/string_util.h>
 #include <entity/entity_system.h>
 #include "util/file_system_name.h"
+#include <functional>
 
 struct BXIAllocator;
 struct BXIFilesystem;
@@ -17,7 +18,7 @@ namespace common
         void SetFolder( const char* folder );
 
         const string_buffer_t& FileList() const;
-        const char* Folder() const { return _folder.c_str(); }
+        const char* Root() const { return _folder.c_str(); }
 
     private:
         string_t _folder;
@@ -36,6 +37,7 @@ namespace common
     void CreateDstFilename( string_t* dst_file, const char* dst_folder, const string_t& src_file, const char* ext, BXIAllocator* allocator );
 }//
 
+struct srl_file_t;
 namespace common
 {
     template< typename T >
@@ -54,6 +56,39 @@ namespace common
         return proxy;
     }
 
+    
+    template< typename T >
+    struct AssetFileHelper
+    {
+        bool LoadSync( BXIFilesystem* fs, BXIAllocator* allocator, const char* filename )
+        {
+            bool result = false;
+            BXFileWaitResult load_result = LoadFileSync( fs, filename, BXEFIleMode::BIN, allocator );
+            if( load_result.status == BXEFileStatus::READY )
+            {
+                _allocator = allocator;
+                file = (srl_file_t*)load_result.file.pointer;
+                data = file->data<T>();
+                result = true;
+            }
 
+            fs->CloseFile( &load_result.handle, false );
+            return result;
+        }
+
+        void FreeFile()
+        {
+            BX_FREE( _allocator, const_cast<srl_file_t*>( file ) );
+            _allocator = nullptr;
+            file = nullptr;
+            data = nullptr;
+        }
+        
+        BXIAllocator* _allocator = nullptr;
+        const srl_file_t* file = nullptr;
+        const T* data = nullptr;
+    };
+
+    
 }
 

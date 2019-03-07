@@ -20,11 +20,11 @@ struct ANIMJoint;
 
 struct ANIMTool : TOOLInterface
 {
-    void StartUp( CMNEngine* e, const char* src_folder, const char* dst_folder, BXIAllocator* allocator ) override;
+    void StartUp( CMNEngine* e, const char* src_folder, BXIAllocator* allocator ) override;
     void ShutDown( CMNEngine* e ) override;
     void Tick( CMNEngine* e, const TOOLContext& ctx, float dt ) override;
 
-    void DrawMenu();
+    void DrawMenu( CMNEngine* e, const TOOLContext& ctx );
 
     BXIAllocator* _allocator = nullptr;
 
@@ -41,11 +41,11 @@ struct ANIMTool : TOOLInterface
     float _time_scale = 1.f;
 
     ECSComponentID _anim_desc_component;
+    ECSComponentID _mesh_comp;
 
     common::FolderContext _root_src_folder_ctx;
     string_t _current_src_file;
 
-    common::FolderContext _root_dst_folder_ctx;
     FSName _current_dst_file_skel;
     FSName _current_dst_file_clip;
 

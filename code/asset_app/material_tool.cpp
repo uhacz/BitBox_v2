@@ -33,7 +33,7 @@ void MATERIALTool::SetDefault( GFXMaterialTexture* tex )
     }
 }
 
-void MATERIALTool::StartUp( CMNEngine* e, const char* src_root, const char* dst_root, BXIAllocator* allocator )
+void MATERIALTool::StartUp( CMNEngine* e, const char* src_root, BXIAllocator* allocator )
 {
     _allocator = allocator;
 

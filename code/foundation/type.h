@@ -11,18 +11,28 @@
 #pragma warning( disable: 4351 )
 #endif
 
-typedef float float32_t;
-typedef double float64_t;
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
+
+using i8 = int8_t;
+using i16 = int16_t;
+using i32 = int32_t;
+using i64 = int64_t;
+
+using f32 = float;
+using f64 = double;
 
 union TypeReinterpert
 {
-    uint32_t u;
-    int32_t i;
-    float32_t f;
+    u32 u;
+    i32 i;
+    f32 f;
 
-    explicit TypeReinterpert( uint32_t v ) : u( v ) {}
-    explicit TypeReinterpert( int32_t v ) : i( v ) {}
-    explicit TypeReinterpert( float32_t v ) : f( v ) {}
+    explicit TypeReinterpert( u32 v ) : u( v ) {}
+    explicit TypeReinterpert( i32 v ) : i( v ) {}
+    explicit TypeReinterpert( f32 v ) : f( v ) {}
 };
 
 #define FORCE_INLINE __forceinline

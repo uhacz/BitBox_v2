@@ -36,13 +36,13 @@ inline float saturate( float x )
     return clamp( x, 0.f, 1.f );
 }
 
-inline bool is_equal( float32_t f0, float32_t f1, const float32_t eps = FLT_EPSILON )
+inline bool is_equal( f32 f0, f32 f1, const f32 eps = FLT_EPSILON )
 {
-    const float32_t diff = ::fabsf( f0 - f1 );
+    const f32 diff = ::fabsf( f0 - f1 );
     f0 = ::fabsf( f0 );
     f1 = ::fabsf( f1 );
 
-    const float32_t largest = ( f1 > f0 ) ? f1 : f0;
+    const f32 largest = ( f1 > f0 ) ? f1 : f0;
     return ( diff <= largest * eps ) ? true : false;
 }
 

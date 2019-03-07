@@ -12,7 +12,7 @@ struct MATERIALTool : TOOLInterface
     static void SetDefault( GFXMaterialResource* mat );
     static void SetDefault( GFXMaterialTexture* tex );
 
-    void StartUp( CMNEngine* e, const char* src_root, const char* dst_root, BXIAllocator* allocator ) override;
+    void StartUp( CMNEngine* e, const char* src_root, BXIAllocator* allocator ) override;
     void ShutDown( CMNEngine* e ) override;
     void Tick( CMNEngine* e, const TOOLContext& ctx, float dt ) override;
 

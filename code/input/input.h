@@ -45,13 +45,13 @@ struct BXInput
 
         struct
         {
-            float32_t left_X = 0;
-            float32_t left_Y = 0;
-            float32_t right_X = 0;
-            float32_t right_Y = 0;
+            f32 left_X = 0;
+            f32 left_Y = 0;
+            f32 right_X = 0;
+            f32 right_Y = 0;
 
-            float32_t L2 = 0;
-            float32_t R2 = 0;
+            f32 L2 = 0;
+            f32 R2 = 0;
         } analog;
 
         struct

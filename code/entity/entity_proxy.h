@@ -85,6 +85,13 @@ struct ECSComponentProxy
         const auto result = CreateComponent<TComp>( ecs );
         return ECSComponentProxy<TComp>( ecs, result.id, result.pointer );
     }
+    static ECSComponentProxy<TComp> New( ECSEntityProxy eproxy )
+    {
+        const auto result = CreateComponent<TComp>( eproxy.System() );
+        auto proxy = ECSComponentProxy<TComp>( eproxy.System(), result.id, result.pointer );
+        proxy.SetOwner( eproxy.Id() );
+        return proxy;
+    }
 
 private:
     ECSComponentProxy( ECS* ecs, ECSComponentID id, ECSRawComponent* pointer )
@@ -118,12 +125,14 @@ struct ECSComponentIterator
     {
         const size_t type_hash = typeid(TComp).hash_code();
         ECSComponentIDSpan span = _ecs->Components( _id );
+        
+        _index += _find_next_advance;
+        _find_next_advance = 1;
         for( ; _index < span.size(); ++_index )
         {
             if( ECSRawComponent* pointer = _ecs->ComponentSafe( span[_index], type_hash ) )
             {
                 auto proxy = ECSComponentProxy<TComp>( _ecs, span[_index], pointer );
-                ++_index;
                 return proxy;
             }
         }
@@ -135,8 +144,19 @@ struct ECSComponentIterator
     bool IsValid() const { return _index != UINT32_MAX; }
     void Reset() { _index = 0; }
 
+    void ReleaseCurrent()
+    {
+        if( IsValid() )
+        {
+            ECSComponentIDSpan span = _ecs->Components( _id );
+            _ecs->MarkForDestroy( span[_index] );
+            _find_next_advance = 0;
+        }
+    }
+
 private:
     ECS* _ecs;
     ECSEntityID _id;
-    uint32_t _index;
+    u32 _index;
+    u32 _find_next_advance = 0;
 };

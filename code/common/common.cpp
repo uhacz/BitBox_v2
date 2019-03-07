@@ -6,6 +6,7 @@
 
 #include <3rd_party/imgui/imgui.h>
 #include <stdio.h>
+#include "foundation/serializer.h"
 
 namespace common
 {
@@ -145,6 +146,9 @@ namespace common
         CreateDstFilename( &tmp, dst_folder, src_file, ext );
         string::create( dst_file, tmp.AbsolutePath(), allocator );
     }
+
+       
+
 }//
 
 namespace common
