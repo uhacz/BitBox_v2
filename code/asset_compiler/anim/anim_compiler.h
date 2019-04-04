@@ -63,8 +63,12 @@ namespace tool { namespace anim {
 
         bool Import( Skeleton* skeleton, Animation* animation, const void* data, uint32_t data_size, const ImportParams& params = {} );
         
+        enum ComplileOptions
+        {
+            SKEL_CLO_INCLUDE_STRING_NAMES = 1,
+        };
         // produces data with ANIMSkel header
-        blob_t CompileSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator );
+        blob_t CompileSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator, u32 flags = 0 );
         // produces data with ANIMClip header
         blob_t CompileClip( const Animation& in_animation, const Skeleton& in_skeleton, BXIAllocator* allocator );
 

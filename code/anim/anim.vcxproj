@@ -47,6 +47,7 @@
     <ClCompile Include="anim.cpp" />
     <ClCompile Include="anim_blend_joints_linear.cpp" />
     <ClCompile Include="anim_common.cpp" />
+    <ClCompile Include="anim_debug.cpp" />
     <ClCompile Include="anim_evaluate.cpp" />
     <ClCompile Include="anim_local_joints_to_world_joints.cpp" />
     <ClCompile Include="anim_local_joints_to_world_matrices4x4.cpp" />
@@ -56,6 +57,7 @@
   <ItemGroup>
     <ClInclude Include="anim.h" />
     <ClInclude Include="anim_common.h" />
+    <ClInclude Include="anim_debug.h" />
     <ClInclude Include="anim_joint_transform.h" />
     <ClInclude Include="anim_player.h" />
     <ClInclude Include="anim_struct.h" />

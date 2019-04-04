@@ -18,6 +18,7 @@
 #include "material_tool.h"
 #include "mesh_tool.h"
 #include "anim_tool.h"
+#include "anim_matching_tool.h"
 
 namespace
 {
@@ -36,6 +37,7 @@ namespace
             MATERIAL = 0,
             MESH,
             ANIM,
+            ANIM_MATCH,
 
             _COUNT_,
         };
@@ -82,20 +84,21 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
         filesystem->CloseFile( &filewait.handle );
 
     }
-    g_idcamera = gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 0.f, 5.f ) ) );
+    g_idcamera = gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 4.f, 18.f ) ) );
 
     g_transform_system_id = CreateComponent<TOOLTransformSystem>( ecs ).id;
 
     TOOLFolders::StartUp( &g_folders, filesystem, allocator );
 
     g_tools[ToolType::MATERIAL] = BX_NEW( allocator, MATERIALTool );
-    g_tools[ToolType::ANIM]     = BX_NEW( allocator, ANIMTool );
-    g_tools[ToolType::MESH]     = BX_NEW( allocator, MESHTool );
+    g_tools[ToolType::ANIM] = BX_NEW( allocator, ANIMTool );
+    g_tools[ToolType::ANIM_MATCH] = BX_NEW( allocator, ANIMMatchingTool );
+    g_tools[ToolType::MESH] = BX_NEW( allocator, MESHTool );
 
     g_tools[ToolType::MATERIAL]->StartUp( this, nullptr, allocator );
     g_tools[ToolType::MESH]->StartUp( this, ".src/mesh/", allocator );
     g_tools[ToolType::ANIM]->StartUp( this, ".src/anim/", allocator );
-
+    g_tools[ToolType::ANIM_MATCH]->StartUp( this, ".src/anim/", allocator );
 
     const f32 separation = 3.0f;
     const f32 delta_angle = PI2 / ToolType::_COUNT_;
@@ -180,6 +183,15 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
 	const mat44_t new_camera_world = CameraMovementFPP( g_camera_input_ctx, current_camera_matrices.world, delta_time_sec * 10.f );
     gfx->SetCameraWorld( g_idcamera, new_camera_world );
     gfx->ComputeCamera( g_idcamera );
+
+    {
+        if( ImGui::Begin( "Camera" ) )
+        {
+            const vec3_t camera_pos = new_camera_world.translation();
+            ImGui::InputFloat3( "position", (float*)&camera_pos.x );
+        }
+        ImGui::End();
+    }
 
     {
         TOOLContext tool_ctx;

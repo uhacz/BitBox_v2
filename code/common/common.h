@@ -4,6 +4,7 @@
 #include <entity/entity_system.h>
 #include "util/file_system_name.h"
 #include <functional>
+#include "asset_app/components.h"
 
 struct BXIAllocator;
 struct BXIFilesystem;
@@ -56,6 +57,21 @@ namespace common
         return proxy;
     }
 
+    inline ECSComponentProxy<TOOLTransformComponent> FindFirstTransformComponent( ECS* ecs, ECSEntityID entity )
+    {
+        ECSComponentIterator it( ecs, entity );
+        return it.FindNext<TOOLTransformComponent>();
+    }
+    inline mat44_t GetEntityRootTransform( ECS* ecs, ECSEntityID entity )
+    {
+        mat44_t result = mat44_t::identity();
+        if( auto proxy = FindFirstTransformComponent( ecs, entity ) )
+        {
+            result = proxy->pose;
+        }
+
+        return result;
+    }
     
     template< typename T >
     struct AssetFileHelper

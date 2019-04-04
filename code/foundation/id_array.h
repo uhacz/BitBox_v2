@@ -15,7 +15,7 @@ namespace id_array
         id.id = ++a._next_id;
 
         // Recycle slot if there are any
-        if( a._freelist != BX_INVALID_ID )
+        if( a._freelist < MAX )
         {
             id.index = a._freelist;
             a._freelist = a._sparse[a._freelist].index;
@@ -28,7 +28,6 @@ namespace id_array
         a._sparse[id.index] = id;
         a._sparse_to_dense[id.index] = a._size;
         a._dense_to_sparse[a._size] = id.index;
-        //a._objects[a._size] = object;
         a._size++;
 
         return id;
@@ -48,14 +47,13 @@ namespace id_array
     {
         SYS_ASSERT_TXT( has( a, id ), "IdArray does not have ID: %d,%d", id.id, id.index );
 
-        a._sparse[id.index].id = BX_INVALID_ID;
+        a._sparse[id.index].id = -1;
         a._sparse[id.index].index = a._freelist;
         a._freelist = id.index;
 
         // Swap with last element
         const uint32_t last = a._size - 1;
         SYS_ASSERT_TXT( last >= a._sparse_to_dense[id.index], "Swapping with previous item" );
-        //a._objects[a._sparse_to_dense[id.index]] = a._objects[last];
 
         id_array_destroy_info_t ret;
         ret.copy_data_from_index = last;
@@ -114,30 +112,4 @@ namespace id_array
     {
         return a._size;
     }
-
-
-    //template <uint32_t MAX>
-    //inline T* begin( id_array_t<BX_ID_ARRAY_T_ARG>& a )
-    //{
-    //    return a._objects;
-    //}
-
-    //template <uint32_t MAX>
-    //inline const T* begin( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
-    //{
-    //    return a._objects;
-    //}
-
-    //template <uint32_t MAX>
-    //inline uint16_t* end( id_array_t<BX_ID_ARRAY_T_ARG>& a )
-    //{
-    //    return a._objects + a._size;
-    //}
-
-    //template <uint32_t MAX>
-    //inline const uint16_t* end( const id_array_t<BX_ID_ARRAY_T_ARG>& a )
-    //{
-    //    return a._objects + a._size;
-    //}
-
 }///

@@ -11,6 +11,11 @@
 #pragma warning( disable: 4351 )
 #endif
 
+//nonstandard extension used: nameless struct/union
+#ifdef _MSC_VER
+#pragma warning( disable: 4201 )
+#endif
+
 using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;

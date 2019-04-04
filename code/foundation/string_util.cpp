@@ -137,14 +137,7 @@ string_t::string_t()
 
 string_t::string_t( string_t&& other )
 {
-    _allocator = other._allocator;
-    if( _allocator )
-    {
-        _dynamic = other._dynamic;
-
-        other._dynamic = nullptr;
-        other._allocator = nullptr;
-    }
+    string::move( this, std::move( other ) );
 }
 
 string_t::string_t( const string_t& other )
@@ -160,6 +153,11 @@ string_t::~string_t()
 string_t& string_t::operator=( const string_t& other )
 {
     string::copy( this, other );
+    return *this;
+}
+string_t& string_t::operator=( string_t&& other )
+{
+    string::move( this, std::move( other ) );
     return *this;
 }
 
@@ -203,9 +201,15 @@ namespace string
     }
     void string::copy( string_t* dst, const string_t& src )
     {
-        dst->_allocator = src._allocator;
-        if( dst->_allocator )
+        
+        if( src._allocator )
         {
+            if( !dst->_allocator )
+            {
+                memset( dst, 0x00, sizeof( string_t ) );
+            }
+
+            dst->_allocator = src._allocator;
             dst->_dynamic = string::duplicate( dst->_dynamic, src._dynamic, dst->_allocator );
         }
         else
@@ -213,6 +217,23 @@ namespace string
             memcpy( dst->_static, src._static, string_t::MAX_STATIC_SIZE );
         }
     }
+    void string::move( string_t* dst, string_t&& src )
+    {
+        dst->_allocator = src._allocator;
+        if( dst->_allocator )
+        {
+            dst->_dynamic = src._dynamic;
+
+            src._dynamic = nullptr;
+            src._allocator = nullptr;
+        }
+        else
+        {
+            memcpy( dst->_static, src._static, string_t::MAX_STATIC_SIZE );
+            src._static[0] = 0;
+        }
+    }
+
 
 
     void free( string_t* s )

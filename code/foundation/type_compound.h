@@ -58,3 +58,6 @@ union int32x3_t
 	int32x3_t( i32 a, i32 b, i32 c ) : x( a ), y( b ), z( c ) {}
 };
 
+using f32x2 = float2_t;
+using f32x3 = float3_t;
+using f32x4 = float4_t;

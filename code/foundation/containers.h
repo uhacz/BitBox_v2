@@ -130,8 +130,12 @@ inline array_span_t<T> to_array_span( const Blob& blob )
     return array_span_t<T>( (T*)blob.data, (T*)( blob.data + blob.size ) );
 }
 
-template< typename T >
-inline array_span_t<T> to_array_span( array_t<T>& arr ) { return array_span_t<T>( arr.begin(), arr.end() ); }
+template< typename T, typename U >
+inline array_span_t<T> to_array_span( array_t<U>& arr ) 
+{ 
+    SYS_STATIC_ASSERT( sizeof( T ) == sizeof( U ) );
+    return array_span_t<T>( (T*)arr.begin(), (T*)arr.end() ); 
+}
 
 template< typename T >
 inline array_span_t<const T> to_array_span( const array_t<T>& arr ) { return array_span_t<const T>( arr.begin(), arr.end() ); }
@@ -205,7 +209,6 @@ struct data_buffer_t
     uint8_t* end()   { return data + write_offset; }
 };
 
-#define BX_INVALID_ID UINT16_MAX
 union id_t
 {
     uint32_t hash;
@@ -230,11 +233,11 @@ struct id_array_destroy_info_t
 template <uint32_t MAX, typename Tid = id_t >
 struct id_array_t
 {
-    id_array_t() : _freelist( BX_INVALID_ID ) , _next_id( 0 ) , _size( 0 )
+    id_array_t() : _freelist( MAX ) , _next_id( 0 ) , _size( 0 )
     {
         for( uint32_t i = 0; i < MAX; i++ )
         {
-            _sparse[i].id = BX_INVALID_ID;
+            _sparse[i].id = -1;
         }
     }
     
@@ -252,11 +255,11 @@ struct id_array_t
 template <uint32_t MAX, typename Tid = id_t>
 struct id_table_t
 {
-    id_table_t() : _freelist( BX_INVALID_ID ) , _next_id( 0 ) , _size( 0 )
+    id_table_t() : _freelist( MAX ) , _next_id( 0 ) , _size( 0 )
     {
         for( uint32_t i = 0; i < MAX; i++ )
         {
-            _ids[i].id = BX_INVALID_ID;
+            _ids[i].id = -1;
         }
     }
 

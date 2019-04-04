@@ -36,6 +36,7 @@ struct string_t
     ~string_t();
 
     string_t& operator = ( const string_t& other );
+    string_t& operator = ( string_t&& other );
 
           char* c_str()       { return (_allocator) ? _dynamic : _static; }
     const char* c_str() const { return (_allocator) ? _dynamic : _static; }
@@ -66,6 +67,7 @@ namespace string
     void create( string_t* s, const char* data, BXIAllocator* allocator );
     void reserve( string_t* s, unsigned length, BXIAllocator* allocator );
     void copy( string_t* dst, const string_t& src );
+    void move( string_t* dst, string_t&& src );
     void free( string_t* s );
 
     void create( string_buffer_t* s, unsigned capacity, BXIAllocator* allocator );

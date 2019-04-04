@@ -16,6 +16,7 @@
 
 #include <3rd_party/assimp/cimport.h>
 #include <3rd_party/assimp/scene.h>
+#include "foundation/buffer.h"
 
 
 static inline float4_t toFloat4( const aiVector3D& v, float w = 1.f )
@@ -279,7 +280,7 @@ namespace tool{ namespace anim {
         return false;
     }
 
-    blob_t CompileSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator )
+    blob_t CompileSkeleton( const Skeleton& in_skeleton, BXIAllocator* allocator, u32 flags )
     {
         static_assert(sizeof( Joint ) == sizeof( ANIMJoint ), "joint size mismatch");
 
@@ -288,21 +289,33 @@ namespace tool{ namespace anim {
         const uint32_t base_pose_size = num_joints * sizeof( Joint );
         const uint32_t joint_name_hashes_size = num_joints * sizeof( hashed_string_t );
 
+        u32 joint_name_strings_size = 0;
+        if( flags & SKEL_CLO_INCLUDE_STRING_NAMES )
+        {
+            for( u32 i = 0; i < num_joints; ++i )
+            {
+                joint_name_strings_size += (u32)in_skeleton.jointNames[i].size() + 1;
+            }
+        }
+
         uint32_t memory_size = 0;
         memory_size += sizeof( ANIMSkel );
-        memory_size += parent_indices_size;
         memory_size += base_pose_size;
+        memory_size += parent_indices_size;
         memory_size += joint_name_hashes_size;
+        memory_size += joint_name_strings_size;
 
         blob_t blob = blob_t::allocate( allocator, memory_size, 16 );
 
-        ANIMSkel* out_skeleton = (ANIMSkel*)blob.raw;
+        BufferChunker chunker( blob.raw, (u32)blob.size );
+
+        ANIMSkel* out_skeleton = chunker.Add<ANIMSkel>();
         memset( out_skeleton, 0, sizeof( ANIMSkel ) );
 
-        uint8_t* base_pose_address = (uint8_t*)(out_skeleton + 1);
-        uint8_t* parent_indices_address = base_pose_address + base_pose_size;
-        uint8_t* joint_name_hashes_address = parent_indices_address + parent_indices_size;
-
+        uint8_t* base_pose_address = chunker.Add<u8>( base_pose_size );
+        uint8_t* parent_indices_address = chunker.Add<u8>( parent_indices_size );
+        uint8_t* joint_name_hashes_address = chunker.Add<u8>( joint_name_hashes_size );
+        
         out_skeleton->numJoints = num_joints;
         out_skeleton->offsetBasePose = TYPE_POINTER_GET_OFFSET( &out_skeleton->offsetBasePose, base_pose_address );
         out_skeleton->offsetParentIndices = TYPE_POINTER_GET_OFFSET( &out_skeleton->offsetParentIndices, parent_indices_address );
@@ -324,6 +337,26 @@ namespace tool{ namespace anim {
             ++joint_name_hashes;
         }
         SYS_ASSERT( (uintptr_t)(joint_name_hashes) == (uintptr_t)(joint_name_hashes_address + joint_name_hashes_size) );
+
+        if( flags & SKEL_CLO_INCLUDE_STRING_NAMES )
+        {
+            BufferChunker::Block block = chunker.AddBlock( joint_name_strings_size, 1 );
+            out_skeleton->offsetJointNamesStrings = TYPE_POINTER_GET_OFFSET( &out_skeleton->offsetJointNamesStrings, block.begin );
+            u8* current = block.begin;
+            
+            for( u32 i = 0; i < in_skeleton.jointNames.size(); ++i )
+            {
+                const std::string& name = in_skeleton.jointNames[i];
+                const u32 name_size = (u32)name.length() + 1;
+                memcpy( current, name.c_str(), name_size );
+
+                current += name_size;
+            }
+
+            chunker.Checkpoint( current );
+        }
+
+        chunker.Check();
 
         return blob;
     }

@@ -16,7 +16,7 @@ namespace id_table
         id.id = ++a._next_id;
 
         // Recycle slot if there are any
-        if( a._freelist != BX_INVALID_ID )
+        if( a._freelist < MAX )
         {
             id.index = a._freelist;
             a._freelist = a._ids[a._freelist].index;
@@ -46,7 +46,7 @@ namespace id_table
     {
         SYS_ASSERT_TXT( has( a, id ), "IdTable does not have ID: %d,%d", id.id, id.index );
 
-        a._ids[id.index].id = BX_INVALID_ID;
+        a._ids[id.index].id = -1;
         a._ids[id.index].index = a._freelist;
         a._freelist = id.index;
         a._size--;

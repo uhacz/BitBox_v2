@@ -136,6 +136,7 @@ namespace common
             snprintf( tmp + d_pos + 1, FSName::MAX_LENGTH - (len + d_pos + 1), ext );
         }
 
+        dst_file->Clear();
         dst_file->Append( dst_folder );
         dst_file->AppendRelativePath( tmp );
     }

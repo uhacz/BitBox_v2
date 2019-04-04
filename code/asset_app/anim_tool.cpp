@@ -18,25 +18,7 @@
 #include <common/common.h>
 #include "foundation/serializer.h"
 #include "rdix/rdix_type.h"
-
-namespace
-{
-    inline ECSComponentProxy<TOOLTransformComponent> FindFirstTransformComponent( ECS* ecs, ECSEntityID entity )
-    {
-        ECSComponentIterator it( ecs, entity );
-        return it.FindNext<TOOLTransformComponent>();
-    }
-    inline mat44_t GetEntityRootTransform( ECS* ecs, ECSEntityID entity )
-    {
-        mat44_t result = mat44_t::identity();
-        if( auto proxy = FindFirstTransformComponent( ecs, entity ) )
-        {
-            result = proxy->pose;
-        }
-
-        return result;
-    }
-}
+#include "anim/anim_debug.h"
 
 void ANIMTool::StartUp( CMNEngine* e, const char* src_folder, BXIAllocator* allocator )
 {
@@ -99,7 +81,7 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
                 BX_FREE0( _allocator, _clip_file );
                 BX_FREE0( _allocator, _joints_ms );
 
-                blob_t skel_blob = tool::anim::CompileSkeleton( *_in_skel, _allocator );
+                blob_t skel_blob = tool::anim::CompileSkeleton( *_in_skel, _allocator, tool::anim::SKEL_CLO_INCLUDE_STRING_NAMES );
                 blob_t clip_blob = tool::anim::CompileClip( *_in_anim, *_in_skel, _allocator );
 
                 _skel_file = srl_file::serialize<ANIMSkel>( skel_blob, _allocator );
@@ -159,7 +141,7 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
 
         const ANIMJoint* joints_ls = _player->LocalJoints();
 
-        const mat44_t entity_pose = GetEntityRootTransform( e->ecs, ctx.entity );
+        const mat44_t entity_pose = common::GetEntityRootTransform( e->ecs, ctx.entity );
 
         const ANIMJoint root_joint = toAnimJoint_noScale( entity_pose );
         anim_ext::LocalJointsToWorldJoints( _joints_ms, joints_ls, skel, root_joint );
@@ -176,28 +158,18 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
         }
 
         const uint32_t color = color32_t::TEAL();
-
+        const f32 debug_scale = 0.12f;
+        
+        anim_debug::DrawPose( skel, to_array_span( _joints_ms, skel->numJoints ), color, debug_scale );
+        
         const int16_t* parent_indices = ParentIndices( skel );
         const uint32_t num_joints = skel->numJoints;
 
-        for( uint32_t i = 0; i < num_joints; ++i )
+        for( uint32_t i : _selected_joints )
         {
-            const int16_t parent_index = parent_indices[i];
-            if( parent_index == -1 )
-                continue;
-            
-            const ANIMJoint& parent = _joints_ms[parent_index];
             const ANIMJoint& joint = _joints_ms[i];
-
-            RDIXDebug::AddLine( parent.position.xyz(), joint.position.xyz(), RDIXDebugParams( color ) );
-            {
-                if( array::find( _selected_joints, (int16_t)i ) != array::npos )
-                {
-                    RDIXDebug::AddSphere( joint.position.xyz(), _import_params.scale, RDIXDebugParams( color32_t::GREEN() ) );
-                    RDIXDebug::AddAxes( toMatrix4( joint ), RDIXDebugParams().Scale( _import_params.scale * 5.f ) );
-                }
-            }
-            RDIXDebug::AddAxes( mat44_t( parent.rotation, parent.position ), RDIXDebugParams().Scale(0.12f) );
+            RDIXDebug::AddSphere( joint.position.xyz(), debug_scale * 0.5f, RDIXDebugParams( color32_t::GREEN() ) );
+            RDIXDebug::AddAxes( toMatrix4( joint ), RDIXDebugParams().Scale( debug_scale * 5.f ) );
         }
     }
 }
@@ -212,8 +184,9 @@ static void DrawSkeletonTree( array_t<int16_t>& selected_joints, const tool::ani
     ImGuiTreeNodeFlags current_flags = flags;
     if( is_selected )
         current_flags |= ImGuiTreeNodeFlags_Selected;
-
-    const bool opened = ImGui::TreeNodeEx( skel->jointNames[joint_index].c_str(), current_flags );
+    
+    const char* name = skel->jointNames[joint_index].c_str();
+    const bool opened = ImGui::TreeNodeEx( name, current_flags, "%d: %s", joint_index, name );
     if( ImGui::IsItemClicked(1) )
     {
         if( is_selected )
@@ -238,33 +211,37 @@ static void DrawSkeletonTree( array_t<int16_t>& selected_joints, const tool::ani
 
 void ANIMTool::DrawMenu( CMNEngine* e, const TOOLContext& ctx )
 {
-    if( ImGui::Begin( "AnimTool" ) )
+    if( ImGui::Begin( "AnimTool", nullptr, ImGuiWindowFlags_MenuBar ) )
     {
-        if( ImGui::BeginMenu( "Import" ) )
+        if( ImGui::BeginMenuBar() )
         {
-            string_buffer_it selected = common::MenuFileSelector( _root_src_folder_ctx.FileList() );
-            if( !selected.null() && !IsValid( _hfile ) )
+            if( ImGui::BeginMenu( "Import" ) )
             {
-                string::create( &_current_src_file, selected.pointer, _allocator );
-                _flags.show_import_dialog = 1;
-            }
-            ImGui::EndMenu();
-        }
-        if( ImGui::BeginMenu( "Load mesh" ) )
-        {
-            string_buffer_it selected = common::MenuFileSelector( ctx.folders->mesh.FileList() );
-            if( !selected.null() )
-            {
-                common::AssetFileHelper<RDIXMeshFile> helper;
-                if( helper.LoadSync( e->filesystem, _allocator, selected.pointer ) )
+                string_buffer_it selected = common::MenuFileSelector( _root_src_folder_ctx.FileList() );
+                if( !selected.null() && !IsValid( _hfile ) )
                 {
-                    _mesh_comp = LoadTOOLMeshComponent( e, _mesh_comp, ctx, helper.data, _allocator );
-                    helper.FreeFile();
+                    string::create( &_current_src_file, selected.pointer, _allocator );
+                    _flags.show_import_dialog = 1;
                 }
+                ImGui::EndMenu();
             }
-            ImGui::EndMenu();
+            if( ImGui::BeginMenu( "Load mesh" ) )
+            {
+                string_buffer_it selected = common::MenuFileSelector( ctx.folders->mesh.FileList() );
+                if( !selected.null() )
+                {
+                    common::AssetFileHelper<RDIXMeshFile> helper;
+                    if( helper.LoadSync( e->filesystem, _allocator, selected.pointer ) )
+                    {
+                        _mesh_comp = LoadTOOLMeshComponent( e, _mesh_comp, ctx, helper.data, _allocator );
+                        helper.FreeFile();
+                    }
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
         }
-        ImGui::Separator();
+        
         if( _skel_file )
         {
             ImGui::InputText( "Skeleton output file", _current_dst_file_skel._data, FSName::MAX_SIZE );
@@ -300,7 +277,8 @@ void ANIMTool::DrawMenu( CMNEngine* e, const TOOLContext& ctx )
             const int16_t num_joints = (int16_t)_in_skel->jointNames.size();
             if( num_joints )
             {
-                if( ImGui::TreeNodeEx( _in_skel->jointNames[0].c_str(), ImGuiTreeNodeFlags_DefaultOpen ) )
+                const u32 flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed;
+                if( ImGui::TreeNodeEx( _in_skel->jointNames[0].c_str(), flags ) )
                 {
                     DrawSkeletonTree( _selected_joints, _in_skel, 1, 0 );
                     ImGui::TreePop();

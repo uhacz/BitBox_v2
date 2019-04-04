@@ -9,7 +9,7 @@ struct ANIMJoint;
 
 struct BIT_ALIGNMENT_16 ANIMSkel
 {
-    static constexpr u32 VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+    static constexpr u32 VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 1 );
     static constexpr u32 TAG = BX_UTIL_TAG32( 'S', 'K', 'E', 'L' );
 
 	uint16_t numJoints;
@@ -17,17 +17,20 @@ struct BIT_ALIGNMENT_16 ANIMSkel
 	u32 offsetBasePose;
 	u32 offsetParentIndices;
 	u32 offsetJointNames;
+    u32 offsetJointNamesStrings;
+    u32 pad1__[3];
 
     SRL_TYPE( ANIMSkel,
         SRL_PROPERTY( numJoints );
         SRL_PROPERTY( offsetBasePose );
         SRL_PROPERTY( offsetParentIndices );
         SRL_PROPERTY( offsetJointNames );
+        SRL_PROPERTY( offsetJointNamesStrings );
     );
 };
 
 inline const int16_t*   ParentIndices( const ANIMSkel* skel ) { return TYPE_OFFSET_GET_POINTER( int16_t, skel->offsetParentIndices ); }
-inline const u32*  JointNames   ( const ANIMSkel* skel ) { return TYPE_OFFSET_GET_POINTER( u32, skel->offsetJointNames ); }
+inline const u32*       JointNames   ( const ANIMSkel* skel ) { return TYPE_OFFSET_GET_POINTER( u32, skel->offsetJointNames ); }
 inline const ANIMJoint* BasePose     ( const ANIMSkel* skel ) { return TYPE_OFFSET_GET_POINTER( ANIMJoint, skel->offsetBasePose ); }
 
 

@@ -61,7 +61,7 @@ void EvaluateClip( ANIMJoint* out_joints, const ANIMClip* anim, uint32_t frameIn
     const FrameInfo frame( anim, frameInteger );
 
     uint32_t i = ( beginJoint == UINT32_MAX ) ? 0 : beginJoint;
-    endJoint = ( endJoint == UINT32_MAX ) ? anim->numJoints : endJoint+1;
+    endJoint = ( endJoint == UINT32_MAX ) ? anim->numJoints : endJoint;
 	
     const float alpha( frameFraction );
 	do 
