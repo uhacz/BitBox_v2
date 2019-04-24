@@ -53,6 +53,9 @@ struct vec3_t
              constexpr vec3_t( const vec2_t& v, float z_    ) : x( v.x ), y( v.y ), z( z_ ) {}
              constexpr vec3_t( const vec3_t& v              ) : x( v.x ), y( v.y ), z( v.z ) {}
 
+    VEC_FORCE_INLINE float& operator [] ( unsigned i ) { return xyz[i]; }
+    VEC_FORCE_INLINE const float& operator [] ( unsigned i ) const { return xyz[i]; }
+
     VEC_FORCE_INLINE vec3_t  operator- ()                  const { return vec3_t( -x, -y, -z ); }
     VEC_FORCE_INLINE vec3_t  operator+ ( const vec3_t& v ) const { return vec3_t( x + v.x, y + v.y, z + v.z ); }
     VEC_FORCE_INLINE vec3_t  operator- ( const vec3_t& v ) const { return vec3_t( x - v.x, y - v.y, z - v.z ); }

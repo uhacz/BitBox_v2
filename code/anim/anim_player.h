@@ -1,6 +1,7 @@
 #pragma once
 
 #include <foundation/type.h>
+#include <foundation/math/vmath_type.h>
 
 struct BXIAllocator;
 
@@ -75,7 +76,8 @@ struct ANIMSimplePlayer
     Clip _clips[2];
     float _blend_time = 0.f;
     float _blend_duration = 0.f;
-    uint32_t _num_clips = 0;
+    u32 _num_clips = 0;
+    u32 _num_joints = 0;
 
     void Prepare( const ANIMSkel* skel, BXIAllocator* allcator = nullptr );
     void Unprepare();
@@ -86,10 +88,11 @@ struct ANIMSimplePlayer
     bool Empty() const { return _num_clips == 0; }
     const ANIMJoint* LocalJoints() const;
     ANIMJoint*       LocalJoints();
+    vec3_t           GetRootTranslation() const;
+    vec3_t           GetRootVelocity( float dt ) const;
 
     const ANIMJoint* PrevLocalJoints() const;
     ANIMJoint*       PrevLocalJoints();
-
     bool UserData( uint64_t* dst, uint32_t depth );
     bool EvalTime( float* dst, uint32_t depth );
     bool Duration( float* dst, uint32_t depth );

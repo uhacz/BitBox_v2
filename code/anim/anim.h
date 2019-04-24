@@ -13,6 +13,8 @@ void BlendJointsLinear( ANIMJoint* out_joints, const ANIMJoint* left_joints, con
 
 void EvaluateClip( ANIMJoint* out_joints, const ANIMClip* anim, float eval_time, uint32_t beginJoint = UINT32_MAX, uint32_t endJoint = UINT32_MAX );
 void EvaluateClip( ANIMJoint* out_joints, const ANIMClip* anim, uint32_t frame_integer, float frame_fraction, uint32_t beginJoint = UINT32_MAX, uint32_t endJoint = UINT32_MAX );
+vec3_t EvaluateRootTranslation( const ANIMClip* anim, float eval_time );
+vec3_t EvaluateRootTranslation( const ANIMClip* anim, uint32_t frame_integer, float frame_fraction );
 
 void EvaluateClipIndexed( ANIMJoint* out_joints, const ANIMClip* anim, float eval_time, const int16_t* indices, uint32_t numIndices );
 void EvaluateClipIndexed( ANIMJoint* out_joints, const ANIMClip* anim, uint32_t frame_integer, float frame_fraction, const int16_t* indices, uint32_t numIndices );

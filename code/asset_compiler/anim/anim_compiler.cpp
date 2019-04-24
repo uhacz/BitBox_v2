@@ -202,11 +202,6 @@ namespace tool{ namespace anim {
                     janim.scale.push_back( scale_keyframe );
                     scale_keyframe.time += dt;
                 }
-
-                //SYS_ASSERT( janim.rotation.back().time <= animation->mDuration * dt );
-                //SYS_ASSERT( janim.translation.back().time <= animation->mDuration * dt );
-                //SYS_ASSERT( janim.scale.back().time <= animation->mDuration * dt );
-
             }
         }
     }
@@ -215,6 +210,20 @@ namespace tool{ namespace anim {
 namespace tool{ namespace anim {
     //////////////////////////////////////////////////////////////////////////
     ///
+    inline void Reserve( JointAnimation* janim, u32 size )
+    {
+        const u32 new_size = (u32)janim->rotation.size() + size;
+        janim->rotation.reserve( new_size );
+        janim->translation.reserve( new_size );
+        janim->scale.reserve( new_size );
+    }
+    inline u32 Size( const JointAnimation& janim )
+    {
+        SYS_ASSERT( janim.rotation.size() == janim.translation.size() );
+        SYS_ASSERT( janim.rotation.size() == janim.scale.size() );
+
+        return (u32)janim.rotation.size();
+    }
 
     inline void* AllocateMemory( BXIAllocator* allocator, uint32_t memSize, uint32_t alignment )
     {
@@ -251,14 +260,41 @@ namespace tool{ namespace anim {
                 }
             }
 
-            if( params.remove_root_motion || params.extract_root_motion )
+
+            if( (size_t)params.root_motion_joint < skeleton->basePose.size() )
             {
-                JointAnimation& janim = animation->joints[1];
-                int nFrames = (int)janim.translation.size();
-                for( int iframe = 0; iframe < nFrames; ++iframe )
+                
+                if( params.extract_root_motion )
                 {
-                    float4_t& translation = janim.translation[iframe].data;
-                    translation.z = 0.f;
+                    const JointAnimation& root_anim = animation->joints[params.root_motion_joint];
+                    JointAnimation& root_motion = animation->root_motion;
+                    Reserve( &root_motion, animation->numFrames );
+                    const int nFrames = (int)root_anim.translation.size();
+                    for( int iframe = 0; iframe < nFrames; ++iframe )
+                    {
+                        AnimKeyframe root_anim_t = root_anim.translation[iframe];
+                        AnimKeyframe root_anim_r = root_anim.rotation[iframe];
+                        AnimKeyframe root_anim_s = root_anim.scale[iframe];
+                        
+                        root_anim_t.data.y = 0.f;
+                        
+                        root_motion.translation.push_back( root_anim_t );
+                        root_motion.rotation.push_back( root_anim_r );
+                        root_motion.scale.push_back( root_anim_s );
+                    }
+                }
+
+                if( params.remove_root_motion )
+                {
+                    JointAnimation& root_anim = animation->joints[params.root_motion_joint];
+                    const int nFrames = (int)root_anim.translation.size();
+                    for( int iframe = 0; iframe < nFrames; ++iframe )
+                    {
+                        float4_t& translation = root_anim.translation[iframe].data;
+                        translation.z = 0.f;
+                        translation.x = 0.f;
+                    }
+                    
                 }
             }
 
@@ -366,12 +402,18 @@ namespace tool{ namespace anim {
         const uint32_t num_joints = (uint32_t)in_skeleton.jointNames.size();
         const uint32_t num_frames = in_animation.numFrames;
         const uint32_t channel_data_size = num_joints * num_frames * sizeof( float4_t );
+        const bool has_root_motion = Size( in_animation.root_motion ) == num_frames;
+        const uint32_t root_motion_size = (has_root_motion) ? num_frames * sizeof( float4_t ) : 0;
 
         uint32_t memory_size = 0;
         memory_size += sizeof( ANIMClip );
         memory_size += channel_data_size; // rotation
         memory_size += channel_data_size; // translation
         memory_size += channel_data_size; // scale
+        if( has_root_motion )
+        {
+            memory_size += root_motion_size;
+        }
 
         blob_t blob = blob_t::allocate( allocator, memory_size, 16 );
 
@@ -381,6 +423,7 @@ namespace tool{ namespace anim {
         uint8_t* rotation_address = (uint8_t*)(clip + 1);
         uint8_t* translation_address = rotation_address + channel_data_size;
         uint8_t* scale_address = translation_address + channel_data_size;
+        uint8_t* root_translation_address = (has_root_motion) ? scale_address + channel_data_size : nullptr;
 
         clip->duration = in_animation.endTime - in_animation.startTime;
         clip->sampleFrequency = in_animation.sampleFrequency;
@@ -389,11 +432,23 @@ namespace tool{ namespace anim {
         clip->offsetRotationData = TYPE_POINTER_GET_OFFSET( &clip->offsetRotationData, rotation_address );
         clip->offsetTranslationData = TYPE_POINTER_GET_OFFSET( &clip->offsetTranslationData, translation_address );
         clip->offsetScaleData = TYPE_POINTER_GET_OFFSET( &clip->offsetScaleData, scale_address );
+        if( has_root_motion )
+            clip->offsetRootTranslation = TYPE_POINTER_GET_OFFSET( &clip->offsetRootTranslation, root_translation_address );
 
         std::vector<float4_t> rotation_vector;
         std::vector<float4_t> translation_vector;
         std::vector<float4_t> scale_vector;
+        std::vector<float4_t> root_translation_vector;
 
+        const u32 channel_array_size = num_frames * num_joints;
+        rotation_vector.reserve( channel_array_size );
+        translation_vector.reserve( channel_array_size );
+        scale_vector.reserve( channel_array_size );
+        
+        if( has_root_motion )
+        {
+            root_translation_vector.reserve( num_frames );
+        }
         for( uint32_t i = 0; i < num_frames; ++i )
         {
             for( uint32_t j = 0; j < num_joints; ++j )
@@ -406,16 +461,25 @@ namespace tool{ namespace anim {
                 translation_vector.push_back( translation_keyframe.data );
                 scale_vector.push_back( scale_keyframe.data );
             }
+
+            if( has_root_motion )
+            {
+                root_translation_vector.push_back( in_animation.root_motion.translation[i].data );
+            }
         }
 
         SYS_ASSERT( channel_data_size == (rotation_vector.size() * sizeof( float4_t )) );
         SYS_ASSERT( channel_data_size == (translation_vector.size() * sizeof( float4_t )) );
         SYS_ASSERT( channel_data_size == (scale_vector.size() * sizeof( float4_t )) );
+        SYS_ASSERT( root_motion_size  == (root_translation_vector.size() * sizeof( decltype( root_translation_vector )::value_type ) ) );
 
         memcpy( rotation_address, &rotation_vector[0], channel_data_size );
         memcpy( translation_address, &translation_vector[0], channel_data_size );
         memcpy( scale_address, &scale_vector[0], channel_data_size );
-
+        if( has_root_motion )
+        {
+            memcpy( root_translation_address, &root_translation_vector[0], root_motion_size );
+        }
         return blob;
     }
 

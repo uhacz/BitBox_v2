@@ -84,6 +84,7 @@ struct ANIMatchDatabase
 {
     array_t<ANIMatchEntry3> pos;
     array_t<ANIMatchEntry4> rot;
+    array_t<ANIMatchEntry3> vel;
 
     array_t<ANIMatchEntry3> trajectory_vel;
     array_t<ANIMatchEntry3> trajectory_acc;
@@ -121,10 +122,13 @@ struct ANIMatchDatabase
 struct ANIMAtchContext
 {
     static constexpr u32 CLIP_NONE = UINT32_MAX;
-    u32 current_clip;
-    f32 current_eval_time;
+    static constexpr u32 ENTRY_NONE = UINT32_MAX;
+    
+    u32 current_clip = CLIP_NONE;
+    u32 current_entry_index = ENTRY_NONE;
 
     ANIMSimplePlayer player;
+    array_t<ANIMJoint> world_joints;
 
     BXIAllocator* _allocator;
 };
@@ -141,6 +145,7 @@ namespace anim_match
     void LoadClip( ANIMatchDatabase* db, BXIFilesystem* fs, const char* filename );
 
     void Update( ANIMatchDatabase* db );
+    void Update( ANIMAtchContext* ctx, const ANIMatchDatabase* db, const vec3_t& velocity, float dt );
     void DebugDraw( const mat44_t& basis, const ANIMatchDatabase* db, u32 clip_index, u32 joint_index, u32 clip_frame, bool isolated_frame );
 }//
 

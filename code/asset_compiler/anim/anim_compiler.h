@@ -56,7 +56,7 @@ namespace tool { namespace anim {
         {
             float scale = 0.01f;
             int16_t root_motion_joint = -1;
-            bool extract_root_motion = false;
+            bool extract_root_motion = true;
             bool remove_root_motion = false;
             bool strip_namespace_name = true;
         };

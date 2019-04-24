@@ -143,6 +143,9 @@ inline array_span_t<const T> to_array_span( const array_t<T>& arr ) { return arr
 template< typename T >
 inline array_span_t<const T> to_array_span( const T* begin, uint32_t size ) { return array_span_t<const T>( begin, size ); }
 
+template< typename T >
+inline array_span_t<T> to_array_span( T* begin, uint32_t size ) { return array_span_t<T>( begin, size ); }
+
 template< typename T, typename TBlob >
 inline array_span_t<T> to_array_span( const TBlob& blob, uint32_t num_elements )
 {

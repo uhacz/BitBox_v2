@@ -36,7 +36,7 @@ inline const ANIMJoint* BasePose     ( const ANIMSkel* skel ) { return TYPE_OFFS
 
 struct BIT_ALIGNMENT_16 ANIMClip
 {
-    static constexpr u32 VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 0 );
+    static constexpr u32 VERSION = BX_UTIL_MAKE_VERSION( 1, 0, 1 );
     static constexpr u32 TAG = BX_UTIL_TAG32( 'C', 'L', 'I', 'P' );
     
 	f32 duration;
@@ -46,7 +46,8 @@ struct BIT_ALIGNMENT_16 ANIMClip
 	u32 offsetRotationData;
 	u32 offsetTranslationData;
 	u32 offsetScaleData;
-    u32 __padding[2];
+    u32 offsetRootTranslation;
+    u32 __padding[1];
 
     SRL_TYPE( ANIMClip,
         SRL_PROPERTY( duration );
@@ -56,6 +57,7 @@ struct BIT_ALIGNMENT_16 ANIMClip
         SRL_PROPERTY( offsetRotationData );
         SRL_PROPERTY( offsetTranslationData );
         SRL_PROPERTY( offsetScaleData );
+        SRL_PROPERTY( offsetRootTranslation );
     );
 };
 

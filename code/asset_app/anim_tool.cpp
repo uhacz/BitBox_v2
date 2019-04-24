@@ -222,6 +222,7 @@ void ANIMTool::DrawMenu( CMNEngine* e, const TOOLContext& ctx )
                 {
                     string::create( &_current_src_file, selected.pointer, _allocator );
                     _flags.show_import_dialog = 1;
+                    _flags.request_load = 1;
                 }
                 ImGui::EndMenu();
             }
@@ -296,7 +297,29 @@ void ANIMTool::DrawMenu( CMNEngine* e, const TOOLContext& ctx )
             ImGui::Text( "filename: %s", _current_src_file.c_str() );
             ImGui::Separator();
             ImGui::InputFloat( "scale", &_import_params.scale, 0.01f, 0.1f, 3 );
+            ImGui::Checkbox( "extract root motion", &_import_params.extract_root_motion );
             ImGui::Checkbox( "remove root motion", &_import_params.remove_root_motion );
+
+            if( _in_skel )
+            {
+                const char* root_joint_preview = "select root motion joint";
+                if( _import_params.root_motion_joint != -1 )
+                {
+                    root_joint_preview = _in_skel->jointNames[_import_params.root_motion_joint].c_str();
+                }
+                if( ImGui::BeginCombo( "root motion joint", root_joint_preview ) )
+                {
+                    for( u32 i = 0; i < _in_skel->jointNames.size(); ++i )
+                    {
+                        if( ImGui::Selectable( _in_skel->jointNames[i].c_str() ) )
+                        {
+                            _import_params.root_motion_joint = i;
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
             ImGui::Separator();
 
             if( ImGui::Button( "cancel" ) )

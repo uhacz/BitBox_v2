@@ -97,6 +97,31 @@ void EvaluateClip( ANIMJoint* out_joints, const ANIMClip* anim, uint32_t frameIn
     } while( ++i < endJoint );
 }
 
+vec3_t EvaluateRootTranslation( const ANIMClip* anim, float eval_time )
+{
+    uint32_t frameInteger = 0;
+    float frameFraction = 0.f;
+    _ComputeFrame( &frameInteger, &frameFraction, eval_time, anim->sampleFrequency );
+    return EvaluateRootTranslation( anim, frameInteger, frameFraction );
+}
+
+vec3_t EvaluateRootTranslation( const ANIMClip* anim, uint32_t frame_integer, float frame_fraction )
+{
+    const vec4_t* root_translations = TYPE_OFFSET_GET_POINTER( const vec4_t, anim->offsetRootTranslation );
+    
+    const u32 num_frames = anim->numFrames;
+    const uint32_t currentFrame = (frame_integer) % num_frames;
+    if( currentFrame == u32(anim->numFrames - 1) )
+    {
+        return root_translations[frame_integer].xyz();
+    }
+    
+    const uint32_t nextFrame = (frame_integer + 1);
+
+    const vec3_t a = root_translations[currentFrame].xyz();
+    const vec3_t b = root_translations[nextFrame].xyz();
+    return lerp( frame_fraction, a, b );
+}
 
 void EvaluateClipIndexed( ANIMJoint* out_joints, const ANIMClip* anim, float evalTime, const int16_t* indices, uint32_t numIndices )
 {

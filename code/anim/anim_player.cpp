@@ -287,7 +287,8 @@ void ANIMSimplePlayer::Prepare( const ANIMSkel* skel, BXIAllocator* allocator /*
     _allocator = allocator;
     _ctx = ContextInit( *skel, allocator );
     _prev_joints = (ANIMJoint*)BX_MALLOC( allocator, skel->numJoints * sizeof( ANIMJoint ), 16 );
-    
+    _num_joints = skel->numJoints;
+
     for( uint32_t i = 0; i < skel->numJoints; ++i )
     {
         _prev_joints[i] = ANIMJoint::identity();
@@ -474,6 +475,37 @@ const ANIMJoint* ANIMSimplePlayer::LocalJoints() const
 ANIMJoint* ANIMSimplePlayer::LocalJoints()
 {
     return PoseFromStack( _ctx, 0 );
+}
+
+vec3_t ANIMSimplePlayer::GetRootTranslation() const
+{
+    if( Empty() )
+        return vec3_t( 0.f );
+
+    vec3_t value = EvaluateRootTranslation( _clips[0].clip, _clips[0].eval_time );
+    //if( _num_clips > 1 )
+    //{
+    //    vec3_t value1 = EvaluateRootTranslation( _clips[1].clip, _clips[1].eval_time );
+
+    //    const f32 t = saturate( _blend_time / _blend_duration );
+    //    value = lerp( t, value, value1 );
+    //}
+
+    return value;
+}
+
+vec3_t ANIMSimplePlayer::GetRootVelocity( float dt ) const
+{
+    if( Empty() )
+        return vec3_t( 0.f );
+
+
+
+    const vec3_t value0 = EvaluateRootTranslation( _clips[0].clip, _clips[0].eval_time );
+    const vec3_t value1 = EvaluateRootTranslation( _clips[0].clip, _clips[0].eval_time + dt );
+
+    return (value1 - value0) / dt;
+
 }
 
 const ANIMJoint* ANIMSimplePlayer::PrevLocalJoints() const

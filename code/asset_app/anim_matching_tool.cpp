@@ -1,5 +1,7 @@
 #include "anim_matching_tool.h"
 #include <3rd_party/imgui/imgui.h>
+#include <foundation/array.h>
+
 #include "common/common.h"
 #include "anim/anim_struct.h"
 #include "common/base_engine_init.h"
@@ -7,6 +9,7 @@
 #include <filesystem/filesystem_plugin.h>
 #include "anim/anim_joint_transform.h"
 #include "anim/anim.h"
+#include "anim/anim_debug.h"
 #include "foundation/math/vmath.h"
 #include "foundation/math/math_common.h"
 #include <algorithm>
@@ -39,12 +42,16 @@ void ANIMMatchingTool::StartUp( CMNEngine* e, const char* src_folder, BXIAllocat
     _allocator = allocator;
 
     _db = anim_match::CreateDatabase( allocator );
+    
 
     anim_match::LoadSkel( _db, e->filesystem, "anim/human.skel" );
-    anim_match::LoadClip( _db, e->filesystem, "anim/Catwalk_Sequence_01.clip" );
-    anim_match::LoadClip( _db, e->filesystem, "anim/Catwalk_Walk_Forward_01.clip" );
-    anim_match::LoadClip( _db, e->filesystem, "anim/Catwalk_Walk_Forward_Arc_90L.clip" );
-    anim_match::LoadClip( _db, e->filesystem, "anim/Catwalk_Walk_Forward_Arc_90R.clip" );
+    anim_match::LoadClip( _db, e->filesystem, "anim/yelling.clip" );
+    //anim_match::LoadClip( _db, e->filesystem, "anim/Catwalk_Sequence_01.clip" );
+    //anim_match::LoadClip( _db, e->filesystem, "anim/Catwalk_Walk_Forward_01.clip" );
+    //anim_match::LoadClip( _db, e->filesystem, "anim/Catwalk_Walk_Forward_Arc_90L.clip" );
+    //anim_match::LoadClip( _db, e->filesystem, "anim/Catwalk_Walk_Forward_Arc_90R.clip" );
+
+    _ctx = anim_match::CreateContext( _db->skel, _allocator );
 }
 
 void ANIMMatchingTool::ShutDown( CMNEngine* e )
@@ -176,9 +183,23 @@ void ANIMMatchingTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
     DrawController( entity_pose );
 
     anim_match::Update( _db );
+    anim_match::Update( _ctx, _db, _controller.vel, dt );
+
     if( HasSelectedClip() )
     {
         anim_match::DebugDraw( entity_pose, _db, _selected_clip, _selected_joint, _selected_frame, _isolate_frame );
+    }
+
+    if( !_ctx->player.Empty() )
+    {
+        const ANIMJoint* local_joints = _ctx->player.LocalJoints();
+        array::resize( _ctx->world_joints, _ctx->player._num_joints );
+    
+        const ANIMJoint root_joint = toAnimJoint_noScale( entity_pose );
+        const u16* parent_indices = (u16*)ParentIndices( _db->skel );
+
+        LocalJointsToWorldJoints( &_ctx->world_joints[0], local_joints, parent_indices, _ctx->player._num_joints, root_joint );
+        anim_debug::DrawPose( _db->skel, to_array_span( _ctx->world_joints ), color32_t::AQUA(), 0.15f );
     }
 
 
@@ -238,8 +259,8 @@ namespace anim_match
 static void StartUp( ANIMAtchContext* ctx, const ANIMSkel* skel )
 {
     ctx->current_clip = ctx->CLIP_NONE;
-    ctx->current_eval_time = 0.f;
-
+    ctx->current_entry_index = ctx->ENTRY_NONE;
+    
     ctx->player.Prepare( skel, ctx->_allocator );
 }
 static void ShutDown( ANIMAtchContext* ctx )
@@ -394,51 +415,70 @@ void AnalizeClip( ANIMatchDatabase* db, const ANIMClip* clip, u32 clip_index )
         }
     }
 
-    array_t<ANIMatchEntry3> tmp;
-    array::reserve( tmp, nb_frames );
-
-    for( u32 ijoint = 0; ijoint < nb_joints; ++ijoint )
+    // velocties
     {
-        array::clear( tmp );
+        array_t<ANIMatchEntry3> tmp;
+        for( u32 ijoint = 0; ijoint < nb_joints; ++ijoint )
+        {
+            array::clear( tmp );
 
-        const u16 index = setup::joint_indices[ijoint];
-        root_joint = ANIMJoint::identity();
-        
-        pose[0][setup::joint_indices[0]] = ANIMJoint::identity();
-        pose[1][setup::joint_indices[0]] = ANIMJoint::identity();
+            const u16 index = setup::joint_indices[ijoint];
+            root_joint = ANIMJoint::identity();
 
-        const u32 vel_begin_index = db->trajectory_vel.size;
+            pose[0][setup::joint_indices[0]] = ANIMJoint::identity();
+            pose[1][setup::joint_indices[0]] = ANIMJoint::identity();
+
+            const u32 vel_begin_index = db->trajectory_vel.size;
+            for( u32 iframe = 0; iframe < nb_frames; ++iframe )
+            {
+                const u32 prev_pose_index = curr_pose_index;
+                curr_pose_index = !curr_pose_index;
+
+                const JointArray& prev_pose = pose[prev_pose_index];
+                const JointArray& prev_scratch = scratch[prev_pose_index];
+
+                JointArray& curr_pose = pose[curr_pose_index];
+                JointArray& curr_scratch = scratch[curr_pose_index];
+
+                //if( index != setup::trajectory_index )
+                //{
+                //    const ANIMJoint& prev_0_joint = prev_pose[setup::joint_indices[0]];
+                //    root_joint.position -= vec4_t( ProjectPointOnPlane( prev_0_joint.position.xyz(), ground_plane ), 1.f );
+                //}
+
+                EvaluateClip( &curr_scratch[0], clip, iframe, 0.f, 0, index + 1 );
+                LocalJointsToWorldJoints( &curr_pose[0], &curr_scratch[0], parent_indices, index + 1, root_joint );
+
+                const ANIMJoint& joint = curr_pose[index];
+                const vec3_t pos = joint.position.xyz();
+                //if( index == setup::trajectory_index )
+                //{
+                //    pos = ProjectPointOnPlane( pos, ground_plane );
+                //}
+                const f32 phase = (f32)iframe / (f32)(nb_frames - 1);
+
+                ANIMatchEntry3 entry = ToEntry<ANIMatchEntry3>( pos, phase, iframe, clip_index, index );
+                array::push_back( tmp, entry );
+            }
+
+            array_span_t<const ANIMatchEntry3> pos_span = to_array_span( tmp );
+            Differentiate( db->vel, pos_span, nb_frames, clip->sampleFrequency );
+        }
+    }
+
+    { // trajectory
+        array_t<ANIMatchEntry3> tmp;
+        array::reserve( tmp, nb_frames );
         for( u32 iframe = 0; iframe < nb_frames; ++iframe )
         {
-            const u32 prev_pose_index = curr_pose_index;
-            curr_pose_index = !curr_pose_index;
-
-            const JointArray& prev_pose = pose[prev_pose_index];
-            const JointArray& prev_scratch = scratch[prev_pose_index];
-
-            JointArray& curr_pose = pose[curr_pose_index];
-            JointArray& curr_scratch = scratch[curr_pose_index];
-
-            if( index != setup::trajectory_index )
-            {
-                const ANIMJoint& prev_0_joint = prev_pose[setup::joint_indices[0]];
-                root_joint.position -= vec4_t( ProjectPointOnPlane( prev_0_joint.position.xyz(), ground_plane ), 1.f );
-            }
-
-            EvaluateClip( &curr_scratch[0], clip, iframe, 0.f, 0, index + 1 );
-            LocalJointsToWorldJoints( &curr_pose[0], &curr_scratch[0], parent_indices, index + 1, root_joint );
-            
-            const ANIMJoint& joint = curr_pose[index];
-            vec3_t pos = joint.position.xyz();
-            if( index == setup::trajectory_index )
-            {
-                pos = ProjectPointOnPlane( pos, ground_plane );
-            }
+            const vec3_t root_translation = EvaluateRootTranslation( clip, iframe, 0.f );
             const f32 phase = (f32)iframe / (f32)(nb_frames - 1);
 
-            ANIMatchEntry3 entry = ToEntry<ANIMatchEntry3>( pos, phase, iframe, clip_index, index );
+            ANIMatchEntry3 entry = ToEntry<ANIMatchEntry3>( root_translation, phase, iframe, clip_index, setup::trajectory_index );
             array::push_back( tmp, entry );
         }
+
+        const u32 vel_begin_index = db->trajectory_vel.size;
 
         array_span_t<const ANIMatchEntry3> pos_span = to_array_span( tmp );
         Differentiate( db->trajectory_vel, pos_span, nb_frames, clip->sampleFrequency );
@@ -459,15 +499,21 @@ void LoadClip( ANIMatchDatabase* db, BXIFilesystem* fs, const char* filename )
     if( fhelper.LoadSync( fs, db->_allocator, filename ) )
     {
         const ANIMClip* clip = fhelper.data;
-        
-        ANIMatchDatabase::ClipMetadata metadata;
-        metadata.filename.Append( filename );
-        metadata.file = (srl_file_t*)fhelper.file;
-        array::push_back( db->clip_metadata, std::move( metadata ) );
+        if( clip->offsetRootTranslation )
+        {
+            ANIMatchDatabase::ClipMetadata metadata;
+            metadata.filename.Append( filename );
+            metadata.file = (srl_file_t*)fhelper.file;
+            array::push_back( db->clip_metadata, std::move( metadata ) );
 
-        u32 clip_index = array::push_back( db->clips, clip );
-        AnalizeClip( db, clip, clip_index );
-        db->_flags.sort_data = 1;
+            u32 clip_index = array::push_back( db->clips, clip );
+            AnalizeClip( db, clip, clip_index );
+            db->_flags.sort_data = 1;
+        }
+        else
+        {
+            fhelper.FreeFile();
+        }
     }
 }
 
@@ -517,23 +563,117 @@ void Update( ANIMatchDatabase* db )
         SortEntries( db->trajectory_acc );
         SortEntries( db->pos );
         SortEntries( db->rot );
+        SortEntries( db->vel );
     }
+}
+
+void Update( ANIMAtchContext* ctx, const ANIMatchDatabase* db, const vec3_t& velocity, float dt )
+{
+    f32 the_best_diff = FLT_MAX;
+    u32 the_best_vel_index = ANIMAtchContext::ENTRY_NONE;
+
+    const u32 nb_entries = db->trajectory_vel.size;
+    for( u32 i = 0; i < nb_entries; ++i )
+    {
+        const ANIMatchEntry3& e = db->trajectory_vel[i];
+        const vec3_t diff = e.value - velocity;
+        const f32 diff_len = length_sqr( diff );
+        if( diff_len < the_best_diff && i != ctx->current_entry_index )
+        {
+            bool still_the_best = true;
+            //if( e.clip_index == ctx->current_clip )
+            //{
+            //    still_the_best = i > ctx->current_entry_index;
+            //}
+
+            if( still_the_best )
+            {
+                the_best_diff = diff_len;
+                the_best_vel_index = i;
+            }
+        }
+    }
+
+    if( the_best_vel_index == UINT32_MAX )
+    {
+        return;
+    }
+
+    const ANIMatchEntry3& the_best_entry_vel = db->trajectory_vel[the_best_vel_index];
+    const u32 the_best_clip_index = the_best_entry_vel.clip_index;
+    const ANIMClip* clip = db->clips[the_best_clip_index];
+
+    const f32 new_clip_eval_time = the_best_entry_vel.phase * clip->duration;
+    
+    ctx->current_entry_index = the_best_vel_index;
+    if( ctx->player.Empty() )
+    {
+        ctx->player.Play( clip, new_clip_eval_time, 0.1f, the_best_clip_index );
+        ctx->current_clip = the_best_entry_vel.clip_index;
+    }
+    else
+    {
+        ANIMSimplePlayer& player = ctx->player;
+
+        f32 curr_clip_eval_time0 = FLT_MAX;
+        f32 curr_clip_eval_time1 = FLT_MAX;
+        f32 time_diff_0 = FLT_MAX;
+        f32 time_diff_1 = FLT_MAX;
+        if( player.EvalTime( &curr_clip_eval_time0, 0 ) )
+        {
+            time_diff_0 = new_clip_eval_time - curr_clip_eval_time0;
+        }
+        if( player.EvalTime( &curr_clip_eval_time1, 1 ) )
+        {
+            time_diff_1 = new_clip_eval_time - curr_clip_eval_time1;
+        }
+
+        const f32 time_threshold = 0.2f;
+        const bool the_same_clip = the_best_entry_vel.clip_index == ctx->current_clip;
+        const bool the_same_time = ::fabsf( time_diff_0 ) < time_threshold;// || ::fabsf( time_diff_1 ) < time_threshold;
+    
+        const vec3_t anim_vel = ctx->player.GetRootVelocity( dt );
+        const vec3_t entry_vel = the_best_entry_vel.value;
+        const vec3_t vel_diff = entry_vel - anim_vel;
+
+        const bool vel_match = length( vel_diff ) < 0.5f;
+
+        //const float tmp = length( anim_vel ) / length( entry_vel );
+        //const vec3_t anim_vel_diff = anim_vel - velocity;
+        //const vec3_t entry_vel_diff = entry_vel - velocity;
+        ////const bool vel_match = length( vel_diff ) < 0.666f;
+        //const bool vel_match = tmp > 0.5f && tmp < 1.5f;
+        bool should_change_clip = !(the_same_clip && vel_match);// || !the_same_time;
+        if( should_change_clip )
+        {
+            player.Play( clip, new_clip_eval_time, 0.2f, the_best_clip_index );
+            ctx->current_clip = the_best_clip_index;
+        }
+    }
+
+    ctx->player.Tick( dt );
 }
 
 void DebugDraw( const mat44_t& basis, const ANIMatchDatabase* db, u32 clip_index, u32 joint_index, u32 clip_frame, bool isolate_frame )
 {
+    const ANIMClip* clip = db->clips[clip_index];
     const ANIMatchEntry3* pos_begin = FindBegin( db->pos, clip_index );
     const ANIMatchEntry3* pos_end = FindEnd( db->pos, clip_index );
 
     const ANIMatchEntry4* rot_begin = FindBegin( db->rot, clip_index );
     const ANIMatchEntry4* rot_end = FindEnd( db->rot, clip_index );
 
-    const ANIMatchEntry3* vel_begin = FindBegin( db->trajectory_vel, clip_index );
-    const ANIMatchEntry3* vel_end = FindEnd( db->trajectory_vel, clip_index );
+    const ANIMatchEntry3* vel_begin = FindBegin( db->vel, clip_index );
+    const ANIMatchEntry3* vel_end = FindEnd( db->vel, clip_index );
+
+    const ANIMatchEntry3* trajectory_vel_begin = FindBegin( db->trajectory_vel, clip_index );
+    const ANIMatchEntry3* trajectory_vel_end = FindEnd( db->trajectory_vel, clip_index );
 
     const u32 nb_entries = (u32)(pos_end - pos_begin);
     SYS_ASSERT( nb_entries == (u32)(rot_end - rot_begin) );
     SYS_ASSERT( nb_entries == (u32)(vel_end - vel_begin) );
+
+    const u32 nb_trajectory_entries = (u32)(trajectory_vel_end - trajectory_vel_begin);
 
     struct cfg_t
     {
@@ -613,8 +753,30 @@ void DebugDraw( const mat44_t& basis, const ANIMatchDatabase* db, u32 clip_index
         RDIXDebug::AddAxes( pose, RDIXDebugParams().Scale( axes_scale ) );
 
         RDIXDebug::AddLine( pos, pos + vel * vel_scale, RDIXDebugParams( cfg.vel_color ) );
-
     }
+
+    vec3_t local_prev_pos( 0.f );
+    vec3_t local_curr_pos( 0.f );
+    for( u32 i = 0; i < nb_trajectory_entries; ++i )
+    {
+        const ANIMatchEntry3* tr_vel = trajectory_vel_begin + i;
+        const f32 t = (tr_vel->frame == clip_frame) ? 1.f : 0.f;
+
+        const float radius = lerp( t, cfg.sphere_min_radius, cfg.sphere_max_radius );
+        const color32_t color = color32_t::lerp( t, cfg.base_color, cfg.pos_color );
+
+        local_prev_pos = local_curr_pos;
+        local_curr_pos += tr_vel->value / clip->sampleFrequency;
+
+        const vec3_t p0 = mul_as_point( basis, local_prev_pos );
+        const vec3_t p1 = mul_as_point( basis, local_curr_pos );
+
+        RDIXDebug::AddSphere( p1, radius, RDIXDebugParams( color ) );
+        RDIXDebug::AddLine( p0, p1, RDIXDebugParams( cfg.vel_color ) );
+    }
+
+    //anim_debug::DrawPose( db->skel, 
+
 }
 
 }//
