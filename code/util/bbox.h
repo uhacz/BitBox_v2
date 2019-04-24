@@ -17,14 +17,14 @@ struct AABB
         return AABB( vec3_t( FLT_MAX ), vec3_t( -FLT_MAX ) );
     }
 
-    inline vec3_t Size( const AABB& bbox )
+    static inline vec3_t Size( const AABB& bbox )
     {
-        return pmax - pmin;
+        return bbox.pmax - bbox.pmin;
     }
 
-    inline vec3_t Center( const AABB& bbox )
+    static inline vec3_t Center( const AABB& bbox )
     {
-        return pmin + ( pmax - pmin ) * 0.5f;
+        return bbox.pmin + (bbox.pmax - bbox.pmin ) * 0.5f;
     }
 
     static inline AABB Extend( const AABB& bbox, const vec3_t& point )

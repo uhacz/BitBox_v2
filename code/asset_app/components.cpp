@@ -161,6 +161,7 @@ void TOOLSkinningComponent::ComputeSkinningMatrices( array_span_t<mat44_t> outpu
     }
  }
 
+#pragma optimize( "", off )
 bool TOOLMeshDescComponent::Initialize( ECS* ecs, ECSComponentID id_mesh_comp, const RDIXMeshFile* mesh_file )
 {
     ECSComponentProxy<TOOLMeshComponent> mesh_comp( ecs, id_mesh_comp );
@@ -188,6 +189,8 @@ bool TOOLMeshDescComponent::Initialize( ECS* ecs, ECSComponentID id_mesh_comp, c
 
     return true;
 }
+
+#pragma optimize( "", on )
 
 bool TOOLTransformComponent::Initialize( const vec3_t& pos )
 {

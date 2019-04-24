@@ -29,8 +29,12 @@
 
 #include "../foundation/type.h"
 #include "../foundation/math/vmath_type.h"
+#include "../foundation/containers.h"
+#include "../bbox.h"
 
 using Vec3 = vec3_t;
 
 // voxelizes a mesh using a single pass parity algorithm
-void Voxelize(const Vec3* vertices, int numVertices, const int* indices, int numTriangleIndices, uint32_t width, uint32_t height, uint32_t depth, uint32_t* volume, Vec3 minExtents, Vec3 maxExtents);
+void Voxelize( array_span_t<u8> volume, u32 width, u32 height, u32 depth, const AABB& bounds, array_span_t<const Vec3> vertices, array_span_t<const u16> indices );
+
+//void Voxelize(const Vec3* vertices, int numVertices, const int* indices, int numTriangleIndices, uint32_t width, uint32_t height, uint32_t depth, uint32_t* volume, Vec3 minExtents, Vec3 maxExtents);

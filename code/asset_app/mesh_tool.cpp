@@ -13,6 +13,9 @@
 
 #include "common/common.h"
 #include "foundation/hashed_string.h"
+#include "rdix/rdix_debug_draw.h"
+
+#include "util/voxelizer/voxelize.h"
 
 namespace helper
 {
@@ -187,6 +190,39 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
             ImGui::EndPopup();
         }
     }
+
+    if( !array::empty( _vox_mesh.voxels ) )
+    {
+        auto proxy = common::FindFirstTransformComponent( e->ecs, ctx.entity );
+
+        const vec3_t base_pos = proxy->pose.translation();
+
+        const vec3_t bounds_ext( 1.f );
+        RDIXDebug::AddAABB( base_pos + vec3_t(0.f, bounds_ext.y, 0.f), bounds_ext );
+
+        const vec3_t voxel_offset = base_pos + _vox_mesh.bounds.pmin;
+
+        for( u32 iz = 0; iz < _vox_mesh.grid.depth; ++iz )
+        {
+            for( u32 iy = 0; iy < _vox_mesh.grid.height; ++iy )
+            {
+                for( u32 ix = 0; ix < _vox_mesh.grid.width; ++ix )
+                {
+                    const u32 index = _vox_mesh.grid.Index( ix, iy, iz );
+                    if( _vox_mesh.voxels[index] == 0 )
+                        continue;
+
+                    vec3_t pos( (f32)ix, (f32)iy, (f32)iz );
+                    pos *= _vox_mesh.voxel_size;
+                    pos += voxel_offset;
+
+                    RDIXDebug::AddAABB( pos, vec3_t( _vox_mesh.voxel_size * 0.5f ) );
+                }
+            }
+        }
+    }
+
+
 }
 
 bool MESHTool::_Import( CMNEngine* e )
@@ -227,6 +263,34 @@ void MESHTool::_Compile( CMNEngine* e, const TOOLContext& ctx, const tool::mesh:
     cmesh.destroy();
 }
 
+void VoxelizeMesh( VoxelizedMesh* output, const RDIXMeshFile* mesh, f32 voxel_size )
+{
+    AABB bounds = AABB::Prepare();
+
+    array_span_t<const u16> indices = GetIndexStream16( mesh );
+    array_span_t<const vec3_t> positions = GetVertexStream<vec3_t>( mesh, RDIEVertexSlot::POSITION );
+    for( const vec3_t& pos : positions )
+    {
+        bounds = AABB::Extend( bounds, pos );
+    }
+
+    const vec3_t bounds_size = AABB::Size( bounds );
+    const f32 width  = ::ceilf( bounds_size.x / voxel_size );
+    const f32 height = ::ceilf( bounds_size.y / voxel_size );
+    const f32 depth  = ::ceilf( bounds_size.z / voxel_size );
+
+    output->bounds = bounds;
+    output->voxel_size = voxel_size;
+    output->grid = grid_t( (u32)width, (u32)height, (u32)depth );
+    array::resize( output->voxels, output->grid.NumCells() );
+    memset( output->voxels.begin(), 0x00, array::size_in_bytes( output->voxels ) );
+
+    Voxelize(
+        to_array_span( output->voxels.begin(), output->voxels.size ),
+        output->grid.width, output->grid.height, output->grid.depth,
+        bounds,
+        positions, indices );
+}
 
 void MESHTool::_Load( CMNEngine* e, const TOOLContext& ctx, const char* filename )
 {
@@ -242,6 +306,9 @@ void MESHTool::_Load( CMNEngine* e, const TOOLContext& ctx, const char* filename
             BX_FREE0( _allocator, _mesh_file );
             _id_mesh_comp = LoadTOOLMeshComponent( e, _id_mesh_comp, ctx, mesh_file, _allocator );
             _mesh_file = serialized_file;
+
+            _vox_mesh.Clear();
+            VoxelizeMesh( &_vox_mesh, mesh_file, 0.016f );
         }
     }
 
@@ -253,4 +320,12 @@ void MESHTool::_Save( CMNEngine* e, common::FolderContext* folder )
     common::CreateDstFilename( &_current_dst_file, folder->Root(), _current_src_file, "mesh", _allocator );
     WriteFileSync( e->filesystem, _current_dst_file.c_str(), _mesh_file, _mesh_file->size );
     folder->RequestRefresh();
+}
+
+void VoxelizedMesh::Clear()
+{
+    bounds = AABB::Prepare();
+    voxel_size = 0.f;
+    grid = {};
+    array::clear( voxels );
 }

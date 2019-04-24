@@ -311,12 +311,16 @@ namespace tool { namespace mesh {
 
 
         uint32_t memory_size_for_all_streams = 0;
-        memory_size_for_all_streams += memory_size_for_indices;
-        memory_size_for_all_streams += memory_size_for_bones;
-        memory_size_for_all_streams += memory_size_for_bones_names;
 
         for( uint32_t i = 0; i < MAX_STREAMS; ++i )
             memory_size_for_all_streams += memory_size_streams[i];
+
+        memory_size_for_all_streams = TYPE_ALIGN( memory_size_for_all_streams, 16 );
+        memory_size_for_all_streams += memory_size_for_bones;
+        memory_size_for_all_streams += memory_size_for_bones_names;
+        memory_size_for_all_streams += memory_size_for_indices;
+
+        
 
         uint32_t total_memory_size = 0;
         total_memory_size += sizeof( RDIXMeshFile );
@@ -373,7 +377,7 @@ namespace tool { namespace mesh {
 
         // bones
         {
-            BufferChunker::Block data_block = chunker.AddBlock( memory_size_for_bones );
+            BufferChunker::Block data_block = chunker.AddBlock( memory_size_for_bones, 16 );
 
             mat44_t* dst_bones = (mat44_t*)data_block.begin;
             for( uint32_t i = 0; i < streams.num_bones; ++i )

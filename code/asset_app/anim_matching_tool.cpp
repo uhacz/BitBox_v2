@@ -483,7 +483,7 @@ void AnalizeClip( ANIMatchDatabase* db, const ANIMClip* clip, u32 clip_index )
         array_span_t<const ANIMatchEntry3> pos_span = to_array_span( tmp );
         Differentiate( db->trajectory_vel, pos_span, nb_frames, clip->sampleFrequency );
 
-        array_span_t<const ANIMatchEntry3> vel_span = to_array_span( &db->trajectory_vel[vel_begin_index], nb_frames );
+        array_span_t<const ANIMatchEntry3> vel_span = to_array_span( (const ANIMatchEntry3*)&db->trajectory_vel[vel_begin_index], nb_frames );
         Differentiate( db->trajectory_acc, vel_span, nb_frames, clip->sampleFrequency );
     }
 }

@@ -1,6 +1,7 @@
 #include "anim_debug.h"
 #include "anim.h"
 #include <rdix/rdix_debug_draw.h>
+#include "foundation/math/vmath.h"
 
 
 namespace anim_debug

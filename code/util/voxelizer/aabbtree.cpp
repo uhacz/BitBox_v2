@@ -33,9 +33,8 @@
 
 using namespace std;
 
-AABBTree::AABBTree(const Vec3* vertices, uint32_t numVerts, const uint32_t* indices, uint32_t numFaces) 
+AABBTree::AABBTree( array_span_t<const Vec3> vertices, array_span_t<const u16> indices, uint32_t numFaces )
     : m_vertices(vertices)
-    , m_numVerts(numVerts)
     , m_indices(indices)
     , m_numFaces(numFaces)
 {
@@ -52,7 +51,7 @@ namespace
 
 	struct FaceSorter
 	{
-		FaceSorter(const Vec3* positions, const uint32_t* indices, uint32_t n, uint32_t axis) 
+		FaceSorter(const Vec3* positions, const uint16_t* indices, uint32_t n, uint32_t axis) 
 			: m_vertices(positions)
 			, m_indices(indices)
 			, m_numIndices(n)
@@ -81,7 +80,7 @@ namespace
 		}
 
 		const Vec3* m_vertices;
-		const uint32_t* m_indices;
+		const uint16_t* m_indices;
 		uint32_t m_numIndices;
 		uint32_t m_axis;
 	};
@@ -96,7 +95,7 @@ namespace
 
 } // anonymous namespace
 
-void AABBTree::CalculateFaceBounds(uint32_t* faces, uint32_t numFaces, Vector3& outMinExtents, Vector3& outMaxExtents)
+void AABBTree::CalculateFaceBounds( const uint16_t* faces, uint32_t numFaces, Vector3& outMinExtents, Vector3& outMaxExtents)
 {
     Vector3 minExtents(FLT_MAX);
     Vector3 maxExtents(-FLT_MAX);
@@ -129,8 +128,6 @@ void AABBTree::Build()
 {
     assert(m_numFaces*3);
 
-    //const double startTime = GetSeconds();
-
     const uint32_t numFaces = m_numFaces;
 
     // build initial list of faces
@@ -140,7 +137,7 @@ void AABBTree::Build()
     m_faceBounds.reserve(numFaces);   
     
 	std::vector<Bounds> stack;
-	for (uint32_t i=0; i < numFaces; ++i)
+	for (uint16_t i=0; i < numFaces; ++i)
     {
 		Bounds top;
         CalculateFaceBounds(&i, 1, top.m_min, top.m_max);
@@ -164,7 +161,7 @@ void AABBTree::Build()
 }
 
 // partion faces around the median face
-uint32_t AABBTree::PartitionMedian(Node& n, uint32_t* faces, uint32_t numFaces)
+uint32_t AABBTree::PartitionMedian(Node& n, uint16_t* faces, uint32_t numFaces)
 {
 	FaceSorter predicate(&m_vertices[0], &m_indices[0], m_numFaces*3, LongestAxis(n.m_maxExtents-n.m_minExtents));
     std::nth_element(faces, faces+numFaces/2, faces+numFaces, predicate);
@@ -173,7 +170,7 @@ uint32_t AABBTree::PartitionMedian(Node& n, uint32_t* faces, uint32_t numFaces)
 }
 
 // partion faces based on the surface area heuristic
-uint32_t AABBTree::PartitionSAH(Node& n, uint32_t* faces, uint32_t numFaces)
+uint32_t AABBTree::PartitionSAH(Node& n, uint16_t* faces, uint32_t numFaces)
 {
 	uint32_t bestAxis = 0;
 	uint32_t bestIndex = 0;
@@ -227,7 +224,7 @@ uint32_t AABBTree::PartitionSAH(Node& n, uint32_t* faces, uint32_t numFaces)
 	return bestIndex+1;
 }
 
-void AABBTree::BuildRecursive(uint32_t nodeIndex, uint32_t* faces, uint32_t numFaces)
+void AABBTree::BuildRecursive(uint32_t nodeIndex, uint16_t* faces, uint32_t numFaces)
 {
     const uint32_t kMaxFacesPerLeaf = 6;
     

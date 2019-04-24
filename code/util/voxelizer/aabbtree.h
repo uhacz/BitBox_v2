@@ -31,6 +31,7 @@
 
 #include "../foundation/math/vmath_type.h"
 #include "../foundation/math/vec3.h"
+#include "foundation/containers.h"
 
 using Vector3 = vec3_t;
 using Vec3 = vec3_t;
@@ -54,7 +55,7 @@ class AABBTree
 
 public:
 
-    AABBTree(const Vec3* vertices, uint32_t numVerts, const uint32_t* indices, uint32_t numFaces);
+    AABBTree( array_span_t<const Vec3> vertices, array_span_t<const u16> indices, uint32_t numFaces );
 
 	bool TraceRaySlow(const Vec3& start, const Vector3& dir, float& outT, float& u, float& v, float& w, float& faceSign, uint32_t& faceIndex) const;
     bool TraceRay(const Vec3& start, const Vector3& dir, float& outT, float& u, float& v, float& w, float& faceSign, uint32_t& faceIndex) const;
@@ -81,7 +82,7 @@ private:
 			uint32_t m_numFaces;			
 		};
 
-		uint32_t* m_faces;        
+		const uint16_t* m_faces;        
         Vector3 m_minExtents;
         Vector3 m_maxExtents;
     };
@@ -119,31 +120,28 @@ private:
         Vector3 m_max;
     };
 
-    typedef std::vector<uint32_t> IndexArray;
     typedef std::vector<Vec3> PositionArray;
     typedef std::vector<Node> NodeArray;
-    typedef std::vector<uint32_t> FaceArray;
+    typedef std::vector<uint16_t> FaceArray;
     typedef std::vector<Bounds> FaceBoundsArray;
 
 	// partition the objects and return the number of objects in the lower partition
-	uint32_t PartitionMedian(Node& n, uint32_t* faces, uint32_t numFaces);
-	uint32_t PartitionSAH(Node& n, uint32_t* faces, uint32_t numFaces);
+	uint32_t PartitionMedian(Node& n, uint16_t* faces, uint32_t numFaces);
+	uint32_t PartitionSAH   (Node& n, uint16_t* faces, uint32_t numFaces);
 
     void Build();
-    void BuildRecursive(uint32_t nodeIndex, uint32_t* faces, uint32_t numFaces);
+    void BuildRecursive(uint32_t nodeIndex, uint16_t* faces, uint32_t numFaces);
     void TraceRecursive(uint32_t nodeIndex, const Vec3& start, const Vector3& dir, float& outT, float& u, float& v, float& w, float& faceSign, uint32_t& faceIndex) const;
  
-    void CalculateFaceBounds(uint32_t* faces, uint32_t numFaces, Vector3& outMinExtents, Vector3& outMaxExtents);
+    void CalculateFaceBounds(const uint16_t* faces, uint32_t numFaces, Vector3& outMinExtents, Vector3& outMaxExtents);
     uint32_t GetNumFaces() const { return m_numFaces; }
 	uint32_t GetNumNodes() const { return uint32_t(m_nodes.size()); }
 
 	// track the next free node
 	uint32_t m_freeNode;
 
-    const Vec3* m_vertices;
-    const uint32_t m_numVerts;
-
-    const uint32_t* m_indices;
+    array_span_t<const Vec3> m_vertices;
+    array_span_t<const u16> m_indices;
     const uint32_t m_numFaces;
 
     FaceArray m_faces;

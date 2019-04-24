@@ -78,6 +78,8 @@ namespace array
 template< class T >
 struct array_span_t
 {
+    using type_t = T;
+
     array_span_t()
         : _begin( nullptr ), _size( 0 )
     {}

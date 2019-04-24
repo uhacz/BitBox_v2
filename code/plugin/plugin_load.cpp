@@ -48,7 +48,8 @@ void* BXPluginLoad( BXPluginRegistry* reg, const char* name, BXIAllocator* plugi
     HMODULE module = LoadLibrary( dll_name );
     if( module == NULL )
     {
-        SYS_LOG_ERROR( "plugin '%s' load failed!", name );
+        DWORD error = GetLastError();
+        SYS_LOG_ERROR( "plugin '%s' load failed (err: 0x%x)!", name, error );
         return nullptr;
     }
 

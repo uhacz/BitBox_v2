@@ -26,16 +26,17 @@
 // Copyright (c) 2013-2016 NVIDIA Corporation. All rights reserved.
 
 #include "aabbtree.h"
+#include "voxelize.h"
 
-void Voxelize(const Vec3* vertices, int numVertices, const int* indices, int numTriangleIndices, uint32_t width, uint32_t height, uint32_t depth, uint32_t* volume, Vec3 minExtents, Vec3 maxExtents)
+void Voxelize( array_span_t<u8> volume, u32 width, u32 height, u32 depth, const AABB& bounds, array_span_t<const Vec3> vertices, array_span_t<const u16> indices )
 {
-	memset(volume, 0, sizeof(uint32_t)*width*height*depth);
+	//memset(volume, 0, sizeof(uint32_t)*width*height*depth);
 
 	// build an aabb tree of the mesh
-	AABBTree tree(vertices, numVertices, (const uint32_t*)indices, numTriangleIndices/3); 
+	AABBTree tree(vertices, indices, indices.size() /3 ); 
 
 	// parity count method, single pass
-	const Vec3 extents(maxExtents-minExtents);
+    const Vec3 extents = AABB::Size( bounds );
 	const Vec3 delta(extents.x/width, extents.y/height, extents.z/depth);
 	const Vec3 offset(0.5f*delta.x, 0.5f*delta.y, 0.5f*delta.z);
 	
@@ -49,7 +50,7 @@ void Voxelize(const Vec3* vertices, int numVertices, const int* indices, int num
 			bool inside = false;
 
 			Vec3 rayDir = Vec3(0.0f, 0.0f, 1.0f);
-			Vec3 rayStart = minExtents + Vec3(x*delta.x + offset.x, y*delta.y + offset.y, 0.0f);
+			Vec3 rayStart = bounds.pmin + Vec3(x*delta.x + offset.x, y*delta.y + offset.y, 0.0f);
 
 			uint32_t lastTri = uint32_t(-1);
 			for (;;)
@@ -62,16 +63,22 @@ void Voxelize(const Vec3* vertices, int numVertices, const int* indices, int num
 				{
 					// calculate cell in which intersection occurred
 					const float zpos = rayStart.z + t*rayDir.z;
-					const float zhit = (zpos-minExtents.z)/delta.z;
+					const float zhit = (zpos- bounds.pmin.z)/delta.z;
 					
-					uint32_t z = uint32_t(floorf((rayStart.z-minExtents.z)/delta.z + 0.5f));
-					uint32_t zend = Min(uint32_t(floorf(zhit + 0.5f)), depth-1);
+					const uint32_t z = uint32_t(floorf((rayStart.z- bounds.pmin.z)/delta.z + 0.5f));
+					const uint32_t zend = Min(uint32_t(floorf(zhit + 0.5f)), depth-1);
 
 					if (inside)
 					{
+                        volume[z*width*height + y * width + x] = u8( -1 );
+                        if( zend )
+                        {
+                            const uint32_t last_z = zend - 1;
+                            volume[last_z*width*height + y * width + x] = u8( -1 );
+                        }
 						// march along column setting bits 
-						for (uint32_t k=z; k < zend; ++k)
-							volume[k*width*height + y*width + x] = uint32_t(-1);
+						//for (uint32_t k=z; k < zend; ++k)
+						//	volume[k*width*height + y*width + x] = u8(-1);
 					}
 					
 					inside = !inside;

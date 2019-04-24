@@ -225,8 +225,35 @@ struct BIT_ALIGNMENT_16 RDIXMeshFile
         SRL_PROPERTY( offset_bones_names );
         SRL_PROPERTY( offset_draw_ranges );
     );
-
 };
+
+template< typename T >
+inline array_span_t<const T> GetVertexStream( const RDIXMeshFile* mesh, RDIEVertexSlot::Enum slot )
+{
+    RDIVertexBufferDesc desc = mesh->descs[slot];
+    SYS_ASSERT( desc.ByteWidth() == sizeof( T ) );
+
+    const T* pointer = Offset2Pointer<T>( mesh->offset_streams[slot] );
+    return to_array_span( pointer, mesh->num_vertices );
+}
+
+template< typename T >
+inline array_span_t<const T> GetIndexStream( const RDIXMeshFile* mesh )
+{
+    const T* pointer = Offset2Pointer<T>( mesh->offset_indices );
+    return to_array_span<T>( pointer, mesh->num_indices );
+}
+
+inline array_span_t<const u16> GetIndexStream16( const RDIXMeshFile* mesh )
+{
+    SYS_ASSERT( mesh->flag_use_16bit_indices != 0 );
+    return GetIndexStream<u16>( mesh );
+}
+inline array_span_t<const u32> GetIndexStream32( const RDIXMeshFile* mesh )
+{
+    SYS_ASSERT( mesh->flag_use_16bit_indices == 0 );
+    return GetIndexStream<u32>( mesh );
+}
 
 // --- 
 struct RDIXTransformBufferDesc

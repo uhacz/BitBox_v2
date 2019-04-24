@@ -9,10 +9,26 @@
 #include "tool_context.h"
 #include "foundation/serializer.h"
 #include "common/common.h"
+#include "util/grid.h"
+#include "util/bbox.h"
 
 struct CMNEngine;
 
 
+struct VoxelizedMesh
+{
+    AABB bounds;
+    f32 voxel_size;
+    grid_t grid;
+    array_t<u8> voxels;
+
+    VoxelizedMesh()
+    {
+        Clear();
+    }
+
+    void Clear();
+};
 
 struct MESHTool : TOOLInterface
 {
@@ -38,6 +54,8 @@ struct MESHTool : TOOLInterface
     tool::mesh::ImportOptions _import_options;
 
     srl_file_t* _mesh_file = nullptr;
+
+    VoxelizedMesh _vox_mesh;
 
     union 
     {

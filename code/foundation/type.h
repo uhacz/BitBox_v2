@@ -53,6 +53,12 @@ union TypeReinterpert
 #define TYPE_OFFSET_GET_POINTER(type,offset) ( (offset)? (type*)((intptr_t)(&offset)+(intptr_t)(offset)) : (type*)0 )
 #define TYPE_POINTER_GET_OFFSET(base, address) ( (base) ? (PTR_TO_UINT32(address) - PTR_TO_UINT32(base)) : 0 )
 
+template< typename T >
+inline const T* Offset2Pointer( const u32& offset )
+{
+    return (offset) ? (T*)((intptr_t)(&offset) + (intptr_t)(offset)) : (T*)0;
+}
+
 #ifdef _MSC_VER
 #define BIT_ALIGNMENT( alignment )	__declspec(align(alignment))	
 #else

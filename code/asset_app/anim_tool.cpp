@@ -160,7 +160,7 @@ void ANIMTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
         const uint32_t color = color32_t::TEAL();
         const f32 debug_scale = 0.12f;
         
-        anim_debug::DrawPose( skel, to_array_span( _joints_ms, skel->numJoints ), color, debug_scale );
+        anim_debug::DrawPose( skel, to_array_span( (const ANIMJoint*)_joints_ms, skel->numJoints ), color, debug_scale );
         
         const int16_t* parent_indices = ParentIndices( skel );
         const uint32_t num_joints = skel->numJoints;
