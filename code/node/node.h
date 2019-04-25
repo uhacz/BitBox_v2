@@ -109,8 +109,11 @@ private:
 
 struct NODESystem
 {
-    NODE* CreateNode( const char* type_name );
+    NODE* CreateNode( const char* node_name );
     void DestroyNode( NODE** node );
+
+    NODEComp* CreateComponent( const char* type_name );
+    void DestroyComponent( NODEComp** comp );
 
     void SetName    ( NODE* node, const char* name );
     void LinkNode   ( NODE* parent, NODE* node );
@@ -119,15 +122,16 @@ struct NODESystem
     void LinkComponent  ( NODE* parent, NODEComp* comp );
     void UnlinkComponent( NODE* parent, NODEComp* comp );
     
+    NODE* FindParent( NODEComp* comp );
     NODE* FindNode( guid_t guid );
     NODE* GetNode( u32 runtime_index );
 
     void Tick( NODESystemContext* ctx, f32 dt );
     
-    static bool StartUp ( NODESystem** system, BXIAllocator* allocator );
+    static void StartUp ( NODESystem** system, BXIAllocator* allocator );
     static void ShutDown( NODESystem** system );
 
-private:
+
     struct Impl;
     Impl* impl = nullptr;
 };

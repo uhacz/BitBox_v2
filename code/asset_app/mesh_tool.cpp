@@ -200,7 +200,7 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
         const vec3_t bounds_ext( 1.f );
         RDIXDebug::AddAABB( base_pos + vec3_t(0.f, bounds_ext.y, 0.f), bounds_ext );
 
-        const vec3_t voxel_offset = base_pos + _vox_mesh.bounds.pmin;
+        const vec3_t voxel_offset = base_pos + _vox_mesh.bounds.pmin + vec3_t::ax() * 2.f;
 
         for( u32 iz = 0; iz < _vox_mesh.grid.depth; ++iz )
         {
@@ -308,7 +308,7 @@ void MESHTool::_Load( CMNEngine* e, const TOOLContext& ctx, const char* filename
             _mesh_file = serialized_file;
 
             _vox_mesh.Clear();
-            VoxelizeMesh( &_vox_mesh, mesh_file, 0.016f );
+            VoxelizeMesh( &_vox_mesh, mesh_file, 0.008f );
         }
     }
 
