@@ -49,13 +49,17 @@ struct NODEInitContext : NODESystemContext
 struct NODEAttachContext : NODESystemContext
 {
 };
+
 struct NODETickContext : NODESystemContext
 {
     f32 dt;
 };
 
-struct NODETextSerializer;
+void InitContext( NODEAttachContext* out, const NODESystemContext* sys_ctx );
+void InitContext( NODEInitContext* out, const NODESystemContext* sys_ctx );
+void InitContext( NODETickContext* out, const NODESystemContext* sys_ctx );
 
+struct NODETextSerializer;
 struct NODE;
 struct NODEComp;
 
@@ -76,6 +80,34 @@ struct NODEComp
     virtual void OnSerialize   ( NODE* node, NODETextSerializer* serializer ) {}
 };
 
+struct NODESystemImpl;
+struct NODESystem
+{
+    NODE* CreateNode( const char* node_name, NODE* parent = nullptr );
+    void DestroyNode( NODE** node );
+
+    NODEComp* CreateComponent( const char* type_name );
+    void DestroyComponent( NODEComp** comp );
+
+    void SetName( NODE* node, const char* name );
+    void LinkNode( NODE* parent, NODE* node );
+    void UnlinkNode( NODE* child );
+
+    void LinkComponent( NODE* parent, NODEComp* comp );
+    void UnlinkComponent( NODE* parent, NODEComp* comp );
+
+    NODE* FindParent( NODEComp* comp );
+    NODE* FindNode( guid_t guid );
+    NODE* GetNode( u32 runtime_index );
+
+    void Tick( NODESystemContext* ctx, f32 dt );
+
+    static void StartUp( NODESystem** system, BXIAllocator* allocator );
+    static void ShutDown( NODESystem** system, NODEInitContext* ctx );
+
+    NODESystemImpl* impl = nullptr;
+};
+
 struct NODE
 {
     NODE();
@@ -88,50 +120,23 @@ struct NODE
           NODE* Parent()       { return _parent; }
     const NODE* Parent() const { return _parent; }
 
-    const NODESpan      Children  () const;
-    const NODECompSpan  Components() const;
+    NODESpan      Children  () const;
+    NODECompSpan  Components() const;
 
 private:
+    using NODEArray = c_array_t<NODE*>;
+    using COMPArray = c_array_t<NODEComp*>;
+
     NODEGuid   _guid;
     u32        _index;
-    u32        _num_children   : 22;
-    u32        _num_components : 10;
-    u32        _max_children   : 22;
-    u32        _max_components : 10;
     NODEFlags  _flags;
     char*      _name;
     NODE*      _parent;
-    NODE**     _children;
-    NODEComp** _components;
+    NODEArray* _children;
+    COMPArray* _components;
 
     friend struct NODESystem;
+    friend struct NODESystemImpl;
 };
 
-struct NODESystem
-{
-    NODE* CreateNode( const char* node_name );
-    void DestroyNode( NODE** node );
 
-    NODEComp* CreateComponent( const char* type_name );
-    void DestroyComponent( NODEComp** comp );
-
-    void SetName    ( NODE* node, const char* name );
-    void LinkNode   ( NODE* parent, NODE* node );
-    void UnlinkNode ( NODE* child );
-
-    void LinkComponent  ( NODE* parent, NODEComp* comp );
-    void UnlinkComponent( NODE* parent, NODEComp* comp );
-    
-    NODE* FindParent( NODEComp* comp );
-    NODE* FindNode( guid_t guid );
-    NODE* GetNode( u32 runtime_index );
-
-    void Tick( NODESystemContext* ctx, f32 dt );
-    
-    static void StartUp ( NODESystem** system, BXIAllocator* allocator );
-    static void ShutDown( NODESystem** system );
-
-
-    struct Impl;
-    Impl* impl = nullptr;
-};

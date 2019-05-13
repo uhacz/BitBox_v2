@@ -89,7 +89,7 @@ inline const T* Offset2Pointer( const u32& offset )
 #define MAKE_STR_(x) #x
 
 template <typename T, size_t N>
-size_t sizeof_array( const T( &)[N] )
+constexpr size_t sizeof_array( const T( &)[N] )
 {
     return N;
 }

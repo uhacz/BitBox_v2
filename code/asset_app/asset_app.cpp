@@ -11,6 +11,7 @@
 #include <3rd_party/imgui/imgui.h>
 
 #include <entity/entity_system.h>
+#include <node/node.h>
 #include <common/ground_mesh.h>
 
 #include "components.h"
@@ -19,6 +20,8 @@
 #include "mesh_tool.h"
 #include "anim_tool.h"
 #include "anim_matching_tool.h"
+#include "foundation\array.h"
+#include "util\color.h"
 
 namespace
 {
@@ -48,11 +51,121 @@ namespace
     static TOOLFolders g_folders = {};
 }
 
+static const f32 shape_scale = 0.1f;
+const vec3_t shape[] =
+{
+    vec3_t( 0, 0.01f, 0 ) * shape_scale,
+    vec3_t( 1, 0.01f, 0 ) * shape_scale,
+    vec3_t( 2, 0.01f, 1 ) * shape_scale,
+    vec3_t( 2, 0.01f, 2 ) * shape_scale,
+    vec3_t( 3, 0.01f, 2 ) * shape_scale,
+    vec3_t( 3, 0.01f, 3 ) * shape_scale,
+    vec3_t( 4, 0.01f, 3 ) * shape_scale,
+    vec3_t( 4, 0.01f, 4 ) * shape_scale,
+    vec3_t( 5, 0.01f, 4 ) * shape_scale,
+    vec3_t( 5, 0.01f, 5 ) * shape_scale,
+    vec3_t( 5, 0.01f, 6 ) * shape_scale,
+    vec3_t( 4, 0.01f, 6 ) * shape_scale,
+    vec3_t( 3, 0.01f, 6 ) * shape_scale,
+    vec3_t( 3, 0.01f, 5 ) * shape_scale,
+    vec3_t( 2, 0.01f, 5 ) * shape_scale,
+    vec3_t( 2, 0.01f, 4 ) * shape_scale,
+    vec3_t( 1, 0.01f, 4 ) * shape_scale,
+    vec3_t( 1, 0.01f, 3 ) * shape_scale,
+    vec3_t( 0, 0.01f, 3 ) * shape_scale,
+    vec3_t( 0, 0.01f, 2 ) * shape_scale,
+    vec3_t( 0, 0.01f, 1 ) * shape_scale,
+};
+static constexpr u32 num_points = (u32)sizeof_array( shape );
+
+static f32 TriangleArea( f32 a, f32 b, f32 c )
+{
+    const f32 p = 0.5f * (a + b + c);
+    const f32 area = ::sqrtf( p * (p - a)*(p - b)*(p - c) );
+    return area;
+}
+struct Tri
+{
+    u32 i[3];
+    f32 area;
+};
+struct SmallestTriResult
+{
+    f32 area;
+    u32 middle_point_index;
+};
+
+SmallestTriResult ComputeTriangles( array_t<Tri>& triangles, const array_span_t<const vec3_t> input )
+{
+    SmallestTriResult result;
+    result.area = FLT_MAX;
+    result.middle_point_index = UINT32_MAX;
+
+    for( u32 i = 1; i < input.size() - 1; ++i )
+    {
+        Tri t;
+        t.i[0] = i - 1;
+        t.i[1] = i;
+        t.i[2] = i + 1;
+
+        const vec3_t& p0 = input[t.i[0]];
+        const vec3_t& p1 = input[t.i[1]];
+        const vec3_t& p2 = input[t.i[2]];
+
+        const vec3_t v01 = p1 - p0;
+        const vec3_t v12 = p2 - p1;
+        const vec3_t v20 = p0 - p2;
+
+        const f32 a = length( v01 );
+        const f32 b = length( v12 );
+        const f32 c = length( v20 );
+
+        t.area = TriangleArea( a, b, c );
+
+        array::push_back( triangles, t );
+
+        if( t.area < result.area )
+        {
+            result.area = t.area;
+            result.middle_point_index = t.i[1];
+        }
+    }
+
+    return result;
+}
+
+void SimplifyShape( array_t<vec3_t>& output, const array_span_t<const vec3_t> input )
+{
+    for( vec3_t in : input )
+        array::push_back( output, in );
+
+    array_t<Tri> triangles;
+    while( output.size > input.size() / 2 )
+    {
+        if( output.size <= 4 )
+            break;
+
+        array::clear( triangles );
+        SmallestTriResult smallest = ComputeTriangles( triangles, to_array_span( output ) );
+    
+        if( smallest.area >= 0.03f + FLT_EPSILON )
+            break;
+
+        array::erase( output, smallest.middle_point_index );
+    }
+
+}
 
 
 bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
 {
     CMNEngine::Startup( (CMNEngine*)this, argc, argv, plugins, allocator );
+
+    //NODE* node = nodes->CreateNode( "test_node" );
+
+    //nodes->DestroyNode( &node );
+
+
 
     {
         RegisterComponent< TOOLMeshComponent >( ecs, "TOOL_Mesh" );
@@ -159,6 +272,12 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     }
     ImGui::End();
 
+    
+    {
+        NODESystemContext ctx;
+        ctx.gfx = gfx;
+        nodes->Tick( &ctx, delta_time_sec );
+    }
     ecs->Update();
 
     if( !ImGui::GetIO().WantCaptureMouse )
@@ -209,6 +328,31 @@ bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAlloc
     if( auto proxy = ECSComponentProxy<TOOLTransformSystem>( ecs, g_transform_system_id ) )
     {
         proxy->Tick( ecs, gfx );
+    }
+
+    {
+        array_t<vec3_t> simple_shape;
+        SimplifyShape( simple_shape, to_array_span( shape, num_points ) );
+        
+        for( u32 i = 0; i < num_points; ++i )
+        {
+            const u32 i0 = i;
+            const u32 i1 = (i + 1) % num_points;
+            RDIXDebug::AddLine( shape[i0], shape[i1] );
+            RDIXDebug::AddSphere( shape[i0], shape_scale * 0.1f );
+        }
+
+
+        RDIXDebugParams params( color32_t::RED() );
+        for( u32 i = 0; i < simple_shape.size; ++i )
+        {
+            const u32 i0 = i;
+            const u32 i1 = (i + 1) % simple_shape.size;
+            RDIXDebug::AddLine( simple_shape[i0], simple_shape[i1], params );
+            RDIXDebug::AddSphere( simple_shape[i0], shape_scale * 0.1f, params );
+        }
+
+
     }
 
     { // debug draw all transforms

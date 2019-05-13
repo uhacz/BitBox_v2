@@ -28,6 +28,31 @@ struct array_t
         BX_FREE0( allocator, data );
     }
 
+    array_t( array_t<T>&& other )
+    {
+        size = other.size;
+        capacity = other.capacity;
+        data = other.data;
+        allocator = other.allocator;
+
+        other.size = 0;
+        other.capacity = 0;
+        other.data = nullptr;
+    }
+
+    array_t<T>& operator = ( array_t<T>&& other )
+    {
+        size = other.size;
+        capacity = other.capacity;
+        data = other.data;
+        allocator = other.allocator;
+
+        other.size = 0;
+        other.capacity = 0;
+        other.data = nullptr;
+        return *this;
+    }
+
           T &operator[]( int i) { return data[i]; }
     const T &operator[]( int i) const { return data[i]; }
 
@@ -36,6 +61,29 @@ struct array_t
 
     const T* begin() const { return data; }
     const T* end  () const { return data + size; }
+};
+
+template< typename T >
+struct c_array_t
+{
+    u32 size = 0;
+    u32 capacity = 0;
+    BXIAllocator* allocator = nullptr;
+    
+    static constexpr u32 alignment = ALIGNOF( T );
+    BIT_ALIGNMENT( alignment ) T data[1];
+
+    c_array_t() {}
+    ~c_array_t() {}
+
+          T &operator[]( int i ) { return data[i]; }
+    const T &operator[]( int i ) const { return data[i]; }
+
+    T* begin() { return &data[0]; }
+    T* end() { return &data[0] + size; }
+
+    const T* begin() const { return &data[0]; }
+    const T* end() const { return &data[0] + size; }
 };
 
 //

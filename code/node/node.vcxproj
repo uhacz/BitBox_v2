@@ -18,7 +18,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
@@ -70,10 +70,12 @@
   <ItemGroup>
     <ClInclude Include="node.h" />
     <ClInclude Include="node_serialize.h" />
+    <ClInclude Include="node_system_impl.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="node.cpp" />
     <ClCompile Include="node_serialize.cpp" />
+    <ClCompile Include="node_system_impl.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

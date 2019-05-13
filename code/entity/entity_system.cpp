@@ -327,9 +327,8 @@ void ECS::RegisterComponent( const char* type_name, const ECSComponentTypeDesc& 
    
     hash::set( impl->comp_type_info_map, desc.hash_code, &cinfo );
 
-    array::push_back( impl->comp_storage, ECSComponentStorage() );
+    ECSComponentStorage& storage = array::emplace_back( impl->comp_storage );
     SYS_ASSERT( ( array::size( impl->comp_storage ) - 1 ) == cinfo.index );
-    ECSComponentStorage& storage = array::back( impl->comp_storage );
     storage.StartUp( cinfo.desc.size, cinfo.desc.pool_chunk_size, 16, impl->allocator );
 }
 

@@ -107,6 +107,9 @@
     <ProjectReference Include="..\memory\memory.vcxproj">
       <Project>{9fb86e9a-ae7f-4295-a36b-0ead0df7d749}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\node\node.vcxproj">
+      <Project>{66fa012f-380c-4dd5-873d-89e20d866cd3}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\plugin\plugin.vcxproj">
       <Project>{1ada1dd9-68bb-4e31-bde3-de1208f0d537}</Project>
     </ProjectReference>
