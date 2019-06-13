@@ -11,6 +11,7 @@ void TOOLFolders::StartUp( TOOLFolders* folders, BXIFilesystem* fs, BXIAllocator
     StartUpFolder( &folders->material, "material/", fs, allocator );
     StartUpFolder( &folders->mesh, "mesh/", fs, allocator );
     StartUpFolder( &folders->anim, "anim/", fs, allocator );
+    StartUpFolder( &folders->node, "node/", fs, allocator );
 }
 
 void TOOLFolders::ShutDown( TOOLFolders* folders )

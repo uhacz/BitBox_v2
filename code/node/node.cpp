@@ -1,12 +1,13 @@
 #include "node.h"
 #include "node_system_impl.h"
+#include "node_serialize.h"
+
 #include "../memory/memory.h"
 #include "../foundation/array.h"
 #include "../foundation/string_util.h"
 #include "../foundation/debug.h"
 #include "../foundation/thread/rw_spin_lock.h"
 
-RTTI_DEFINE_EMPTY_TYPE( NODEComp );
 
 void InitContext( NODEAttachContext* out, const NODESystemContext* sys_ctx )
 {
@@ -38,9 +39,14 @@ NODECompSpan NODE::Components() const
 }
 
 
-NODE* NODESystem::CreateNode( const char* node_name, NODE* parent )
+NODE* NODEContainer::CreateNode( const char* node_name, NODE* parent )
 {
-    NODE* node = impl->CreateNode( node_name );
+    return CreateNode( GenerateGUID(), node_name, parent );
+}
+
+NODE* NODEContainer::CreateNode( const guid_t& guid, const char* node_name, NODE* parent /*= nullptr */ )
+{
+    NODE* node = impl->CreateNode( guid, node_name );
     if( node )
     {
         impl->LinkNode( parent, node );
@@ -49,7 +55,7 @@ NODE* NODESystem::CreateNode( const char* node_name, NODE* parent )
     return node;
 }
 
-void NODESystem::DestroyNode( NODE** hnode )
+void NODEContainer::DestroyNode( NODE** hnode )
 {
     if( !hnode[0] )
         return;
@@ -58,46 +64,76 @@ void NODESystem::DestroyNode( NODE** hnode )
     hnode[0] = nullptr;
 }
 
-void NODESystem::SetName( NODE* node, const char* name )
+void NODEContainer::SetName( NODE* node, const char* name )
 {
     impl->SetName( node, name );
 }
 
-void NODESystem::LinkNode( NODE* parent, NODE* node )
+void NODEContainer::LinkNode( NODE* parent, NODE* node )
 {
+    impl->UnlinkNode( node );
     impl->LinkNode( parent, node );
 }
 
-void NODESystem::UnlinkNode( NODE* child )
+void NODEContainer::UnlinkNode( NODE* child )
 {
-    impl->UnlinkNode( child );
-    impl->LinkNode( impl->_root, child );
+    if( child->Parent() != GetRoot() )
+    {
+        impl->UnlinkNode( child );
+        impl->LinkNode( impl->_root, child );
+    }
 }
 
-void NODESystem::Tick( NODESystemContext* ctx, f32 dt )
+NODE* NODEContainer::FindNode( guid_t guid )
+{
+    return impl->FindNode( guid );
+}
+
+NODE* NODEContainer::GetNode( u32 runtime_index )
+{
+    return impl->GetNode( runtime_index );
+}
+
+NODE* NODEContainer::GetRoot()
+{
+    return impl->_root;
+}
+
+void NODEContainer::Tick( NODESystemContext* ctx, f32 dt )
 {
     impl->DestroyPendingNodes( ctx );
-
-
+    impl->ProcessSerialization( ctx );
 }
 
-void NODESystem::StartUp( NODESystem** system, BXIAllocator* allocator )
+
+
+void NODEContainer::Serialize( const char* filename )
+{
+    impl->ScheduleSerialize( filename, false );
+}
+
+void NODEContainer::Unserialize( const char* filename )
+{
+    impl->ScheduleSerialize( filename, true );
+}
+
+void NODEContainer::StartUp( NODEContainer** system, BXIAllocator* allocator )
 {
     u32 memory_size = 0;
-    memory_size += sizeof( NODESystem );
-    memory_size += sizeof( NODESystemImpl );
+    memory_size += sizeof( NODEContainer );
+    memory_size += sizeof( NODEContainerImpl );
 
     void* memory = BX_MALLOC( allocator, memory_size, 16 );
-    NODESystem* sys = (NODESystem*)memory;
-    sys->impl = new(sys + 1) NODESystemImpl();
+    NODEContainer* sys = (NODEContainer*)memory;
+    sys->impl = new(sys + 1) NODEContainerImpl();
     sys->impl->StartUp( allocator );
     
-    sys->impl->_root = sys->impl->CreateNode( "_root_" );
+    sys->impl->_root = sys->impl->CreateNode( GenerateGUID(), "_root_" );
 
     system[0] = sys;
 }
 
-void NODESystem::ShutDown( NODESystem** system, NODEInitContext* ctx )
+void NODEContainer::ShutDown( NODEContainer** system, NODEInitContext* ctx )
 {
     if( !system[0] )
         return;
@@ -112,4 +148,3 @@ void NODESystem::ShutDown( NODESystem** system, NODEInitContext* ctx )
 
     BX_FREE0( allocator, system[0] );
 }
-

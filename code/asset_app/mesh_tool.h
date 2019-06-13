@@ -55,7 +55,7 @@ struct MESHTool : TOOLInterface
 
     srl_file_t* _mesh_file = nullptr;
 
-    VoxelizedMesh _vox_mesh;
+    //VoxelizedMesh _vox_mesh;
 
     union 
     {

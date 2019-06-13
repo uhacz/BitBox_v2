@@ -11,6 +11,7 @@ struct TOOLFolders
     common::FolderContext material;
     common::FolderContext mesh;
     common::FolderContext anim;
+    common::FolderContext node;
 
     static void StartUp( TOOLFolders* folders, BXIFilesystem* fs, BXIAllocator* allocator );
     static void ShutDown( TOOLFolders* folders );

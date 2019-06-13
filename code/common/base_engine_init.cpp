@@ -53,7 +53,7 @@ bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegi
     e->gfx = gfx;
     e->ecs = ecs;
 
-    NODESystem::StartUp( &e->nodes, allocator );
+    NODEContainer::StartUp( &e->nodes, allocator );
 
 
     return true;
@@ -64,7 +64,7 @@ void CMNEngine::Shutdown( CMNEngine* e, BXIAllocator* allocator )
     {
         NODEInitContext ctx;
         ctx.gfx = gfx;
-        NODESystem::ShutDown( &e->nodes, &ctx );
+        NODEContainer::ShutDown( &e->nodes, &ctx );
     }
     ECS::ShutDown( &e->ecs );
     GFX::ShutDown( &e->gfx );

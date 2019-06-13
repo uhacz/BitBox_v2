@@ -191,6 +191,7 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
         }
     }
 
+#if 0
     if( !array::empty( _vox_mesh.voxels ) )
     {
         auto proxy = common::FindFirstTransformComponent( e->ecs, ctx.entity );
@@ -221,6 +222,7 @@ void MESHTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
             }
         }
     }
+#endif
 
 
 }
@@ -307,8 +309,10 @@ void MESHTool::_Load( CMNEngine* e, const TOOLContext& ctx, const char* filename
             _id_mesh_comp = LoadTOOLMeshComponent( e, _id_mesh_comp, ctx, mesh_file, _allocator );
             _mesh_file = serialized_file;
 
+#if 0
             _vox_mesh.Clear();
             VoxelizeMesh( &_vox_mesh, mesh_file, 0.008f );
+#endif
         }
     }
 
@@ -329,3 +333,5 @@ void VoxelizedMesh::Clear()
     grid = {};
     array::clear( voxels );
 }
+
+

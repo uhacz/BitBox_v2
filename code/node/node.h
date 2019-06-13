@@ -7,6 +7,7 @@
 #include "../rtti/rtti.h"
 
 struct BXIAllocator;
+struct BXIFilesystem;
 
 struct NODEFlags
 {
@@ -35,10 +36,11 @@ struct NODEFlags
     }online;
 };
 
-struct NODESystem;
+struct NODEContainer;
 struct GFX;
 struct NODESystemContext
 {
+    BXIFilesystem* fsys;
     GFX* gfx;
 };
 
@@ -69,8 +71,6 @@ using NODECompSpan = array_span_t<NODEComp*>;
 
 struct NODEComp
 {
-    RTTI_DECLARE_TYPE( NODEComp );
-
     virtual ~NODEComp() {}
     virtual void OnInitialize  ( NODE* node, NODEInitContext* ctx, NODEFlags* flags ) {}
     virtual void OnUninitialize( NODE* node, NODEInitContext* ctx ) {}
@@ -80,18 +80,19 @@ struct NODEComp
     virtual void OnSerialize   ( NODE* node, NODETextSerializer* serializer ) {}
 };
 
-struct NODESystemImpl;
-struct NODESystem
+struct NODEContainerImpl;
+struct NODEContainer
 {
     NODE* CreateNode( const char* node_name, NODE* parent = nullptr );
+    NODE* CreateNode( const guid_t& guid, const char* node_name, NODE* parent = nullptr );
     void DestroyNode( NODE** node );
-
-    NODEComp* CreateComponent( const char* type_name );
-    void DestroyComponent( NODEComp** comp );
 
     void SetName( NODE* node, const char* name );
     void LinkNode( NODE* parent, NODE* node );
     void UnlinkNode( NODE* child );
+
+    NODEComp* CreateComponent( const char* type_name );
+    void DestroyComponent( NODEComp** comp );
 
     void LinkComponent( NODE* parent, NODEComp* comp );
     void UnlinkComponent( NODE* parent, NODEComp* comp );
@@ -99,13 +100,17 @@ struct NODESystem
     NODE* FindParent( NODEComp* comp );
     NODE* FindNode( guid_t guid );
     NODE* GetNode( u32 runtime_index );
+    NODE* GetRoot();
 
     void Tick( NODESystemContext* ctx, f32 dt );
+    
+    void Serialize( const char* filename );
+    void Unserialize( const char* filename );
 
-    static void StartUp( NODESystem** system, BXIAllocator* allocator );
-    static void ShutDown( NODESystem** system, NODEInitContext* ctx );
+    static void StartUp( NODEContainer** system, BXIAllocator* allocator );
+    static void ShutDown( NODEContainer** system, NODEInitContext* ctx );
 
-    NODESystemImpl* impl = nullptr;
+    NODEContainerImpl* impl = nullptr;
 };
 
 struct NODE
@@ -135,8 +140,6 @@ private:
     NODEArray* _children;
     COMPArray* _components;
 
-    friend struct NODESystem;
-    friend struct NODESystemImpl;
+    friend struct NODEContainer;
+    friend struct NODEContainerImpl;
 };
-
-

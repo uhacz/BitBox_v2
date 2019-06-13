@@ -223,10 +223,11 @@ struct queue_t
     const T& operator[]( int i ) const  { return data[(i + offset) % data.size]; }
 };
 
-template<typename T> 
+template<typename T, typename K = u64>
 struct hash_t
 {
     using type_t = T;
+    using key_t = K;
 
     hash_t( BXIAllocator* a = BXDefaultAllocator() )
         : _hash( a )
@@ -234,9 +235,9 @@ struct hash_t
     {}
 
     struct Entry {
-        uint64_t key;
+        key_t key;
         uint32_t next;
-        T value;
+        type_t value;
     };
 
     array_t<uint32_t> _hash;
