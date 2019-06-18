@@ -6,6 +6,7 @@
 #include "../foundation/hashmap.h"
 #include "../foundation/hash.h"
 #include "node_serialize.h"
+#include "node_comp.h"
 
 inline u32 CalcHash( const guid_t& guid )
 {

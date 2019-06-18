@@ -21,6 +21,10 @@ struct NODESerializeToken
     u32 is_reader = 0;
 };
 
+extern NODEComp* NODECompAlloc( const char* type_name );
+extern NODEComp* NODECompAlloc( u64 type_hash_code );
+extern void NODECompFree( NODEComp* comp );
+
 struct NODEContainerImpl
 {
     BXIAllocator* _allocator;

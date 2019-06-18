@@ -84,7 +84,22 @@ void NODEContainer::UnlinkNode( NODE* child )
     }
 }
 
-NODE* NODEContainer::FindNode( guid_t guid )
+NODEComp* NODEContainer::CreateComponent( const char* type_name )
+{
+    return NODECompAlloc( type_name );
+}
+
+NODEComp* NODEContainer::CreateComponent( u64 type_hash_code )
+{
+    return NODECompAlloc( type_hash_code );
+}
+
+void NODEContainer::DestroyComponent( NODEComp** comp )
+{
+    // schedule to destroy
+}
+
+NODE* NODEContainer::FindNode( const NODEGuid& guid )
 {
     return impl->FindNode( guid );
 }
@@ -104,7 +119,6 @@ void NODEContainer::Tick( NODESystemContext* ctx, f32 dt )
     impl->DestroyPendingNodes( ctx );
     impl->ProcessSerialization( ctx );
 }
-
 
 
 void NODEContainer::Serialize( const char* filename )

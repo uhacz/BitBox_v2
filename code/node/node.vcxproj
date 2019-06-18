@@ -69,6 +69,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="node.h" />
+    <ClInclude Include="node_common.h" />
+    <ClInclude Include="node_comp.h" />
+    <ClInclude Include="node_comp_type_registry.cpp" />
     <ClInclude Include="node_serialize.h" />
     <ClInclude Include="node_system_impl.h" />
   </ItemGroup>
