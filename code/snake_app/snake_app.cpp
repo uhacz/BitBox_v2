@@ -363,7 +363,7 @@ void SnakeApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     gfx->DestroyCamera( g_idcamera );
     gfx->DestroyScene( g_idscene );
     DestroyGroundMesh( &g_ground_mesh, gfx );
-    CMNEngine::Shutdown( (CMNEngine*)this, allocator );
+    CMNEngine::Shutdown( (CMNEngine*)this );
 }
 
 bool SnakeApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocator* allocator )

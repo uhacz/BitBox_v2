@@ -23,59 +23,62 @@ static void RegisterCommonComponents( ECS* ecs )
     RegisterComponentNoPOD<CMPName>( ecs, "Name" );
 }
 
-bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* allocator )
+bool CMNBaseEngine::Startup( CMNBaseEngine* e, int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* main_allocator )
 {
-    BXIFilesystem* filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
-    filesystem->SetRoot( "x:/dev/assets/" );
+    e->allocator = main_allocator;
+    e->filesystem = (BXIFilesystem*)BXGetPlugin( plugins, BX_FILESYSTEM_PLUGIN_NAME );
+    e->filesystem->SetRoot( "x:/dev/assets/" );
 
-    RSM::StartUp( filesystem, allocator );
-
-    RDIDevice* rdidev = nullptr;
-    RDICommandQueue* rdicmdq = nullptr;
+    RSM::StartUp( e->filesystem, e->allocator );
 
     BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
     const BXWindow* window = win_plugin->GetWindow();
-    ::Startup( &rdidev, &rdicmdq, window->GetSystemHandle( window ), window->width, window->height, 0, allocator );
+    ::Startup( &e->rdidev, &e->rdicmdq, window->GetSystemHandle( window ), window->width, window->height, 0, e->allocator );
 
-    GUI::StartUp( win_plugin, rdidev );
-    RDIXDebug::StartUp( rdidev, allocator );
-
-    GFXDesc gfxdesc = {};
-    GFX* gfx = GFX::StartUp( rdidev, gfxdesc, filesystem, allocator );
-
-    ECS* ecs = ECS::StartUp( allocator );
-    RegisterCommonComponents( ecs );
-
-    e->filesystem = filesystem;
-    e->rdidev = rdidev;
-    e->rdicmdq = rdicmdq;
-
-    e->gfx = gfx;
-    e->ecs = ecs;
-
-    NODEContainer::StartUp( &e->nodes, allocator );
-
-
+    RDIXDebug::StartUp( e->rdidev, e->allocator );
     return true;
 }
 
-void CMNEngine::Shutdown( CMNEngine* e, BXIAllocator* allocator )
+void CMNBaseEngine::Shutdown( CMNBaseEngine* e )
+{
+    RDIXDebug::ShutDown( e->rdidev );
+    RSM::ShutDown();
+    ::Shutdown( &e->rdidev, &e->rdicmdq, e->allocator );
+
+    e->filesystem = nullptr;
+    e->allocator = nullptr;
+}
+
+bool CMNEngine::Startup( CMNEngine* e, int argc, const char** argv, BXPluginRegistry* plugins, BXIAllocator* main_allocator )
+{
+    CMNBaseEngine::Startup( e, argc, argv, plugins, main_allocator );
+
+    BXIWindow* win_plugin = (BXIWindow*)BXGetPlugin( plugins, BX_WINDOW_PLUGIN_NAME );
+    GUI::StartUp( win_plugin, e->rdidev );
+
+    GFXDesc gfxdesc = {};
+    e->gfx = GFX::StartUp( e->rdidev, gfxdesc, e->filesystem, e->allocator );
+
+    e->ecs = ECS::StartUp( e->allocator );
+    RegisterCommonComponents( e->ecs );
+
+    NODEContainer::StartUp( &e->nodes, e->allocator );
+    return true;
+}
+
+void CMNEngine::Shutdown( CMNEngine* e )
 {
     {
         NODEInitContext ctx;
-        ctx.gfx = gfx;
+        ctx.gfx = e->gfx;
         NODEContainer::ShutDown( &e->nodes, &ctx );
     }
     ECS::ShutDown( &e->ecs );
     GFX::ShutDown( &e->gfx );
-    RDIXDebug::ShutDown( e->rdidev );
+    
     GUI::ShutDown();
     
-    RSM::ShutDown();
-    ::Shutdown( &e->rdidev, &e->rdicmdq, allocator );
-
-    e->filesystem = nullptr;
-    e->rdidev = nullptr;
-    e->rdicmdq = nullptr;
-    e->gfx = nullptr;
+    CMNBaseEngine::Shutdown(e);
 }
+
+

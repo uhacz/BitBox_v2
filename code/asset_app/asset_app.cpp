@@ -23,11 +23,11 @@
 #include "node_tool.h"
 #include "foundation\array.h"
 #include "util\color.h"
+#include "common\sky.h"
 
 namespace
 {
     static CMNGroundMesh g_ground_mesh;
-    
     static GFXCameraInputContext g_camera_input_ctx = {};
     static GFXCameraID g_idcamera = { 0 };
     static GFXSceneID g_idscene = { 0 };
@@ -80,19 +80,8 @@ bool BXAssetApp::Startup( int argc, const char** argv, BXPluginRegistry* plugins
     g_idscene = gfx->CreateScene( desc );
 
     CreateGroundMesh( &g_ground_mesh, gfx, g_idscene, vec3_t(100.f, 1.f, 100.f), mat44_t::translation( vec3_t( 0.f, -0.5f, 0.f ) ) );
+    CreateSky( "texture/sky_cubemap.dds", g_idscene, gfx, filesystem, allocator );
     
-    {// sky
-        BXFileWaitResult filewait = filesystem->LoadFileSync( filesystem, "texture/sky_cubemap.dds", BXEFIleMode::BIN, allocator );
-        if( filewait.file.pointer )
-        {
-            if( gfx->SetSkyTextureDDS( g_idscene, filewait.file.pointer, filewait.file.size ) )
-            {
-                gfx->EnableSky( g_idscene, true );
-            }
-        }
-        filesystem->CloseFile( &filewait.handle );
-
-    }
     g_idcamera = gfx->CreateCamera( "main", GFXCameraParams(), mat44_t( mat33_t::identity(), vec3_t( 0.f, 4.f, 18.f ) ) );
 
     g_transform_system_id = CreateComponent<TOOLTransformSystem>( ecs ).id;
@@ -153,7 +142,7 @@ void BXAssetApp::Shutdown( BXPluginRegistry* plugins, BXIAllocator* allocator )
     gfx->DestroyScene( g_idscene );
     gfx->DestroyCamera( g_idcamera );
 
-    CMNEngine::Shutdown( (CMNEngine*)this, allocator );
+    CMNEngine::Shutdown( (CMNEngine*)this );
 }
 
 bool BXAssetApp::Update( BXWindow* win, unsigned long long deltaTimeUS, BXIAllocator* allocator )

@@ -11,25 +11,12 @@
 inline u32 CalcHash( const guid_t& guid )
 {
     return murmur3_hash32( &guid, sizeof( guid_t ), 2166136261 );
-
-    //constexpr u64 basis = 14695981039346656037;
-    //constexpr u64 prime = 1099511628211;
-    //
-    //u64 h = basis;
-    //for( u64 i = 0; i < sizeof( guid.data8 ); ++i )
-    //{
-    //    h = h ^ guid.data8[i];
-    //    h = h * prime;
-    //}
-    //
-    //return h;
 }
 
 void NODEContainerImpl::StartUp( BXIAllocator* alloc )
 {
     _allocator = alloc;
     _node_allocator = alloc;
-    _comp_allocator = alloc;
     _name_allocator = alloc;
 }
 
@@ -57,16 +44,6 @@ void NODEContainerImpl::FreeNode( NODE* node )
         c_array::destroy( node->_children );
     }
     BX_FREE( _node_allocator, node );
-}
-
-NODEComp* NODEContainerImpl::AllocateComponent()
-{
-    return nullptr;
-}
-
-void NODEContainerImpl::FreeComponent( NODEComp* comp )
-{
-    BX_DELETE( _comp_allocator, comp );
 }
 
 NODE* NODEContainerImpl::FindParent( const NODEComp* comp )
@@ -165,7 +142,7 @@ void NODEContainerImpl::DestroyNode( NODESystemContext* ctx, NODE* node )
         comp->OnDetach( parent_node, &detach_ctx );
         comp->OnUninitialize( parent_node, &uninit_ctx );
 
-        FreeComponent( comp );
+        NODECompFree( comp );
     }
 
     while( !array::empty( nodes_to_destroy ) )

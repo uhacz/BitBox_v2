@@ -179,11 +179,14 @@ void ANIMMatchingTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
     ImGui::End();
 
     const mat44_t entity_pose = common::GetEntityRootTransform( e->ecs, ctx.entity );
-    TickController();
+    TickController( dt );
     DrawController( entity_pose );
 
+    vec3_t local_vel = rotate_inv( _controller.rot, _controller.input_dir );
+    local_vel = normalize( local_vel ) * _controller.input_speed;
+
     anim_match::Update( _db );
-    anim_match::Update( _ctx, _db, _controller.vel, dt );
+    anim_match::Update( _ctx, _db, local_vel, dt );
 
     if( HasSelectedClip() )
     {
@@ -195,7 +198,8 @@ void ANIMMatchingTool::Tick( CMNEngine* e, const TOOLContext& ctx, float dt )
         const ANIMJoint* local_joints = _ctx->player.LocalJoints();
         array::resize( _ctx->world_joints, _ctx->player._num_joints );
     
-        const ANIMJoint root_joint = toAnimJoint_noScale( entity_pose );
+        ANIMJoint root_joint = toAnimJoint_noScale( entity_pose );
+        root_joint.rotation = _controller.rot;
         const u16* parent_indices = (u16*)ParentIndices( _db->skel );
 
         LocalJointsToWorldJoints( &_ctx->world_joints[0], local_joints, parent_indices, _ctx->player._num_joints, root_joint );
@@ -216,12 +220,36 @@ bool ANIMMatchingTool::HasSelectedClip() const
     return _selected_clip < _db->clip_metadata.size;
 }
 
-void ANIMMatchingTool::TickController()
+void ANIMMatchingTool::TickController( float dt )
 {
-    const f32 input_mag = length( _controller.input_dir );
+    const f32 turn_speed = 4.f;
+
+    const vec3_t input_dir = normalize( _controller.input_dir );
+    const f32 input_mag = length( input_dir );
     const f32 input_mag_rcp = (input_mag > FLT_EPSILON) ? 1.f / input_mag : 0.f;
 
-    _controller.vel = _controller.input_dir * (_controller.input_speed * input_mag_rcp);
+    const f32 lerp_t = 1 - ::powf( turn_speed, dt );
+
+    const vec3_t dir = rotate( _controller.rot, vec3_t::az() );
+    const vec3_t diff = input_dir - dir;
+    const f32 scaler = length( diff ) * min_of_2( 1.f, dt * turn_speed );
+    const vec3_t new_dir = dir + normalize(diff) * scaler;
+
+
+    //const vec3_t new_dir = lerp( lerp_t, dir, _controller.input_dir );
+    const quat_t drot = ShortestRotation( dir, new_dir );
+    _controller.rot *= drot;
+
+    //const vec3_t acc = _controller.input_dir * (_controller.input_speed * input_mag_rcp);
+    //const vec3_t dir = rotate( _controller.rot, vec3_t::az() );
+    //const vec3_t up = rotate( _controller.rot, vec3_t::ay() );
+    //const vec3_t ang_momentum = up * length( _controller.input_dir - dir ) * (_controller.input_speed * input_mag_rcp);
+    //const vec3_t ang_velocity = ang_momentum;
+
+    //const quat_t drot = quat_t( ang_velocity, 0.f ) * _controller.rot * 0.5f * dt;
+    //_controller.rot += drot;
+    _controller.rot = normalize( _controller.rot );
+    _controller.vel = rotate( _controller.rot, vec3_t::az() ) * (_controller.input_speed * input_mag);
 }
 
 void ANIMMatchingTool::DrawController( const mat44_t& basis )

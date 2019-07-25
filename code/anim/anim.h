@@ -23,9 +23,8 @@ void LocalJointsToWorldMatrices4x4( mat44_t* out_matrices, const ANIMJoint* in_j
 void LocalJointsToWorldJoints( ANIMJoint* out_joints, const ANIMJoint* in_joints, const uint16_t* parent_indices, uint32_t count, const ANIMJoint& root_joint );
 
 
-namespace anim_ext {
-
-
+namespace anim_ext 
+{
    ANIMSkel* LoadSkelFromFile( const char* relativePath );
    ANIMClip* LoadAnimFromFile( const char* relativePath );
 
@@ -37,5 +36,6 @@ namespace anim_ext {
    void LocalJointsToWorldJoints( ANIMJoint* outJoints, const ANIMJoint* inJoints, const ANIMSkel* skel, const ANIMJoint& rootJoint );
    void LocalJointsToWorldMatrices( mat44_t* outMatrices, const ANIMJoint* inJoints, const ANIMSkel* skel, const ANIMJoint& rootJoint );
 
-   void ProcessBlendTree( ANIMContext* ctx, const uint16_t root_index, const ANIMBlendBranch* blend_branches, unsigned int num_branches, const ANIMBlendLeaf* blend_leaves, unsigned int num_leaves );
+   void ProcessBlendTree( ANIMContext* ctx, uint16_t root_index, const ANIMBlendBranch* blend_branches, unsigned num_branches, const ANIMBlendLeaf* blend_leaves, unsigned num_leaves );
 }
+

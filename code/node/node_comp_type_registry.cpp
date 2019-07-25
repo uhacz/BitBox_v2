@@ -1,4 +1,6 @@
 #include "node_comp.h"
+#include "node.h"
+
 #include "../foundation/debug.h"
 #include "../foundation/containers.h"
 #include "../foundation/static_array.h"
@@ -8,8 +10,6 @@
 
 #include "../foundation/thread/mutex.h"
 #include "../foundation/thread/rw_spin_lock.h"
-#include "node.h"
-
 
 using NODECompAllocator = DynamicPoolAllocator;
 

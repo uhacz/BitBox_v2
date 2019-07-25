@@ -68,15 +68,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="components\mesh_component.h" />
     <ClInclude Include="node.h" />
     <ClInclude Include="node_common.h" />
     <ClInclude Include="node_comp.h" />
-    <ClInclude Include="node_comp_type_registry.cpp" />
     <ClInclude Include="node_serialize.h" />
     <ClInclude Include="node_system_impl.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="components\mesh_component.cpp" />
     <ClCompile Include="node.cpp" />
+    <ClCompile Include="node_comp_type_registry.cpp" />
     <ClCompile Include="node_serialize.cpp" />
     <ClCompile Include="node_system_impl.cpp" />
   </ItemGroup>

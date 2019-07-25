@@ -63,7 +63,7 @@ namespace RSMEInternalState
 
 struct RSMImpl
 {
-    static constexpr uint32_t MAX_RESOURCES = 0x2000;
+    static constexpr uint32_t MAX_RESOURCES = 1 << 16;
     static constexpr uint32_t MAX_TYPES = 0x40;
     static constexpr uint8_t INVALID_LOADER_INDEX = 0xFF;
     

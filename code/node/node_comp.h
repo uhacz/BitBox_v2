@@ -5,13 +5,7 @@
 struct NODEComp;
 
 struct NODEComp__TypeInfo;
-extern void NODECompRegisterType( const NODEComp__TypeInfo* tinfo );
-
-template< typename T >
-inline T* NODECompAllc()
-{
-    return (T*)NODECompAllc( typeid(T).hash_code() );
-}
+void NODECompRegisterType( const NODEComp__TypeInfo* tinfo );
 
 struct NODEComp__TypeInfo
 {
@@ -37,13 +31,13 @@ struct NODEComp__TypeInfo
     static NODEComp__TypeInfo __type_info; \
     static NODEComp* Construct( void* address ); \
     static void Destruct( NODEComp* comp ); \
-    static const char* TypeNameStatic() const { return __type_info.name; } \
+    static const char* TypeNameStatic() { return __type_info.name; } \
     template< typename T > static bool IsA() { return __type_info.type_hash_code == typeid(T).hash_code(); } \
-    virtual u64 TypeHashCode() const override { return __type_info.type_hash_code; } \
+    virtual u64 TypeHashCode() const { return __type_info.type_hash_code; } \
     virtual const char* TypeName() const { return __type_info.name; }
 
 #define NODE_COMP_DEFINE( type_name ) \
     NODEComp* type_name::Construct( void* address ) { return new(address) type_name(); } \
     void type_name::Destruct( NODEComp* comp ) { ((type_name*)comp)->~type_name(); } \
-    NODEComp__TypeInfo type_name::__type_info = NODEComp__TypeInfo( typeid(type_name).hash_code(), ALIGNOF(type_name), sizeof(type_name), 32, type_name::Construct, type_name::Destruct )
+    NODEComp__TypeInfo type_name::__type_info = NODEComp__TypeInfo( typeid(type_name).hash_code(), #type_name, ALIGNOF(type_name), sizeof(type_name), 32, type_name::Construct, type_name::Destruct )
 

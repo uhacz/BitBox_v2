@@ -69,11 +69,13 @@
     <ClInclude Include="base_engine_init.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="ground_mesh.h" />
+    <ClInclude Include="sky.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="base_engine_init.cpp" />
     <ClCompile Include="common.cpp" />
     <ClCompile Include="ground_mesh.cpp" />
+    <ClCompile Include="sky.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

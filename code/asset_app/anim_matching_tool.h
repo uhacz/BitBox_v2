@@ -23,7 +23,7 @@ public:
 private:
     bool HasSelectedClip() const;
 
-    void TickController();
+    void TickController( float dt );
     void DrawController( const mat44_t& basis );
 
 private:
@@ -44,8 +44,8 @@ private:
         vec3_t input_dir{ 0 };
         f32 input_speed = 0.f;
 
+        quat_t rot = quat_t::identity();
         vec3_t vel{ 0 };
-    
     }_controller;
     
 };

@@ -86,7 +86,10 @@ void NODEContainer::UnlinkNode( NODE* child )
 
 NODEComp* NODEContainer::CreateComponent( const char* type_name )
 {
-    return NODECompAlloc( type_name );
+    NODEComp* comp = NODECompAlloc( type_name );
+    
+ 
+    return comp;
 }
 
 NODEComp* NODEContainer::CreateComponent( u64 type_hash_code )

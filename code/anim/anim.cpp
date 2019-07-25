@@ -64,8 +64,8 @@ void ContextDeinit( ANIMContext** ctx )
 
 #include <resource_manager/resource_manager.h>
 
-namespace anim_ext {
-
+namespace anim_ext 
+{
     //static uptr _LoadResource( bx::ResourceManager* resourceManager, const char* relativePath )
     //{
     //    bx::ResourceID resourceId = bx::ResourceManager::createResourceID( relativePath );
@@ -157,7 +157,7 @@ namespace anim_ext {
         LocalJointsToWorldMatrices4x4( outMatrices, inJoints, parentIndices, skel->numJoints, rootJoint );
     }
 
-    void ProcessBlendTree( ANIMContext* ctx, const uint16_t root_index, const ANIMBlendBranch* blend_branches, uint32_t num_branches, const ANIMBlendLeaf* blend_leaves, uint32_t num_leaves )
+    void ProcessBlendTree( ANIMContext* ctx, uint16_t root_index, const ANIMBlendBranch* blend_branches, unsigned num_branches, const ANIMBlendLeaf* blend_leaves, unsigned num_leaves )
     {
         EvaluateBlendTree( ctx, root_index, blend_branches, num_branches, blend_leaves, num_leaves );
         EvaluateCommandList( ctx );
