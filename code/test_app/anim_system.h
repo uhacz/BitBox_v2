@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debug.h"
 #include "../foundation/type.h"
 #include "../foundation/id.h"
 #include "../foundation/eastl/span.h"
@@ -11,45 +12,14 @@
 #include "eastl/fixed_vector.h"
 
 
+
 struct BXIAllocator;
 
 
 BX_DEFINE_ID( ANIMClipID, u32, 16 );
 BX_DEFINE_ID( ANIMSkelID, u32, 16 );
 BX_DEFINE_ID( ANIMPlayID, u32, 12 );
-
-
-template< u32 N >
-struct IDAllocator
-{
-    static constexpr u32 INVALID = N;
-    static constexpr u32 SIZE = N;
-
-    eastl::bitset<N, u64> free_mask;
-
-    IDAllocator()
-    {
-        free_mask.set();
-    }
-
-    u32 Allocate()
-    {
-        const u32 index = (u32)free_mask.find_first();
-        if( index != INVALID )
-        {
-            free_mask.set( index, false );
-        }
-    }
-    void Free( u32 index )
-    {
-        SYS_ASSERT( index < N );
-        SYS_ASSERT( IsAlive( index ) );
-        free_mask.set( index, true );
-    }
-
-    bool IsAlive( u32 index ) const { return !free_mask.test( index ); }
-    bool IsDead ( u32 index ) const { return free_mask.test( index ); }
-};
+BX_DEFINE_ID( ANIMJointsID, u32, 16 );
 
 using ANIMJointSpan = eastl::span<ANIMJoint>;
 using ANIMJointArray = eastl::vector<ANIMJoint, bx_container_allocator>;
@@ -135,3 +105,83 @@ struct ANIM
     DeadMaskSkel _dead_skel;
     DeadMaskClip _dead_clip;
 };
+
+
+struct ANIMClip;
+struct ANIMSkel;
+struct ANIMBlend
+{
+    u32 left_index;
+    u32 right_index;
+    f32 alpha;
+};
+
+namespace anim_system
+{
+    using ClipSpan      = eastl::span<const ANIMClip*>;
+    using SkelSpan      = eastl::span<const ANIMSkel*>;
+    using InJointSpan   = eastl::span<const ANIMJoint>;
+    using OutJointSpan  = eastl::span<ANIMJoint>;
+    using OutMatrixSpan = eastl::span<mat44_t>;
+
+    using InPoseSpan        = eastl::span<InJointSpan>;
+    using OutPoseSpan       = eastl::span<OutJointSpan>;
+    using OutMatrixPoseSpan = eastl::span<OutMatrixSpan>;
+
+    using EvalTimeSpan  = eastl::span<f32>;
+    using BlendSpan     = eastl::span<ANIMBlend>;
+
+    void EvaluateAnimations    ( OutPoseSpan out_poses, ClipSpan clips, EvalTimeSpan eval_time );
+    void BlendAnimations       ( OutPoseSpan out_poses, BlendSpan blends, InPoseSpan in_poses );
+    void ComputeJoints         ( OutPoseSpan out_poses, InPoseSpan in_poses, SkelSpan skels, InJointSpan root_joints );
+    void ComputeMatrices       ( OutMatrixPoseSpan out_poses, InPoseSpan in_poses, SkelSpan skels, InJointSpan root_joints );
+    void ConvertJoints2Matrices( OutMatrixPoseSpan out_poses, InPoseSpan in_poses );
+}//
+
+namespace anim_system
+{
+    static constexpr u32 CLIP_CHUNK = 64;
+    static constexpr u32 SKEL_CHUNK = 32;
+    static constexpr u32 PLAY_CHUNK = 32;
+    static constexpr u32 POSE_CHUNK = 32;
+    
+    struct PlayContext
+    {
+        ANIMSkelID skel;
+        ANIMClipID clip;
+        ANIMJointsID local_joints;
+        ANIMJointsID model_joints;
+        f32 eval_time;
+        f32 time_scale;
+
+        union
+        {
+            u32 all;
+            struct
+            {
+                u32 paused : 1;
+            };
+        } flags;
+    };
+
+    using ClipContainer = eastl::fixed_vector<RSMResourceID, CLIP_CHUNK>;
+    using SkelContainer = eastl::fixed_vector<RSMResourceID, SKEL_CHUNK>;
+    using PoseContainer = eastl::fixed_vector<ANIMJointArray, POSE_CHUNK>;
+    using PlayContainer = eastl::fixed_vector<PlayContext, PLAY_CHUNK>;
+    using PlayIndexLookup = eastl::fixed_vector<u32, PLAY_CHUNK>;
+
+    struct Data
+    {
+        SkelContainer _skel;
+        ClipContainer _clip;
+        PoseContainer _pose;
+    };
+
+    struct Context
+    {
+        PlayIndexLookup _index_lookup;
+        PlayContainer _play;
+    };
+
+
+}//

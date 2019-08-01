@@ -35,7 +35,7 @@ struct bx_container_allocator
 
     void* allocate( size_t n, size_t alignment, size_t alignmentOffset, int /*flags*/ = 0 )
     {
-        BX_MALLOC( BXDefaultAllocator(), n, alignment );
+        return BX_MALLOC( BXDefaultAllocator(), n, alignment );
     }
 
     void deallocate( void* p, size_t /*n*/ )

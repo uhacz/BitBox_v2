@@ -1,6 +1,7 @@
 #pragma once
 
 #include "type.h"
+#include "eastl/bitset.h"
 
 template< typename Tbase, u32 Ibits = 16 >
 struct ID
@@ -58,3 +59,38 @@ inline Tid ToID( const Tbase hash )
         \
         static name Null() { return name( 0 ); } \
     }
+
+
+
+template< u32 N >
+struct IDAllocator
+{
+    static constexpr u32 INVALID = N;
+    static constexpr u32 SIZE = N;
+
+    eastl::bitset<N, u64> free_mask;
+
+    IDAllocator()
+    {
+        free_mask.set();
+    }
+
+    u32 Allocate()
+    {
+        const u32 index = (u32)free_mask.find_first();
+        if( index != INVALID )
+        {
+            free_mask.set( index, false );
+        }
+        return index;
+    }
+    void Free( u32 index )
+    {
+        SYS_ASSERT( index < N );
+        SYS_ASSERT( IsAlive( index ) );
+        free_mask.set( index, true );
+    }
+
+    bool IsAlive( u32 index ) const { return !free_mask.test( index ); }
+    bool IsDead( u32 index ) const { return free_mask.test( index ); }
+};

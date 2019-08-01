@@ -1,5 +1,7 @@
 #include "anim_system.h"
 #include "resource_manager/resource_manager.h"
+#include "debug.h"
+#include "anim/anim.h"
 
 
 void ANIM::StartUp( BXIAllocator* allocator )
@@ -143,22 +145,22 @@ void ANIM::SetTimeScale( ANIMPlayID id, f32 value )
 
 ANIMJointSpan ANIM::ClipLocalJoints( ANIMClipID id )
 {
-
+    return {};
 }
 
 ANIMJointSpan ANIM::ClipPrevLocalJoints( ANIMClipID id )
 {
-
+    return {};
 }
 
 ANIMJointSpan ANIM::CLipModelJoints( ANIMClipID id )
 {
-
+    return {};
 }
 
 ANIMJointSpan ANIM::ClipPrevModelJoints( ANIMClipID id )
 {
-
+    return {};
 }
 
 void ANIM::UpdateLoading()
@@ -175,3 +177,103 @@ void ANIM::ComputePoses()
 {
 
 }
+
+namespace anim_system
+{
+    void EvaluateAnimations( OutPoseSpan out_poses, ClipSpan clips, EvalTimeSpan eval_time )
+    {
+        SYS_ASSERT( out_poses.size() == clips.size() );
+        SYS_ASSERT( out_poses.size() == eval_time.size() );
+
+        const u64 n = out_poses.size();
+        for( u64 i = 0; i < n; ++i )
+        {
+            OutJointSpan joints_ls = out_poses[i];
+            const ANIMClip* clip = clips[i];
+            const f32 time = eval_time[i];
+
+            EvaluateClip( joints_ls.data(), clip, time );
+        }
+    }
+
+    void BlendAnimations( OutPoseSpan out_poses, BlendSpan blends, InPoseSpan in_poses )
+    {
+        SYS_ASSERT( out_poses.size() == blends.size() );
+        const u64 n = out_poses.size();
+        for( u64 i = 0; i < n; ++i )
+        {
+            const ANIMBlend blend = blends[i];
+            const InJointSpan left = in_poses[blend.left_index];
+            const InJointSpan right = in_poses[blend.right_index];
+            SYS_ASSERT( left.size() == right.size() );
+
+            OutJointSpan blended_joints = out_poses[i];
+            SYS_ASSERT( blended_joints.size() == left.size() );
+
+            const u32 num_joints = (u32)blended_joints.size();
+            BlendJointsLinear( blended_joints.data(), left.data(), right.data(), blend.alpha, num_joints );
+        }
+    }
+
+    void ComputeJoints( OutPoseSpan out_poses, InPoseSpan in_poses, SkelSpan skels, InJointSpan root_joints )
+    {
+        SYS_ASSERT( out_poses.size() == in_poses.size() );
+        SYS_ASSERT( out_poses.size() == skels.size() );
+
+        const u64 n = out_poses.size();
+        for( u64 i = 0; i < n; ++i )
+        {
+            const InJointSpan in_joints = in_poses[i];
+            const ANIMSkel* skel = skels[i];
+            const u16* parent_indices = (u16*)ParentIndices( skel );
+            const ANIMJoint root = (i < (u64)root_joints.size()) ? root_joints[i] : ANIMJoint::identity();
+            OutJointSpan out_joints = out_poses[i];
+
+            SYS_ASSERT( out_joints.size() == in_joints.size() );
+            SYS_ASSERT( out_joints.size() == skel->numJoints );
+
+            const u32 num_joints = (u32)out_joints.size();
+            LocalJointsToWorldJoints( out_joints.data(), in_joints.data(), parent_indices, num_joints, root );
+        }
+    }
+
+    void ComputeMatrices( OutMatrixPoseSpan out_poses, InPoseSpan in_poses, SkelSpan skels, InJointSpan root_joints )
+    {
+        SYS_ASSERT( out_poses.size() == in_poses.size() );
+        SYS_ASSERT( out_poses.size() == skels.size() );
+
+        const u64 n = out_poses.size();
+        for( u64 i = 0; i < n; ++i )
+        {
+            const InJointSpan in_joints = in_poses[i];
+            const ANIMSkel* skel = skels[i];
+            const u16* parent_indices = (u16*)ParentIndices( skel );
+            const ANIMJoint root = (i < (u64)root_joints.size()) ? root_joints[i] : ANIMJoint::identity();
+            OutMatrixSpan out_matrices = out_poses[i];
+
+            SYS_ASSERT( out_matrices.size() == in_joints.size() );
+            SYS_ASSERT( out_matrices.size() == skel->numJoints );
+
+            const u32 num_joints = (u32)out_matrices.size();
+            LocalJointsToWorldMatrices4x4( out_matrices.data(), in_joints.data(), parent_indices, num_joints, root );
+        }
+    }
+
+    void ConvertJoints2Matrices( OutMatrixPoseSpan out_poses, InPoseSpan in_poses )
+    {
+        SYS_ASSERT( out_poses.size() == in_poses.size() );
+        const u64 n = out_poses.size();
+        for( u64 i = 0; i < n; ++i )
+        {
+            const InJointSpan in_joints = in_poses[i];
+            OutMatrixSpan out_matrices = out_poses[i];
+
+            SYS_ASSERT( in_joints.size() == out_matrices.size() );
+            const u64 num_joints = out_matrices.size();
+            for( u64 ijoint = 0; ijoint < num_joints; ++ijoint )
+            {
+                out_matrices[ijoint] = toMatrix4( in_joints[ijoint] );
+            }
+        }
+    }
+}//

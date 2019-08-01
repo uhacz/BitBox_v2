@@ -20,6 +20,9 @@ inline int bitcount( unsigned int n )
     return ( ( tmp + ( tmp >> 3 ) ) & 030707070707 ) % 63;
 }
 
+template<typename T>
+inline T sqr( const T& t ) { return t * t; }
+
 template<typename Type>
 inline Type min_of_2( const Type& a, const Type& b ) {	return ( a < b ) ? a : b; }
 
