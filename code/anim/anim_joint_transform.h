@@ -25,6 +25,15 @@ inline ANIMJoint toAnimJoint_noScale( const mat44_t& RT )
 	return joint;
 }
 
+inline ANIMJoint toAnimJoint_noScale( const xform_t& RT )
+{
+    ANIMJoint joint;
+    joint.position = vec4_t( RT.pos, 1.f );
+    joint.rotation = RT.rot;
+    joint.scale = vec4_t( 1.f );
+    return joint;
+}
+
 inline mat44_t toMatrix4( const ANIMJoint& j )
 {
     mat44_t m4x4( j.rotation, j.position.xyz() );
