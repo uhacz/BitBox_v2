@@ -29,6 +29,24 @@ struct RSMResourceID
     static constexpr RSMResourceID Null() { return { 0 }; }
 };
 
+template< typename T >
+struct RSMResourceRef
+{
+    const T* Data() const;
+    T* Data() const;
+
+    RSMEState::E Data( void** payload ) const;
+
+    RSMResourceID _id;
+};
+
+template< typename T >
+RSMResourceRef<T> LoadSync( const char* relative_path );
+
+template< typename T >
+RSMResourceRef<T> LoadAsync( const char* relative_path );
+
+
 namespace RSM
 {
     RSMResourceHash CreateHash( const char* relative_path );

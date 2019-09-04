@@ -43,9 +43,13 @@ struct GFXCameraInputContext
 	float _right_y = 0.f;
 	float _up_down = 0.f;
 
+    void ReadInput( int mouseL, int mouseM, int mouseR, int mouseDx, int mouseDy, float mouseSensitivityInPix );
+
 	void UpdateInput( int mouseL, int mouseM, int mouseR, int mouseDx, int mouseDy, float mouseSensitivityInPix, float dt );
 	void UpdateInput( float analogX, float analogY, float dt );
 	bool AnyMovement() const;
 };
 
 mat44_t CameraMovementFPP( const GFXCameraInputContext& input, const mat44_t& world, float sensitivity );
+void CameraInputFilter( GFXCameraInputContext* output, const GFXCameraInputContext& raw, const GFXCameraInputContext& prev, f32 rc, f32 dt );
+void CameraInputLerp( GFXCameraInputContext* output, f32 t, const GFXCameraInputContext& a, const GFXCameraInputContext& b );

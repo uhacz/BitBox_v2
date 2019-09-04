@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{5A41E756-EF30-46C0-94B9-4996CEC00570}</ProjectGuid>
+    <RootNamespace>sandboxapp</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\props\application_plugin.props" />
+    <Import Project="..\..\props\dx11.props" />
+    <Import Project="..\..\props\memory.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\props\application_plugin.props" />
+    <Import Project="..\..\props\dx11.props" />
+    <Import Project="..\..\props\memory.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="sandbox_app.cpp" />
+    <ClCompile Include="world_editor.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="sandbox_app.h" />
+    <ClInclude Include="world_editor.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\3rd_party\imgui\imgui.vcxproj">
+      <Project>{3420b694-89a1-4e00-814e-c8da87b0143d}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\3rd_party\pugixml\pugixml.vcxproj">
+      <Project>{cb5bdc22-7f9e-4aa9-a33e-d5c3a8bf7ff1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\anim\anim.vcxproj">
+      <Project>{a647b6f9-cc23-4361-ac2d-1e71bebbb3a9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\common\common.vcxproj">
+      <Project>{817299b1-a2f0-4915-865b-28f5560619ef}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\entity\entity.vcxproj">
+      <Project>{ece75f49-497f-4b51-98df-eb5c82a87a4c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\filesystem\filesystem.vcxproj">
+      <Project>{6eca4fda-9944-488c-ab29-a0045344878e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\foundation\foundation.vcxproj">
+      <Project>{81e2ec47-feda-4c4d-a6f7-493c4b92d2ff}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\gfx\gfx.vcxproj">
+      <Project>{8333f018-a7d7-4ba7-8e2c-44655620860f}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\gui\gui.vcxproj">
+      <Project>{ca8972fd-4d42-4a45-9b72-13b7b2c1efd8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\input\input.vcxproj">
+      <Project>{15dae8e3-4c6a-4bd3-895f-546150f7f91e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\node\node.vcxproj">
+      <Project>{66fa012f-380c-4dd5-873d-89e20d866cd3}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\plugin\plugin.vcxproj">
+      <Project>{1ada1dd9-68bb-4e31-bde3-de1208f0d537}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\rdix\rdix.vcxproj">
+      <Project>{8ec396c6-9853-45a0-94fe-bcfebfe647d4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\rdi_backend\rdi_backend.vcxproj">
+      <Project>{f442cd81-4b2a-4ac2-8592-609ce3965b5c}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\resource_manager\resource_manager.vcxproj">
+      <Project>{1faff81c-ccb1-45cd-8187-802646cff6e6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\rtti\rtti.vcxproj">
+      <Project>{f5dfb9db-ab8b-4ac3-9f7b-23a891df2f1a}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\util\util.vcxproj">
+      <Project>{dad0a7d3-3c93-4a28-abb9-cee0e38f18bf}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\window\window.vcxproj">
+      <Project>{95b68f9d-6106-44ac-a567-c84925abf249}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

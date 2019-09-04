@@ -97,7 +97,6 @@ struct Controller
     vec3_t _fw_dir = vec3_t::az();
     vec3_t _side_dir = vec3_t::ax();
 
-    f32 _leg_phase[2] = {};
     vec3_t _leg_pos[2] = {};
     vec3_t _leg_wheels[2] = {};
     vec3_t _hips_pos = vec3_t(0.f);
@@ -108,6 +107,8 @@ struct Controller
     f32 _speed = 2.f;
     f32 _leg_elevation = 0.2f;
     f32 _blend_rc = 0.1f;
+    f32 _phase_base = 0.f;
+    f32 _leg_phase = 0.f;
 
     u32 _flag_current_leg : 1;
     u32 _flag_leg_histeresis : 1;
@@ -116,9 +117,11 @@ struct Controller
     ANIMJointArray _curr_pose;
     ANIMJointArray _tmp_joints;
     ANIMJointArray _tmp_joints1;
+    ANIMJointArray _tmp_joints2;
 
     ANIMSimplePlayer _player;
     ANIMJointArray _joints_ms;
+    u32 _best_frame = UINT32_MAX;
     u32 _prev_best_frame = UINT32_MAX;
     f32 _prev_best_time = 0.f;
 
@@ -170,7 +173,6 @@ struct Controller
         vec3_t force_dir = (_fw_dir * fwd_force) + (_side_dir * side_force);
         f32 force_mag = min_of_2( 1.f, normalized( &force_dir ) );
 
-        _leg_phase[_flag_current_leg] += dt;
         active_leg += force_dir * force_mag * speed * dt;
 
         { // try to keep legs close in YZ plane when moving
@@ -204,6 +206,11 @@ struct Controller
             {
                 _flag_current_leg = !_flag_current_leg;
                 _flag_leg_histeresis = 1;
+
+                if( _phase_base > 0.f )
+                    _phase_base = 0.5f;
+                else
+                    _phase_base = 0.f;
             }
             
             if( _flag_leg_histeresis )
@@ -245,7 +252,7 @@ struct Controller
             _leg_wheels[_flag_current_leg] = _leg_pos[_flag_current_leg];
             _leg_wheels[_flag_current_leg].y += y * force_mag * _leg_elevation;
 
-
+            _leg_phase = phase01 * 0.5f + ( _flag_current_leg * 0.5f );
         }
 
         if( g_anim._clip_file.data )
@@ -265,6 +272,8 @@ struct Controller
 
             _tmp_joints.resize( n_joints );
             _tmp_joints1.resize( n_joints );
+            _tmp_joints2.resize( n_joints );
+            _curr_pose.resize( n_joints );
 
             u32 best_frame = UINT32_MAX;
             f32 best_score = FLT_MAX;
@@ -294,8 +303,9 @@ struct Controller
                 const f32 hips_diff  = length( in_hips_local - hips_pos );
                 const f32 lfoot_diff = length( in_lfoot_local - lfoot_pos );
                 const f32 rfoot_diff = length( in_rfoot_local - rfoot_pos );
+                const f32 phase_diff = ::fabsf( sample_phase - _leg_phase );
 
-                const f32 score = lfoot_diff + rfoot_diff; // +hips_diff;
+                const f32 score = lfoot_diff + rfoot_diff + hips_diff + phase_diff;
                 
                 if( score < best_score )
                 {
@@ -305,52 +315,70 @@ struct Controller
                 }
             }
 
-            if( best_frame != UINT32_MAX )
-            {
-                const u32 prev_frame = (_prev_best_frame < best_frame) ? _prev_best_frame : best_frame;//(best_frame > 0) ? best_frame - 1 : best_frame;
-                const u32 next_frame = (_prev_best_frame > best_frame) ? _prev_best_frame : best_frame; //(best_frame < n_frames) ? best_frame + 1 : best_frame;
+            //if( best_frame != UINT32_MAX )
+            //{
+            //    const u32 prev_frame = (_prev_best_frame < best_frame) ? _prev_best_frame : best_frame;//(best_frame > 0) ? best_frame - 1 : best_frame;
+            //    const u32 next_frame = (_prev_best_frame > best_frame) ? _prev_best_frame : best_frame; //(best_frame < n_frames) ? best_frame + 1 : best_frame;
 
-                //if( prev_frame != next_frame )
-                {
-                    modulo!!!
-                    const f32 begin_time = (_prev_best_time < best_time ) ? _prev_best_time : best_time; // prev_frame * sample_dt;
-                    const f32 end_time = (_prev_best_time > best_time ) ? _prev_best_time : best_time; // next_frame * sample_dt;
-                    const f32 range = end_time - begin_time;
-                    const f32 step = range * 0.05f;
+            //    //if( prev_frame != next_frame )
+            //    {
+            //        f32 begin_time = best_time - sample_dt; //(_prev_best_time < best_time ) ? _prev_best_time : best_time; // prev_frame * sample_dt;
+            //        f32 end_time   = fmodf( best_time + sample_dt, clip->duration ); ////(_prev_best_time > best_time ) ? _prev_best_time : best_time; // next_frame * sample_dt;
+            //        
+            //        if( begin_time < 0.f )
+            //            begin_time += clip->duration;
+            //        
+            //        const bool wrap = begin_time > end_time;
 
-                    if( step >= 2 * FLT_EPSILON )
-                    {
+            //        f32 range = 0.f;
+            //        if( wrap )
+            //        {
+            //            range = (begin_time - clip->duration) - end_time;
+            //        }
+            //        else
+            //        {
+            //            range = end_time - begin_time;
+            //        }
+            //        const f32 step = range * 0.05f;
 
-                        for( f32 t = begin_time; t <= end_time; t += step )
-                        {
-                            EvaluateClip( _tmp_joints.data(), clip, t );
-                            LocalJointsToWorldJoints( _tmp_joints1.data(), _tmp_joints.data(), parent_indices, n_joints, ANIMJoint::identity() );
+            //        if( step >= 2 * FLT_EPSILON )
+            //        {
+            //            f32 it = 0.f;
+            //            while( it <= range )
+            //            {
+            //                const f32 t = ::fmodf( begin_time + it, clip->duration );
+            //                EvaluateClip( _tmp_joints.data(), clip, t );
+            //                LocalJointsToWorldJoints( _tmp_joints1.data(), _tmp_joints.data(), parent_indices, n_joints, ANIMJoint::identity() );
 
-                            const u32 hips_index = Anim::setup::joint_indices[Anim::setup::IDX_HIPS];
-                            const u32 lfoot_index = Anim::setup::joint_indices[Anim::setup::IDX_LFOOT];
-                            const u32 rfoot_index = Anim::setup::joint_indices[Anim::setup::IDX_RFOOT];
+            //                anim_debug::DrawPose( g_anim._skel_file.data, array_span_t<const ANIMJoint>( _tmp_joints1.data(), n_joints ), 0x00FFFFFF, 0.05f );
 
-                            const vec3_t hips_pos = _tmp_joints1[hips_index].position.xyz();
-                            const vec3_t lfoot_pos = _tmp_joints1[lfoot_index].position.xyz();
-                            const vec3_t rfoot_pos = _tmp_joints1[rfoot_index].position.xyz();
+            //                const u32 hips_index = Anim::setup::joint_indices[Anim::setup::IDX_HIPS];
+            //                const u32 lfoot_index = Anim::setup::joint_indices[Anim::setup::IDX_LFOOT];
+            //                const u32 rfoot_index = Anim::setup::joint_indices[Anim::setup::IDX_RFOOT];
 
-                            const f32 hips_diff = length( in_hips_local - hips_pos );
-                            const f32 lfoot_diff = length( in_lfoot_local - lfoot_pos );
-                            const f32 rfoot_diff = length( in_rfoot_local - rfoot_pos );
+            //                const vec3_t hips_pos = _tmp_joints1[hips_index].position.xyz();
+            //                const vec3_t lfoot_pos = _tmp_joints1[lfoot_index].position.xyz();
+            //                const vec3_t rfoot_pos = _tmp_joints1[rfoot_index].position.xyz();
 
-                            const f32 score = lfoot_diff + rfoot_diff; // +hips_diff;
+            //                const f32 hips_diff = length( in_hips_local - hips_pos );
+            //                const f32 lfoot_diff = length( in_lfoot_local - lfoot_pos );
+            //                const f32 rfoot_diff = length( in_rfoot_local - rfoot_pos );
 
-                            if( score < best_score )
-                            {
-                                best_score = score;
-                                best_time = t;
-                            }
-                        }
-                    }
-                }
+            //                const f32 score = lfoot_diff + rfoot_diff; // +hips_diff;
+
+            //                if( score < best_score )
+            //                {
+            //                    best_score = score;
+            //                    best_time = t;
+            //                }
+
+            //                it += step;
+            //            }
+            //        }
+            //    }
 
                 
-            }
+            //}
 
             //if( _prev_best_frame != best_frame )
             //{
@@ -361,45 +389,47 @@ struct Controller
             //        _player.Play( clip, frame_time, clip_dt, 0 );
             //    }
             //}
-            if( best_frame != UINT32_MAX )
-            {
-                EvaluateClip( _tmp_joints.data(), clip, best_time );
-                LocalJointsToWorldJoints( _tmp_joints1.data(), _tmp_joints.data(), parent_indices, n_joints, toAnimJoint_noScale( basis ) );
-            
-                const u32 n_setup_joints = sizeof_array( Anim::setup::joint_indices );
+            //if( best_frame != UINT32_MAX )
+            //{
+            //    EvaluateClip( _tmp_joints.data(), clip, best_time );
+            //    LocalJointsToWorldJoints( _tmp_joints1.data(), _tmp_joints.data(), parent_indices, n_joints, toAnimJoint_noScale( basis ) );
+            //
+            //    const u32 n_setup_joints = sizeof_array( Anim::setup::joint_indices );
 
-                if( _curr_pose.empty() )
-                {
-                    _curr_pose = _tmp_joints1;
-                }
-                else
-                {
-                    const f32 rc = _blend_rc;
-                    for( u32 ijoint = 0; ijoint < n_joints; ++ijoint )
-                    {
-                        ANIMJoint& curr_joint = _curr_pose[ijoint];
-                        const ANIMJoint& next_joint = _tmp_joints1[ijoint];
-            
-                        bool found = false;
-                        for( u32 i = 0; i < n_setup_joints && !found; ++i )
-                        {
-                            found = ijoint == Anim::setup::joint_indices[i];
-                        }
+            //    if( _curr_pose.empty() )
+            //    {
+            //        _curr_pose = _tmp_joints1;
+            //    }
+            //    else
+            //    {
+            //        const f32 rc = _blend_rc;
+            //        for( u32 ijoint = 0; ijoint < n_joints; ++ijoint )
+            //        {
+            //            ANIMJoint& curr_joint = _curr_pose[ijoint];
+            //            const ANIMJoint& next_joint = _tmp_joints1[ijoint];
+            //
+            //            bool found = false;
+            //            for( u32 i = 0; i < n_setup_joints && !found; ++i )
+            //            {
+            //                found = ijoint == Anim::setup::joint_indices[i];
+            //            }
 
-                        curr_joint.position = LowPassFilter( next_joint.position, curr_joint.position, rc, dt );
-                        curr_joint.rotation = LowPassFilter( next_joint.rotation, curr_joint.rotation, rc, dt );
-                        curr_joint.scale = LowPassFilter( next_joint.scale, curr_joint.scale, rc, dt );
-            
-                        curr_joint.rotation = normalize( curr_joint.rotation );
-                    }
-                }
-            
-                auto joints_span = array_span_t<const ANIMJoint>( _curr_pose.data(), n_joints );
-                anim_debug::DrawPose( g_anim._skel_file.data, joints_span, 0xFF6666FF, 0.05f );
-            }
+            //            curr_joint.position = LowPassFilter( next_joint.position, curr_joint.position, rc, dt );
+            //            curr_joint.rotation = LowPassFilter( next_joint.rotation, curr_joint.rotation, rc, dt );
+            //            curr_joint.scale = LowPassFilter( next_joint.scale, curr_joint.scale, rc, dt );
+            //
+            //            curr_joint.rotation = normalize( curr_joint.rotation );
+            //        }
+            //    }
+            //
+            //    auto joints_span = array_span_t<const ANIMJoint>( _curr_pose.data(), n_joints );
+            //    anim_debug::DrawPose( g_anim._skel_file.data, joints_span, 0xFF6666FF, 0.05f );
+            //}
 
-            _prev_best_frame = best_frame;
+            _prev_best_frame = _best_frame;
             _prev_best_time = best_time;
+            
+            _best_frame = best_frame;
             //if( best_frame != _prev_best_frame )
             //    _player.Play( clip, frame_time, 0.1f, 0 );
             
@@ -413,6 +443,126 @@ struct Controller
 
             //auto joints_span = array_span_t<const ANIMJoint>( _joints_ms.data(), n_joints );
             //anim_debug::DrawPose( g_anim._skel_file.data, joints_span, 0xFF6666FF, 0.05f );
+
+            const u32 frame0 = wrap_dec_uint32_t( _prev_best_frame - 1, 0, n_frames - 1 );
+            const u32 frame1 = wrap_inc_uint32_t( _best_frame + 1, 0, n_frames - 1 );
+            {
+                const ANIMJoint root_joint = ANIMJoint::identity();
+
+                EvaluateClip( _tmp_joints2.data(), clip, frame0, 0.f );
+                LocalJointsToWorldJoints( _tmp_joints.data(), _tmp_joints2.data(), parent_indices, n_joints, root_joint );
+
+                EvaluateClip( _tmp_joints2.data(), clip, frame1, 0.f );
+                LocalJointsToWorldJoints( _tmp_joints1.data(), _tmp_joints2.data(), parent_indices, n_joints, root_joint );
+
+                const u32 n_steps = 20;
+
+                const u32 hips_index = Anim::setup::joint_indices[Anim::setup::IDX_HIPS];
+                const u32 lfoot_index = Anim::setup::joint_indices[Anim::setup::IDX_LFOOT];
+                const u32 rfoot_index = Anim::setup::joint_indices[Anim::setup::IDX_RFOOT];
+
+                const vec3_t hips_pos0 = _tmp_joints[hips_index].position.xyz();
+                const vec3_t lfoot_pos0 = _tmp_joints[lfoot_index].position.xyz();
+                const vec3_t rfoot_pos0 = _tmp_joints[rfoot_index].position.xyz();
+
+                const vec3_t hips_pos1 = _tmp_joints1[hips_index].position.xyz();
+                const vec3_t lfoot_pos1 = _tmp_joints1[lfoot_index].position.xyz();
+                const vec3_t rfoot_pos1 = _tmp_joints1[rfoot_index].position.xyz();
+
+                f32 best_t = FLT_MAX;
+                f32 best_score = FLT_MAX;
+
+                for( u32 istep = 0; istep < n_steps; ++istep )
+                {
+                    const f32 t = f32( istep ) / f32( n_steps - 1 );
+
+                    const vec3_t hips_pos = lerp( t, hips_pos0, hips_pos1 );
+                    const vec3_t lfoot_pos = lerp( t, lfoot_pos0, lfoot_pos1 );
+                    const vec3_t rfoot_pos = lerp( t, rfoot_pos0, rfoot_pos1 );
+
+                    const f32 hips_diff = length( in_hips_local - hips_pos );
+                    const f32 lfoot_diff = length( in_lfoot_local - lfoot_pos );
+                    const f32 rfoot_diff = length( in_rfoot_local - rfoot_pos );
+                    
+
+                    const f32 score = lfoot_diff + rfoot_diff + hips_diff;
+
+                    if( score < best_score )
+                    {
+                        best_score = score;
+                        best_t = t;
+                    }
+                }
+
+                BlendJointsLinear( _curr_pose.data(), _tmp_joints.data(), _tmp_joints1.data(), best_t, n_joints );
+
+                const ANIMJoint basis_joint = toAnimJoint_noScale( basis );
+                for( u32 ijoint = 0; ijoint < n_joints; ++ijoint )
+                {
+                    const ANIMJoint& local = _curr_pose[ijoint];
+
+                    ANIMJoint world;
+                    world.rotation = normalize( basis_joint.rotation * local.rotation );
+                    world.scale = mul_per_elem( local.scale, basis_joint.scale );
+
+                    const vec3_t ts = mul_per_elem( local.position, basis_joint.scale ).xyz();
+                    world.position = basis_joint.position + vec4_t( rotate( basis_joint.rotation, ts ), 0.f );
+
+                    _curr_pose[ijoint] = world;
+                }
+            }
+
+
+            //EvaluateClip( _tmp_joints2.data(), clip, _leg_phase * clip->duration );
+            //LocalJointsToWorldJoints( _curr_pose.data(), _tmp_joints2.data(), parent_indices, n_joints, toAnimJoint_noScale( basis ) );
+
+
+
+            auto joints_span = array_span_t<const ANIMJoint>( _curr_pose.data(), n_joints );
+            anim_debug::DrawPose( g_anim._skel_file.data, joints_span, 0xFF6666FF, 0.05f );
+
+
+            //if( _best_frame != UINT32_MAX && _prev_best_frame != UINT32_MAX )
+            //{
+            //    
+            //    if( _best_frame == _prev_best_frame )
+            //    {
+            //        f32 base_time = _best_frame * sample_dt;
+
+            //        f32 t = base_time - sample_dt;
+            //        if( t < 0.f )
+            //            t += clip->duration;
+
+
+
+
+            //        EvaluateClip( _tmp_joints2.data(), clip, t );
+            //        LocalJointsToWorldJoints( _tmp_joints.data(), _tmp_joints2.data(), parent_indices, n_joints, root_joint );
+
+            //        t = base_time + sample_dt;
+            //        if( t > clip->duration )
+            //            t -= clip->duration;
+
+            //        EvaluateClip( _tmp_joints2.data(), clip, t );
+            //        LocalJointsToWorldJoints( _tmp_joints1.data(), _tmp_joints2.data(), parent_indices, n_joints, root_joint );
+            //    }
+            //    else
+            //    {
+            //        EvaluateClip( _tmp_joints2.data(), clip, _prev_best_frame, 0.f );
+            //        LocalJointsToWorldJoints( _tmp_joints.data(), _tmp_joints2.data(), parent_indices, n_joints, root_joint );
+
+            //        EvaluateClip( _tmp_joints2.data(), clip, _best_frame, 0.f );
+            //        LocalJointsToWorldJoints( _tmp_joints1.data(), _tmp_joints2.data(), parent_indices, n_joints, root_joint );
+            //    }
+
+            //    {
+            //        
+
+            //    }
+
+            //    
+            //}
+
         }
 
     }
@@ -449,6 +599,9 @@ struct Controller
             ImGui::SliderFloat( "leg_elev", &_leg_elevation, 0.f, 1.f );
             ImGui::SliderFloat( "leg_dist", &_max_length_between_legs, 0.f, 2.f );
             ImGui::SliderFloat( "rc", &_blend_rc, 0.001f, 1.f );
+            
+            ImGui::Text( "%3.5f [%u]", _prev_best_time, _prev_best_frame );
+            ImGui::Text( "%3.5f", _leg_phase );
         }
         ImGui::End();
 

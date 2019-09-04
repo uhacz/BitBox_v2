@@ -87,6 +87,25 @@ void ComputeMatrices( GFXCameraMatrices* out, const GFXCameraParams& params, con
     //out->view_proj = out->proj * out->view;
 }
 
+void GFXCameraInputContext::ReadInput( int mouseL, int mouseM, int mouseR, int mouseDx, int mouseDy, float mouseSensitivityInPix )
+{
+    const float mouse_dx_float = (float)mouseDx;
+    const float mouse_dy_float = (float)mouseDy;
+
+    const float new_left_y = (mouse_dy_float + mouse_dx_float) * mouseR;
+    const float new_left_x = mouse_dx_float * mouseM;
+    const float new_up_down = mouse_dy_float * mouseM;
+
+    const float new_righ_x = mouse_dx_float * mouseL * mouseSensitivityInPix;
+    const float new_righ_y = mouse_dy_float * mouseL * mouseSensitivityInPix;
+
+    _left_x = new_left_x;
+    _left_y = new_left_y;
+    _right_x = new_righ_x;
+    _right_y = new_righ_y;
+    _up_down = new_up_down;
+}
+
 void GFXCameraInputContext::UpdateInput( int mouseL, int mouseM, int mouseR, int mouseDx, int mouseDy, float mouseSensitivityInPix, float dt )
 {
 	const float mouse_dx_float = (float)mouseDx;
@@ -141,7 +160,7 @@ mat44_t CameraMovementFPP( const GFXCameraInputContext & input, const mat44_t & 
 	vec3_t dpos_ls( 0.f );
 	dpos_ls += vec3_t::az() * input._left_y * sensitivity;
 	dpos_ls += vec3_t::ax() * input._left_x * sensitivity;
-	dpos_ls -= vec3_t::ay() * input._up_down     * sensitivity;
+	dpos_ls -= vec3_t::ay() * input._up_down * sensitivity;
 	//bxLogInfo( "%f; %f", rightInputX, rightInputY );
 
 	const float rot_dx( input._right_x );
@@ -160,4 +179,22 @@ mat44_t CameraMovementFPP( const GFXCameraInputContext & input, const mat44_t & 
 
 	return mat44_t( rot_ws, pos_ws );
 
+}
+
+void CameraInputFilter( GFXCameraInputContext* output, const GFXCameraInputContext& raw, const GFXCameraInputContext& prev, f32 rc, f32 dt )
+{
+    output->_left_x  = LowPassFilter( raw._left_x , prev._left_x , rc, dt );
+    output->_left_y  = LowPassFilter( raw._left_y , prev._left_y , rc, dt );
+    output->_right_x = LowPassFilter( raw._right_x, prev._right_x, rc, dt );
+    output->_right_y = LowPassFilter( raw._right_y, prev._right_y, rc, dt );
+    output->_up_down = LowPassFilter( raw._up_down, prev._up_down, rc, dt );
+}
+
+void CameraInputLerp( GFXCameraInputContext* output, f32 t, const GFXCameraInputContext& a, const GFXCameraInputContext& b )
+{
+    output->_left_x  = lerp( t, a._left_x, a._left_x );
+    output->_left_y  = lerp( t, a._left_y, a._left_y );
+    output->_right_x = lerp( t, a._right_x, a._right_x );
+    output->_right_y = lerp( t, a._right_y, a._right_y );
+    output->_up_down = lerp( t, a._up_down, a._up_down );
 }

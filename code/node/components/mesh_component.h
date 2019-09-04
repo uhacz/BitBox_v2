@@ -16,5 +16,7 @@ struct NODECompMesh : NODEComp
     
     GFXMeshInstanceID _mesh_id;
     RSMResourceID _mesh_resource_id;
+    
     string_t _mesh_resource_path;
+    string_t _material_name;
 };

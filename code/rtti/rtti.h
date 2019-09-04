@@ -99,14 +99,14 @@ union RTTITypeFlags
     static RTTITypeFlags ReadType()
     {
         RTTITypeFlags flags;
-        flags._all = 0;
-        flags._is_pointer = std::is_pointer<T>::value;
-        flags._is_pod = std::is_pod<T>::value;
-        flags._is_float = std::is_floating_point<T>::value;
+        flags._all         = 0;
+        flags._is_pointer  = std::is_pointer<T>::value;
+        flags._is_pod      = std::is_pod<T>::value;
+        flags._is_float    = std::is_floating_point<T>::value;
         flags._is_integral = std::is_integral<T>::value;
-        flags._is_enum = std::is_enum<T>::value;
-        flags._is_signed = std::is_signed<T>::value;
-        flags._is_class = std::is_class<T>::value;
+        flags._is_enum     = std::is_enum<T>::value;
+        flags._is_signed   = std::is_signed<T>::value;
+        flags._is_class    = std::is_class<T>::value;
 
         return flags;
     };
