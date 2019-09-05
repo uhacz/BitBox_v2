@@ -15,16 +15,6 @@ struct NODEInitContext;
 struct NODEAttachContext;
 struct NODETickContext;
 
-NODEComp* NODECompAlloc( const char* type_name );
-NODEComp* NODECompAlloc( u64 type_hash_code );
-void NODECompFree( NODEComp* comp );
-
-template< typename T >
-inline T* NODECompAllc()
-{
-    return (T*)NODECompAlloc( typeid(T).hash_code() );
-}
-
 struct NODESerializeToken
 {
     FSName filename = {};
@@ -41,49 +31,65 @@ struct NODEContainerImpl
 
     NODE* _root = nullptr;
 
-    hash_t<NODE*>          _comp_lookup; // component -> node
-    hash_t<NODE*, guid_t>  _guid_lookup; // guid -> node
-    array_t<NODE*>         _node_lookup;
-    array_t<NODE*>         _node_to_destroy;
+    hash_t<NODE*>           _comp_lookup; // component -> node
+    hash_t<NODE*, guid_t>   _guid_lookup; // guid -> node
+    array_t<NODE*>          _node_lookup;
+    array_t<NODE*>          _node_to_destroy;
 
     using CompBitmask = bitset_t < MAX_ATTACHED_COMPONENTS >;
     using CompStorage = static_array_t<NODEComp*, MAX_ATTACHED_COMPONENTS>;
     CompStorage _comp_storage;
     CompBitmask _comp_attached_bitmask;
+    CompBitmask _comp_initialized_bitmask;
+    CompBitmask _comp_to_initialize_bitmask;
+    CompBitmask _comp_to_uninitialize_bitmask;
     CompBitmask _comp_to_attach_bitmask;
     CompBitmask _comp_to_detach_bitmask;
+    CompBitmask _comp_to_destroy_bitmask;
 
     NODESerializeToken* _serialization_token = nullptr;
 
     u32 _node_free_list = UINT32_MAX;
 
     rw_spin_lock_t _node_lock;
-    rw_spin_lock_t _comp_lock;
-    rw_spin_lock_t _comp_scene_lock;
     rw_spin_lock_t _node_to_destroy_lock;
+
+    rw_spin_lock_t _comp_lock;
+    
     rw_spin_lock_t _serialization_lock;
 
     void StartUp( BXIAllocator* alloc );
     void ShutDown();
 
-    NODE* AllocateNode();
-    void FreeNode( NODE* node );
-
-    NODE* FindParent( const NODEComp* comp );
-    NODE* FindNode( const guid_t& guid );
-    NODE* GetNode( u32 runtime_index );
-    void SetName( NODE* node, const char* name );
-
-    void DestroyPendingNodes( NODESystemContext* ctx );
-    void DestroyNode( NODESystemContext* ctx, NODE* node );
-
     NODE* CreateNode( const guid_t& guid, const char* node_name );
-    void ScheduleDestroyNode( NODE* node );
-    void AddToLookup( NODE* node );
-    void RemoveFromLookup( NODE* node );
+    void  ScheduleDestroyNode( NODE* node );
 
     bool LinkNode( NODE* parent, NODE* node );
     void UnlinkNode( NODE* child );
+
+    NODE* FindParent( NODEComp* comp );
+    NODE* FindNode( const guid_t& guid );
+    NODE* GetNode( u32 runtime_index );
+    void  SetName( NODE* node, const char* name );
+
+    void DestroyPendingNodes( NODESystemContext* ctx );
+
+    NODE* _AllocateNode();
+    void  _FreeNode( NODE* node );
+    void  _DestroyNode( NODESystemContext* ctx, NODE* node );
+
+    void _AddToLookup( NODE* node );
+    void _RemoveFromLookup( NODE* node );
+
+    NODEComp* CreateComponent( NODE* parent, const char* type_name );
+    void ScheduleDestroyComponent( NODEComp* comp );
+    
+    void InitializePendingComponents( NODEInitContext* ctx );
+    void UninitializePendingComponents( NODEInitContext* ctx );
+
+    void AttachPendingComponents( NODEAttachContext* ctx );
+    void DetachPendingComponents( NODEAttachContext* ctx );
+
 
     void ScheduleSerialize( const char* filename, bool read );
     void ProcessSerialization( NODESystemContext* ctx );

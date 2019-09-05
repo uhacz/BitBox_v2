@@ -17,15 +17,11 @@ struct NODEContainer
     void LinkNode( NODE* parent, NODE* node );
     void UnlinkNode( NODE* child );
 
-    NODEComp* CreateComponent( const char* type_name );
-    NODEComp* CreateComponent( u64 type_hash_code );
+    NODEComp* CreateComponent( NODE* parent, const char* type_name );
     template< typename T >
-    T* CreateComponent() {  return CreateComponent( typeid(T).hash_code() ); }
+    T* CreateComponent( NODE* parent ) {  return CreateComponent( parent, T::TypeNameStatic() ); }
     
     void DestroyComponent( NODEComp** comp );
-
-    void LinkComponent( NODE* parent, NODEComp* comp );
-    void UnlinkComponent( NODE* parent, NODEComp* comp );
 
     NODE* FindParent( NODEComp* comp );
     NODE* FindNode( const NODEGuid& guid );
@@ -69,7 +65,7 @@ private:
     NODE*      _parent;
     NODEArray* _children;
     COMPArray* _components;
-
+    
     friend struct NODEContainer;
     friend struct NODEContainerImpl;
 };
@@ -86,4 +82,7 @@ struct NODEComp
 
     virtual u64 TypeHashCode() const = 0;
     virtual const char* TypeName() const = 0;
+
+    static constexpr u32 INVALID_SCENE_INDEX = UINT32_MAX;
+    u32 _scene_index = INVALID_SCENE_INDEX;
 };

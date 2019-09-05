@@ -1,10 +1,12 @@
 #include "node_system_impl.h"
 #include "node.h"
 #include "../foundation/array.h"
+#include "../foundation/static_array.h"
 #include "../foundation/string_util.h"
 #include "../foundation/c_array.h"
 #include "../foundation/hashmap.h"
 #include "../foundation/hash.h"
+#include "../foundation/bitset.h"
 #include "node_serialize.h"
 #include "node_comp.h"
 
@@ -24,7 +26,7 @@ void NODEContainerImpl::ShutDown()
 {
 }
 
-NODE* NODEContainerImpl::AllocateNode()
+NODE* NODEContainerImpl::_AllocateNode()
 {
     void* memory = BX_MALLOC( _node_allocator, sizeof( NODE ), sizeof( void* ) );
     memset( memory, 0x00, sizeof( NODE ) );
@@ -35,7 +37,7 @@ NODE* NODEContainerImpl::AllocateNode()
     return node;
 }
 
-void NODEContainerImpl::FreeNode( NODE* node )
+void NODEContainerImpl::_FreeNode( NODE* node )
 {
     if( node )
     {
@@ -46,8 +48,9 @@ void NODEContainerImpl::FreeNode( NODE* node )
     BX_FREE( _node_allocator, node );
 }
 
-NODE* NODEContainerImpl::FindParent( const NODEComp* comp )
+NODE* NODEContainerImpl::FindParent( NODEComp* comp )
 {
+    SYS_ASSERT( false );
     return nullptr;
 }
 
@@ -90,11 +93,11 @@ void NODEContainerImpl::DestroyPendingNodes( NODESystemContext* ctx )
     scoped_write_spin_lock_t lck( _node_lock );
     for( NODE* node : pending_nodes )
     {
-        DestroyNode( ctx, node );
+        _DestroyNode( ctx, node );
     }
 }
 
-void NODEContainerImpl::DestroyNode( NODESystemContext* ctx, NODE* node )
+void NODEContainerImpl::_DestroyNode( NODESystemContext* ctx, NODE* node )
 {
     u32 num_nodes_in_branch = 0;
     u32 num_comps_in_branch = 0;
@@ -160,7 +163,7 @@ void NODEContainerImpl::DestroyNode( NODESystemContext* ctx, NODE* node )
 
         SYS_ASSERT( hash::has( _guid_lookup, nod->Guid() ) == false );
 
-        FreeNode( nod );
+        _FreeNode( nod );
     }
 }
 
@@ -170,13 +173,13 @@ NODE* NODEContainerImpl::CreateNode( const guid_t& guid, const char* node_name )
     {
         scoped_write_spin_lock_t lck( _node_lock );
 
-        node = AllocateNode();
+        node = _AllocateNode();
 
         if( node )
         {
             node->_guid = guid;
             SetName( node, node_name );
-            AddToLookup( node );
+            _AddToLookup( node );
         }
     }
     return node;
@@ -186,7 +189,7 @@ void NODEContainerImpl::ScheduleDestroyNode( NODE* node )
 {
     {
         scoped_write_spin_lock_t lck( _node_lock );
-        RemoveFromLookup( node );
+        _RemoveFromLookup( node );
     }
     {
         scoped_write_spin_lock_t lck( _node_to_destroy_lock );
@@ -194,7 +197,7 @@ void NODEContainerImpl::ScheduleDestroyNode( NODE* node )
     }
 }
 
-void NODEContainerImpl::AddToLookup( NODE* node )
+void NODEContainerImpl::_AddToLookup( NODE* node )
 {
     const guid_t& guid = node->Guid();
 
@@ -217,7 +220,7 @@ void NODEContainerImpl::AddToLookup( NODE* node )
     hash::set( _guid_lookup, guid, node );
 }
 
-void NODEContainerImpl::RemoveFromLookup( NODE* node )
+void NODEContainerImpl::_RemoveFromLookup( NODE* node )
 {
     helper::TraverseTree( node, [this]( NODE* node )
     {
@@ -230,44 +233,125 @@ void NODEContainerImpl::RemoveFromLookup( NODE* node )
     } );
 }
 
+NODEComp* NODEContainerImpl::CreateComponent( NODE* parent, const char* type_name )
+{
+    NODEComp* comp = NODECompAlloc( type_name );
+
+    {
+        scoped_write_spin_lock_t guard( _comp_lock );
+        comp->_scene_index = array::push_back( _comp_storage, comp );
+
+        SYS_ASSERT( bitset::get( _comp_initialized_bitmask, comp->_scene_index ) == false );
+        bitset::set( _comp_to_initialize_bitmask, comp->_scene_index );
+
+        SYS_ASSERT( bitset::get( _comp_attached_bitmask, comp->_scene_index ) == false );
+        bitset::set( _comp_to_attach_bitmask, comp->_scene_index );
+    }
+
+    {
+        scoped_write_spin_lock_t guard( _node_lock );
+        SYS_ASSERT( std::find( parent->Components().begin(), parent->Components().end(), comp ) == parent->Components().end() );
+        c_array::push_back( parent->_components, comp );
+    }
+
+    return comp;
+}
+
+void NODEContainerImpl::ScheduleDestroyComponent( NODEComp* comp )
+{
+    if( !comp )
+        return;
+
+    SYS_ASSERT( comp->_scene_index != NODEComp::INVALID_SCENE_INDEX );
+    
+    {
+        scoped_write_spin_lock_t guard( _comp_lock );
+        const u32 scene_index = comp->_scene_index;
+
+        if( !bitset::get( _comp_to_destroy_bitmask, scene_index ) )
+        {
+            bitset::set( _comp_to_destroy_bitmask, scene_index );
+        }
+
+        if( bitset::get( _comp_attached_bitmask, scene_index ) )
+        {
+            bitset::set( _comp_to_detach_bitmask, scene_index );
+        }
+
+        if( bitset::get( _comp_initialized_bitmask, scene_index ) )
+        {
+            bitset::set( _comp_to_uninitialize_bitmask, scene_index );
+        }
+    }
+
+    //{
+    //    scoped_write_spin_lock_t guard( _node_lock );
+    //    
+    //    NODE* parent = FindParent( comp );
+
+    //    NODECompSpan components = parent->Components();
+    //    auto it = std::find( components.begin(), components.end(), comp );
+    //    SYS_ASSERT( it != components.end() );
+    //    const u32 comp_index = (u32)((uintptr_t)(it - components.begin()));
+    //    c_array::erase_swap( parent->_components, comp_index );
+    //}
+}
+
 bool NODEContainerImpl::LinkNode( NODE* parent, NODE* node )
 {
-    if( !parent )
     {
-        parent = _root;
+        scoped_read_spin_lock_t guard( _node_lock );
+        if( !parent )
+        {
+            parent = _root;
+        }
+               
+        if( node->_parent == parent )
+        {
+            return true;
+        }
+
+        const NODESpan children = parent->Children();
+        auto it = std::find( children.begin(), children.end(), node );
+        if( it != children.end() )
+        {
+            return false;
+        }
     }
 
-    if( node->_parent == parent )
-    {
-        return true;
-    }
 
-    const NODESpan children = parent->Children();
-    auto it = std::find( children.begin(), children.end(), node );
-    if( it != children.end() )
     {
-        return false;
+        scoped_write_spin_lock_t guard( _node_lock );
+        node->_parent = parent;
+        c_array::push_back( parent->_children, node );
     }
-
-    node->_parent = parent;
-    c_array::push_back( parent->_children, node );
 
     return true;
 }
 
 void NODEContainerImpl::UnlinkNode( NODE* child )
 {
-    if( !child->_parent )
-        return;
+    u32 index = UINT32_MAX;
 
-    const NODESpan children = child->_parent->Children();
-    auto it = std::find( children.begin(), children.end(), child );
-    SYS_ASSERT( it != children.end() );
- 
-    const u32 index = (u32)((uintptr_t)(it - children.begin()));
-    c_array::erase( child->_parent->_children, index );
-    
-    child->_parent = nullptr;
+    {
+        scoped_read_spin_lock_t guard( _node_lock );
+
+        if( !child->_parent )
+            return;
+
+        const NODESpan children = child->_parent->Children();
+        auto it = std::find( children.begin(), children.end(), child );
+        SYS_ASSERT( it != children.end() );
+
+        index = (u32)((uintptr_t)(it - children.begin()));
+    }
+
+    {
+        scoped_write_spin_lock_t guard( _node_lock );
+        
+        c_array::erase( child->_parent->_children, index );
+        child->_parent = nullptr;
+    }
 }
 
 void NODEContainerImpl::ScheduleSerialize( const char* filename, bool read )
@@ -299,8 +383,8 @@ void NODEContainerImpl::ProcessSerialization( NODESystemContext* ctx )
         {
             {
                 scoped_write_spin_lock_t nodes_guard( _node_lock );
-                RemoveFromLookup( _root );
-                DestroyNode( ctx, _root );
+                _RemoveFromLookup( _root );
+                _DestroyNode( ctx, _root );
             }
             _root = ReadNodeTree( this, serializer.xml_root );
         }

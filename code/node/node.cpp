@@ -84,20 +84,15 @@ void NODEContainer::UnlinkNode( NODE* child )
     }
 }
 
-NODEComp* NODEContainer::CreateComponent( const char* type_name )
+NODEComp* NODEContainer::CreateComponent( NODE* parent, const char* type_name )
 {
-    NODEComp* comp = NODECompAlloc( type_name );
-    return comp;
-}
-
-NODEComp* NODEContainer::CreateComponent( u64 type_hash_code )
-{
-    return NODECompAlloc( type_hash_code );
+    return impl->CreateComponent( parent, type_name );
 }
 
 void NODEContainer::DestroyComponent( NODEComp** comp )
 {
-    // schedule to destroy
+    impl->ScheduleDestroyComponent( comp[0] );
+    comp[0] = nullptr;
 }
 
 NODE* NODEContainer::FindNode( const NODEGuid& guid )
@@ -117,7 +112,19 @@ NODE* NODEContainer::GetRoot()
 
 void NODEContainer::Tick( NODESystemContext* ctx, f32 dt )
 {
+    NODEInitContext init_ctx;
+    InitContext( &init_ctx, ctx );
+
+    NODEAttachContext attach_ctx;
+    InitContext( &attach_ctx, ctx );
+
+    impl->UninitializePendingComponents( &init_ctx );
+    impl->DetachPendingComponents( &attach_ctx );
     impl->DestroyPendingNodes( ctx );
+
+    impl->InitializePendingComponents( &init_ctx );
+    impl->AttachPendingComponents( &attach_ctx );
+
     impl->ProcessSerialization( ctx );
 }
 

@@ -7,6 +7,16 @@ struct NODEComp;
 struct NODEComp__TypeInfo;
 void NODECompRegisterType( const NODEComp__TypeInfo* tinfo );
 
+NODEComp* NODECompAlloc( const char* type_name );
+NODEComp* NODECompAlloc( u64 type_hash_code );
+void NODECompFree( NODEComp* comp );
+
+template< typename T >
+inline T* NODECompAlloc()
+{
+    return (T*)NODECompAlloc( typeid(T).hash_code() );
+}
+
 struct NODEComp__TypeInfo
 {
     using Constructor = NODEComp * (void* address);
